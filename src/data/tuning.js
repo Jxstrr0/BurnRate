@@ -24,8 +24,8 @@ const TUNING={
   sfWarn:1.5,          // case safety factor under this: warning
   ptWarn:2.0,          // port-to-throat area ratio under this: erosive-spike warning
   gWarn:1500,          // peak mass flux over this, kg/(m²·s): warning
-  linerWarn:0.85,
-  spikeWarn:1.3,       // a start-up peak over this x the steady peak: the igniter is too big (warning)      // burn time over this x liner rating: warning
+  linerWarn:0.85,      // burn time over this x liner rating: warning
+  spikeWarn:1.3,       // a start-up peak over this x the steady peak: the igniter is too big (warning)
   // impulse classes: A tops out at 2.5 N·s and each letter doubles (the usual hobby scheme)
   classTop:2.5,classLetters:"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
   // mass estimates that aren't a part's own stat: the nozzle is a solid of revolution this full, this long x case bore

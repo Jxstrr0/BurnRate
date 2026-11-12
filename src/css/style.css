@@ -165,6 +165,75 @@ p{margin:0 0 .7em}
 .refs{display:grid;gap:6px}.refs .btn{justify-content:flex-start;text-align:left}
 @media (max-width:359px){.dz-nums{grid-template-columns:repeat(3,1fr)}}
 
+/* ---- the bench's bottom bar (app/game.js): spec against the prediction, predictor temperature, to the stand ---- */
+.dz-go{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;
+  padding:8px 12px calc(8px + var(--safeB));background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -8px 16px -14px rgba(35,38,42,.6)}
+.dz-go .go-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dz-go .btn{flex:none}
+.temp{align-self:flex-start;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font-size:.72rem;min-height:28px;padding:0 9px;cursor:pointer}
+.temp[disabled]{cursor:default;color:var(--stateD);border-color:var(--state);opacity:1}
+.cks{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:.8rem;line-height:1.25}
+.ck{white-space:nowrap;color:var(--muted)}.ck i{font-style:normal;font-weight:700;margin-right:3px}
+.ck.ok{color:var(--good)}.ck.no{color:var(--crit)}.ck b{font-weight:600;color:var(--ink)}
+.has-go #toast{bottom:calc(84px + var(--safeB))}
+.fixes{list-style:none;padding:0;margin:0;display:grid;gap:12px}.fixes p{margin:0 0 6px}
+.btn.wide{width:100%;margin-top:14px}
+.tag.crit{color:var(--crit)}
+
+/* ---- shared screen header, the work orders (app/game.js) ---- */
+#board,#fire,#report{max-width:720px;margin:0 auto;min-height:100vh;min-height:100dvh;padding:calc(10px + var(--safeT)) 12px calc(24px + var(--safeB))}
+.sc-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sc-top .back{width:44px;padding:0;font-size:1.4rem}
+.bd-note{margin:0 2px 12px}
+.bd-list{display:grid;gap:12px}
+.wo header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.wo .site{font:600 .66rem/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--stateD)}
+.wo h3{font-size:1.2rem;margin:4px 0 6px}
+.wo p{font-size:.95rem}
+.wo-spec{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:4px;font-size:.92rem}
+.wo-spec b{font-weight:600;color:var(--ink)}
+.stamp{display:inline-block;font:400 1rem/1 var(--sign);letter-spacing:.06em;text-transform:uppercase;padding:5px 9px 4px;border:2px solid currentColor;border-radius:4px;transform:rotate(-4deg);flex:none}
+.stamp.pass{color:var(--good)}.stamp.fail{color:var(--stencil)}
+.stamp.big{font-size:1.5rem;padding:7px 12px 5px;border-width:3px}
+
+/* ---- the stand (app/firing.js) ---- */
+.fr-speed{margin-left:auto;font-size:.7rem;color:var(--muted);white-space:nowrap}
+.fr-stand{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+.fr-stand canvas{display:block;width:100%}
+.fr-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--stencil);background:rgba(251,250,247,.45)}
+.fr-gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.fr-gauges div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;display:grid;grid-template-columns:1fr auto;align-items:baseline}
+.fr-gauges span{grid-column:1/-1;font-size:.7rem;color:var(--muted)}
+.fr-gauges b{font-size:1.15rem;font-weight:600}.fr-gauges small{font-size:.7rem;color:var(--muted)}
+.fr-strip{padding:8px}.fr-strip canvas,.rp-chart canvas{display:block;width:100%}
+.dz-key .k-pr{background:var(--pred)}.dz-key .k-me{background:var(--meas);height:4px}
+.fr-act{display:grid;margin-top:12px}
+.btn.abort{background:var(--critBg);border-color:var(--crit);color:var(--crit)}
+
+/* ---- the report (app/report.js): an old range form, new data ---- */
+.rp{display:grid;gap:12px}
+.rp-form{position:relative;overflow:hidden;padding:4px 2px 0}
+.rp-form .ghost{position:absolute;right:-4px;top:30px;font:400 2.2rem/1 var(--mono);color:rgba(94,127,110,.11);pointer-events:none;white-space:nowrap}
+.rp-form .site{font:600 .66rem/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--stateD)}
+.rp-form h2{font-weight:400;font-size:1.7rem;margin:4px 0 2px}.rp-form h2 .mono{font-size:.8rem;color:var(--muted)}
+.rp-meta{color:var(--muted);margin:0 0 10px}
+.rp-chart{padding:8px}
+.rp-cause h3{margin:4px 0 6px}.rp-cause h3+p{font-size:1rem}
+.factors{list-style:none;padding:0;margin:0 0 6px;display:grid;gap:8px;font-size:.9rem}
+.factors li{display:grid;gap:3px}
+.factors .bar{display:block;height:5px;border-radius:3px;min-width:4px}.factors .bar.up{background:var(--crit)}.factors .bar.dn{background:var(--good)}
+.rp-note{margin:0;padding:8px 12px;border-left:4px solid var(--warn);background:var(--card);border-radius:8px;font-size:.92rem}
+.rp-tab thead th{font-size:.75rem;text-align:right;color:var(--muted);font-family:var(--ui);padding-bottom:4px}
+.rp-tab th small{display:block;font-size:.75rem;color:var(--muted)}
+.rp-tab td:last-child{width:22px;text-align:center}
+.rp-tab b.good{color:var(--good)}.rp-tab b.crit{color:var(--crit)}
+.rp-tab tr.sep td{padding:2px 0;border-top:2px solid var(--line2)}
+.rp-bh summary{cursor:pointer;font-weight:600;min-height:32px}
+.rp-bh ul{margin:8px 0;padding-left:18px;display:grid;gap:3px}
+.rp-sign{padding:4px 4px 0;font-size:1rem}.rp-sign p{margin:0}
+.rp-sign .sig{font:400 1.3rem/1.4 var(--sign);color:var(--stateD);transform:rotate(-2deg);display:inline-block;margin-top:4px}
+.rp-act{display:grid;gap:8px}
+
 /* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
 #scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #scrim.on{opacity:1;pointer-events:auto}

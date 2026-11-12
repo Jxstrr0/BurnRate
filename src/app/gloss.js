@@ -35,6 +35,16 @@ const GLOSS={
   impulseClass:{t:"Impulse class",d:"A letter for the total impulse. A is up to 2.5 N·s and every letter after it doubles: G is 80 to 160, K is 1280 to 2560. The designation is the letter followed by the average thrust, like G55."},
   burnTime:{t:"Burn time",d:"From when thrust first reaches 5% of its peak to when it falls back under 5%."},
   thrust:{t:"Thrust",d:"Chamber pressure x throat area x the thrust coefficient (C_F), which says how well the nozzle turns pressure into push, usually 1.2 to 1.6."},
+  motorMass:{t:"Motor mass",d:"Everything on the scale: propellant, case, liner, closures and nozzle. A thinner wall or a lighter case material saves the most; check the safety factor when you do."},
+  massFrac:{t:"Mass fraction",d:"Propellant mass divided by the whole motor's mass. Flight motors want it high: every gram of case is a gram the rocket has to lift."},
+  grainTemp:{t:"Grain temperature",d:"Burn rate rises with the grain's temperature. A motor fired on a cold dawn burns slower, at lower pressure and for longer than the same motor at a hot noon. High-exponent grades feel it most. The predictor's reference is 20 °C; tap the temperature on the bench to predict at a firing slot."},
+  firingSlot:{t:"Firing slot",d:"Dawn, noon or dusk. The motors sit out on the range overnight, so the grain is at the air's temperature when it fires."},
+  variance:{t:"Prediction and reality",d:"Every real motor is a little different from its numbers: the propellant batch burns a touch fast or slow, the case tube is a little stronger or weaker, the igniter gives a little more or less. Margins are what keep a motor safe through all of it."},
+  castingVoid:{t:"Casting void",d:"A hidden bubble inside the grain. When the flame front reaches it, the cavity's surface burns too: a sudden jump in burning area and a pressure bump. Bigger grains and more segments make one more likely."},
+  grainCrack:{t:"Grain crack",d:"A crack in the propellant adds a lot of burning area at once and keeps it for the rest of the burn. A cold grain and a harsh, fast start make cracks more likely. A gentler igniter and a warmer slot help."},
+  burnThrough:{t:"Burn-through",d:"Hot gas reached the case wall after the liner's protection ran out, and cut a hole in it. A thicker liner, a better liner material or a shorter burn fixes it."},
+  nozzleEject:{t:"Nozzle ejection",d:"The force of the chamber pressure on the closures beat what holds them in. The nozzle leaves, the pressure drops at once and thrust is gone. More bolts or less pressure."},
+  gradeLetter:{t:"Contract grade",d:"A pass is graded A, B or C by how close the measured motor sat to the middle of each band in the spec. A: inside the middle half of every band. A case that stretched past its yield costs one letter."},
   cf:{t:"Thrust coefficient (C_F)",d:"Thrust divided by chamber pressure x throat area. It rises with a well matched expansion ratio and with chamber pressure."}
 };
 function glossSheet(key){const e=GLOSS[key];if(!e)return;openSheet(e.t,`<p>${esc(e.d)}</p>`);}

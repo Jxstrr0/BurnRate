@@ -7,11 +7,12 @@ function curves(cv,run,o){
   const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.5,260))),k=tokens();
   const L=36,R=42,T=12,B=22,w=W-L-R,h=H-T-B,n=run.t.length,tMax=run.t[n-1]*1.04;
   let pPk=0,fPk=0;for(let i=0;i<n;i++){if(run.p[i]>pPk)pPk=run.p[i];if(run.f[i]>fPk)fPk=run.f[i];}
-  const pMax=nice(pPk/1e6*1.12),fMax=nice(fPk*1.12),X=t=>L+w*t/tMax,Yp=p=>T+h-h*Math.min(1.04,p/1e6/pMax),Yf=f=>T+h-h*Math.min(1.04,f/fMax);
+  const pMax=nice(pPk/1e6*1.12),nd=divs(pMax),fMax=nice(fPk*1.12/nd)*nd,X=t=>L+w*t/tMax,Yp=p=>T+h-h*Math.min(1.04,p/1e6/pMax),Yf=f=>T+h-h*Math.min(1.04,f/fMax);
   c.font=`10px ${k.mono}`;c.lineWidth=1;c.textBaseline="middle";
-  for(let i=0;i<=4;i++){const y=T+h-h*i/4;c.strokeStyle=k.line;c.beginPath();c.moveTo(L,y+.5);c.lineTo(L+w,y+.5);c.stroke();
-    c.fillStyle=k.pred;c.textAlign="right";c.fillText(fmtAxis(pMax*i/4,pMax),L-5,y);
-    c.fillStyle=k.ink;c.textAlign="left";c.fillText(fmtAxis(fMax*i/4,fMax),L+w+5,y);}
+  /* the thrust scale shares the pressure scale's gridlines (nd of them), each a round step */
+  for(let i=0;i<=nd;i++){const y=T+h-h*i/nd;c.strokeStyle=k.line;c.beginPath();c.moveTo(L,y+.5);c.lineTo(L+w,y+.5);c.stroke();
+    c.fillStyle=k.pred;c.textAlign="right";c.fillText(fmtAxis(pMax*i/nd,pMax),L-5,y);
+    c.fillStyle=k.ink;c.textAlign="left";c.fillText(fmtAxis(fMax*i/nd,fMax),L+w+5,y);}
   /* units at the top of each scale stand in for a key: blue MPa on the left, graphite N on the right */
   c.font=`600 10px ${k.mono}`;c.textBaseline="alphabetic";c.fillStyle=k.pred;c.textAlign="left";c.fillText("MPa",L+4,T+9);
   c.fillStyle=k.ink;c.textAlign="right";c.fillText("thrust N",L+w-4,T+9);c.font=`10px ${k.mono}`;

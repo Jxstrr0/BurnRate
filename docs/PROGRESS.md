@@ -7,13 +7,36 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 0. Scaffold | 0.1.0.0 | Done |
 | 1. Ballistics core | 0.2.0.0 | Done |
 | 2. Designer | 0.3.0.0 | Done |
-| 3. Static fire and incident report (first playable) | 0.4.0.0 | Next |
-| 4. Career and saves | 0.5.0.0 | |
+| 3. Static fire and incident report (first playable) | 0.4.0.0 | Done |
+| 4. Career and saves | 0.5.0.0 | Next |
 | 5. Advanced grains and effects | 0.6.0.0 | |
 | 6. Flight tests | 0.7.0.0 | |
 | 7. The test stand in 3D | 0.8.0.0 | |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.4.0.0 — Stage 3: static fire and incident report (first playable)
+
+- **Work orders**: six fixed contracts (`data/contracts.js`), each with a client, a brief, a spec with tolerance bands
+  and a start design that needs work. Tier 1 parts only; everything has to fit Stand 3.
+- **The bench's bottom bar** checks the spec against the prediction as you drag, and lets you predict at a firing
+  slot's temperature (tap the temperature chip). "To the stand" checks the motor fits and its parts are allowed.
+- **Firing slots**: dawn (−6 °C), noon (31 °C), dusk (14 °C) set the grain temperature.
+- **The variance model** (`sim/fire.js`, `data/variance.js`): the real motor differs from the prediction by seeded,
+  nameable deviations, one random stream per source: propellant batch, case strength, closure retention, liner
+  protection, igniter gas, throat wear, casting voids (more likely in bigger grains), grain cracks (more likely cold
+  and with a harsh start). A void or crack's extra area burns propellant out of the web, so mass still balances.
+- **The failure model**: CATO (case burst), nozzle ejection, burn-through, hang fire, chuffing; a yielded case costs
+  a grade. After a burst the trace stops and the chamber vents.
+- **The stand**: countdown (Abort works until it's lit), a 2D stand with a plume that follows thrust and failure
+  effects, the live strip chart (measured red over predicted blue, pressure above thrust) and gauges. Short burns play
+  slowed, long ones sped up.
+- **The report**: grade A, B, C or fail; the spec line by line, predicted vs measured; on a failure, the incident
+  report's root cause with the number that crossed the line, the factors ranked, "where to fix it" buttons back to the
+  bench, and the blockhouse data (this motor's dice). Ruslan Abenov signs it.
+- Play is in memory only: the board keeps your design per job and your best grade until you close the page.
+- Tests: 11 new checks in `tools/sim-tests/fire.js` (determinism, independent streams, mass with a crack, each failure
+  mode, grading, and every contract's solution passing on the stand).
 
 ## 0.3.0.1 — fix: keep the hidden game out of search
 
@@ -61,6 +84,4 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 - `tools/sim-test.js` with the banned-call scan; CI on every PR; GitHub Release per version.
 - Kelbo's decisions recorded in the plan's section 0.
 
-**Kelbo to do:** in Cloudflare DNS for longlight.games, add `CNAME burnrate → jxstrr0.github.io` (DNS only, like the
-other games); in the repo's Settings → Pages, set Source to "Deploy from a branch", `main`, `/ (root)`, and tick
-Enforce HTTPS once the certificate is ready.
+**Kelbo to do:** tick **Enforce HTTPS** in the repo's Settings → Pages (the DNS record and the certificate are done).

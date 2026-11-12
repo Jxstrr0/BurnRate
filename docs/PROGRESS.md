@@ -15,6 +15,11 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
 
+## 0.3.0.1 — fix: keep the hidden game out of search
+
+- `<meta name="robots" content="noindex">` in the page head, as on the other hidden Longlight games. Stage 9 removes
+  it at release. (The burnrate DNS record is in Cloudflare now.)
+
 ## 0.3.0.0 — Stage 2: designer
 
 - The title's button opens the **design bench** (`app/designer.js`). Sticky top: the motor's designation, the live

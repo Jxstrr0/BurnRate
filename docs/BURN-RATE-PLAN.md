@@ -558,7 +558,7 @@ sheet, tier 4 lot testing, headless balance bot checking every contract is
 solvable with the parts unlocked by then.
 
 **Stage 9: Release and studio listing (1.0.0.0)**
-Final balance pass, `CREDITS.md`, store-card art, then **one separate PR in
+Final balance pass, `CREDITS.md`, store-card art, remove the `noindex` robots tag from `src/html/head.html`, then **one separate PR in
 `Jxstrr0/Kelbo.Website`** adding Burn Rate to the games list. Kelbo has asked
 for this listing. Copy exactly how the existing games are listed there; touch
 nothing else in that repo.

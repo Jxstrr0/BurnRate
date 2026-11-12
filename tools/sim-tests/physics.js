@@ -119,6 +119,16 @@ module.exports = ({ SIM, check, near, brief }) => {
     for (let i = 0; i < a.t.length; i++) if (a.p[i] !== b.p[i] || a.f[i] !== b.f[i]) throw new Error("differs at " + i);
   });
 
+  check("drag mode: the coarse steps the designer uses while dragging stay within 2% of the full run", () => {
+    let worst = 0;
+    for (const [k, d, r] of runs) {
+      const q = SIM.predict(d, {}, { steps: 110 }), m = q.run.mass, mp = q.motor.mass.prop;
+      if (Math.abs(m.out - (m.burned + m.ign + m.gas0 - m.gasEnd)) / mp > 0.005) throw new Error(k + ": mass balance");
+      for (const f of ["I", "Pmax", "tb"]) { const e = Math.abs(q.sum[f] / r.sum[f] - 1); worst = Math.max(worst, e); if (e > 0.02) throw new Error(`${k}: ${f} off by ${(e * 100).toFixed(2)}%`); }
+    }
+    return "worst " + (worst * 100).toFixed(2) + "%";
+  });
+
   check("impulse classes: each letter doubles from A = 2.5 N·s", () => {
     const L = I => SIM.impulseClass(I).letter;
     if (L(2.5) !== "A" || L(2.51) !== "B" || L(160) !== "G" || L(161) !== "H" || L(5120) !== "L") throw new Error([2.5, 2.51, 160, 161, 5120].map(L).join(""));

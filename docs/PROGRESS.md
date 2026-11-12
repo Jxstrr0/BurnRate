@@ -6,14 +6,30 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | --- | --- | --- |
 | 0. Scaffold | 0.1.0.0 | Done |
 | 1. Ballistics core | 0.2.0.0 | Done |
-| 2. Designer | 0.3.0.0 | Next |
-| 3. Static fire and incident report (first playable) | 0.4.0.0 | |
+| 2. Designer | 0.3.0.0 | Done |
+| 3. Static fire and incident report (first playable) | 0.4.0.0 | Next |
 | 4. Career and saves | 0.5.0.0 | |
 | 5. Advanced grains and effects | 0.6.0.0 | |
 | 6. Flight tests | 0.7.0.0 | |
 | 7. The test stand in 3D | 0.8.0.0 | |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.3.0.0 — Stage 2: designer
+
+- The title's button opens the **design bench** (`app/designer.js`). Sticky top: the motor's designation, the live
+  view, a burn scrubber, six key numbers and the warning flags. Below it are the tabs Grain · Nozzle · Case · Igniter,
+  with option cards, segmented buttons, steppers and sliders that have − / + nudge buttons.
+- The predictor redraws once a frame while a slider moves, using coarse steps (within 2% of the full run, checked in
+  `tools/sim-tests/physics.js`), then runs in full on release. Dependent sizes are kept legal (the core stays inside
+  the grain, the throat inside the core).
+- `BURN_VIS` block (`src/vis/`):
+  - the predicted curves, with case-yield and stable-minimum lines and a scrub cursor;
+  - the cross-section, drawn to scale with the grain burning back and an end-on view of the port.
+- Warning flags open an explanation with a "Go to ..." button that jumps to and rings the control to change.
+- Tap any underlined term or number for the glossary (`app/gloss.js`, 33 entries).
+- Data sheet: every derived number, plus "start again from a reference motor".
+- Designs live in memory for now. Saving arrives with careers in stage 4.
 
 ## 0.2.0.0 — Stage 1: ballistics core
 

@@ -1,7 +1,7 @@
 /* ===================== sim/derive.js: the data sheet, structure checks and warnings (plan sections 6.7 to 6.9) =====================
    summarize(motor, run) turns a run's traces into the numbers a data sheet shows, the structural margins, and the live
    warnings the designer flags (each with the design field to fix and a glossary key). Pure; nothing random.
-   predict(design, cond) = motorFromDesign + simulate + summarize, the designer's one call. */
+   predict(design, cond, opts) = motorFromDesign + simulate + summarize, the designer's one call. */
 function impulseClass(I){
   if(!(I>0))return{letter:"–",pct:0};
   const k=Math.max(0,Math.ceil(Math.log2(I/TUNING.classTop)-1e-12)),top=TUNING.classTop*Math.pow(2,k),bot=k?top/2:0;
@@ -53,5 +53,5 @@ function warnings(m,s){
   if(s.ign.strength<T.ignWeak)add("ign","warn",`The igniter is weak for this motor (strength ${s.ign.strength.toFixed(2)}). Slow start or a hang fire.`,"igniter","hangFire");
   return w;
 }
-function predict(design,cond){const m=motorFromDesign(design);if(!m.ok)return{ok:false,errors:m.errors};const r=simulate(m,cond);return{ok:true,motor:m,run:r,sum:summarize(m,r)};}
+function predict(design,cond,opts){const m=motorFromDesign(design);if(!m.ok)return{ok:false,errors:m.errors};const r=simulate(m,cond,opts);return{ok:true,motor:m,run:r,sum:summarize(m,r)};}
 Object.assign(SIM,{impulseClass,trapz,summarize,warnings,predict});

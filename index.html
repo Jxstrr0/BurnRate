@@ -58,7 +58,12 @@ setTimeout(function(){if(!fin&&!bad)m.textContent="Still loading… slow connect
   --accent:#2A55C9;        /* startup cobalt: the player's controls */
   --accentD:#1E3F99;
   --onAccent:#FFFFFF;
+  --accentBg:#EEF2FC;--critBg:#FBEDEB;   /* pale grounds behind a picked option and a failing flag */
   --good:#2F7A4B;--warn:#8A5A00;--crit:#B3261E;
+  --prop:#C79B6B;--propD:#8C5E36;  /* propellant in the cross-section (fills only) */
+  --linerC:#D8C9A3;                /* liner fill */
+  --metal:#4C535B;--metalL:#9198A0;/* case tube; closures and nozzle */
+  --burn:#E4572E;                  /* burning surface glow (lines only) */
   --shadow:0 1px 0 rgba(35,38,42,.06),0 6px 18px -10px rgba(35,38,42,.35);
   --r:10px;
   --ui:"Saira SC",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -127,12 +132,74 @@ p{margin:0 0 .7em}
 .dbg-l select{min-height:44px;font:inherit;font-weight:400;border:1px solid var(--line2);border-radius:8px;background:var(--card);color:var(--ink);padding:0 10px}
 .dbg-l input[type=range]{width:100%;min-height:32px;accent-color:var(--accent)}
 .dbg-chart canvas{display:block;width:100%}
-.dbg-key{font-size:.85rem;color:var(--muted);margin:8px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.dbg-key span{display:inline-block;width:18px;height:3px;border-radius:2px}.dbg-key .k-p{background:var(--pred)}.dbg-key .k-f{background:var(--ink);margin-left:10px}
-.dbg-t{width:100%;border-collapse:collapse}.dbg-t th{text-align:left;font-weight:400;color:var(--muted);padding:4px 8px 4px 0}.dbg-t td{text-align:right;padding:4px 0}
-.dbg-t tr+tr{border-top:1px solid var(--line)}
 .dbg-w{margin:0 0 6px;padding:8px 12px;border-radius:8px;border-left:4px solid var(--warn);background:var(--card)}.dbg-w b{color:var(--warn)}
 .dbg-w.crit{border-left-color:var(--crit)}.dbg-w.crit b{color:var(--crit)}
+
+/* ---- shared bits: glossary links, segmented buttons, the data table, the chart key ---- */
+.gl{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:help;text-decoration:underline dotted;text-decoration-color:var(--line2);text-underline-offset:3px}
+.segbar{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--card)}
+.segbar button{flex:1;min-height:44px;border:0;background:none;font:600 .95rem/1.1 var(--ui);color:var(--ink);padding:4px 8px;cursor:pointer}
+.segbar button+button{border-left:1px solid var(--line2)}
+.segbar button.on{background:var(--ink);color:var(--onAccent)}
+.segbar.mini button{min-height:32px;font-size:.85rem}
+.dtab{width:100%;border-collapse:collapse;font-size:.8rem}.dtab th{text-align:left;font-weight:400;color:var(--muted);padding:6px 8px 6px 0;font-family:var(--ui);font-size:.92rem}
+.dtab td{text-align:right;padding:6px 0}.dtab tr+tr{border-top:1px solid var(--line)}
+.dz-key{font-size:.82rem;color:var(--muted);margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dz-key span{display:inline-block;width:16px;height:3px;border-radius:2px}.dz-key span:not(:first-child){margin-left:8px}
+.dz-key .k-p{background:var(--pred)}.dz-key .k-f{background:var(--ink)}
+.dz-key .k-g{background:var(--prop);height:10px}.dz-key .k-b{background:var(--burn)}.dz-key .k-l{background:var(--linerC);height:10px}
+
+/* ---- the design bench (app/designer.js) ---- */
+#design{max-width:720px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--ground)}
+.dz-stick{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 8px 16px -14px rgba(35,38,42,.6);
+  padding:calc(8px + var(--safeT)) 12px 0}
+.dz-top{display:flex;align-items:center;gap:10px}
+.dz-top #dzBack{width:44px;padding:0;font-size:1.4rem}
+.dz-name{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.1}
+.dz-name .site{font:600 .66rem/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--stateD)}
+.dz-name b{font-size:1.5rem;font-weight:400;color:var(--ink)}
+.dz-view{margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px 4px}
+.dz-view canvas{display:block;width:100%;margin-top:4px;touch-action:pan-y}
+.dz-scrub{display:flex;align-items:center;gap:8px;margin-top:2px}
+.dz-scrub input{flex:1;min-height:32px;accent-color:var(--muted)}
+.dz-scrub output{font-size:.72rem;color:var(--muted);white-space:nowrap;text-align:right}
+.dz-nums{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px}
+.num{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font:inherit;color:var(--ink);text-align:left;cursor:help;min-height:44px;min-width:0}
+.num span{font-size:.68rem;color:var(--muted);white-space:nowrap}.num b{font-size:.8rem;font-weight:600;white-space:nowrap}
+.num b.good{color:var(--good)}.num b.warn{color:var(--warn)}.num b.crit{color:var(--crit)}
+.dz-flags{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px;scrollbar-width:none;min-height:38px}
+.flag{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 11px;border-radius:16px;border:1px solid currentColor;background:var(--card);
+  font:600 .84rem/1 var(--ui);cursor:pointer;white-space:nowrap}
+.flag::before{content:"";width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid currentColor}
+.flag.warn{color:var(--warn)}.flag.crit{color:var(--crit);background:var(--critBg)}
+.flag.ok{color:var(--good);cursor:default}.flag.ok::before{border:0;width:8px;height:8px;border-radius:50%;background:currentColor}
+.dz-tabs{display:flex;margin:4px -12px 0;border-top:1px solid var(--line)}
+.dz-tabs button{flex:1;min-height:44px;border:0;background:none;font:600 .95rem var(--ui);color:var(--muted);border-bottom:3px solid transparent;cursor:pointer}
+.dz-tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.dz-panel{padding:14px 14px calc(50vh + var(--safeB));display:grid;gap:18px}   /* room to scroll the last control up under the sticky top */
+.ctl{border:0;margin:0;padding:0;min-width:0;border-radius:10px;transition:box-shadow .3s}
+.ctl legend,.ctl-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-weight:600;margin-bottom:6px;padding:0;width:100%}
+.ctl .val{font-weight:600;color:var(--accentD);font-size:.85rem}
+.ctl .ex{display:block;font-size:.82rem;color:var(--muted);margin-top:2px}
+.ctl.bad{box-shadow:0 0 0 2px var(--crit);padding:6px}
+.ctl.ring{animation:ring 1.6s ease-out}
+@keyframes ring{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 3px transparent}}
+.slide{display:flex;align-items:center;gap:6px}
+.slide input{flex:1;min-width:0;min-height:44px;accent-color:var(--accent)}
+.nudge{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line2);background:var(--card);font:600 1.2rem/1 var(--ui);color:var(--ink);cursor:pointer}
+.stepper{display:flex;gap:10px}.stepper .btn{width:64px;font-size:1.3rem}
+.pick{display:grid;gap:6px}
+.opt{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;text-align:left;padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--card);
+  font:inherit;color:var(--ink);cursor:pointer;min-height:48px}
+.opt small{grid-column:1/-1;font-size:.8rem;color:var(--muted)}
+.opt .tag{color:var(--muted)}
+.opt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accentBg)}
+#sheetBody .sev{padding:10px 12px;border-left:4px solid var(--warn);background:var(--card);border-radius:8px}
+#sheetBody .sev.crit{border-left-color:var(--crit)}
+#sheetBody .sev b{color:var(--warn)}#sheetBody .sev.crit b{color:var(--crit)}
+#sheetBody h3{margin-top:14px}
+.refs{display:grid;gap:6px}.refs .btn{justify-content:flex-start;text-align:left}
+@media (max-width:359px){.dz-nums{grid-template-columns:repeat(3,1fr)}}
 
 /* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
 #scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
@@ -155,7 +222,7 @@ p{margin:0 0 .7em}
 </style>
 
 <div id="app">
-  <!-- TITLE: the studio credit, the version and the way in (stage 0: the way in is still being built) -->
+  <!-- TITLE: the studio credit, the version and the way in (stage 2: straight to the design bench) -->
   <main id="title" class="concrete" aria-labelledby="t-name">
     <div class="stripe hazard" aria-hidden="true"></div>
     <div class="ghost" aria-hidden="true">ПОЛИГОН 41</div>
@@ -165,13 +232,33 @@ p{margin:0 0 .7em}
       <p class="lede">Design a solid rocket motor. Predict its curve. Bolt it to the stand and find out why it didn't match.</p>
     </div>
     <div class="actions">
-      <button type="button" class="btn pri big" id="tStart" disabled>Open the range</button>
-      <p class="note" id="tNote">The range opens in a coming update. This build sets up the site.</p>
+      <button type="button" class="btn pri big" id="tStart">Open the design bench</button>
+      <p class="note" id="tNote">Contracts and the test stand open in coming updates. For now, design a motor and watch its predicted curve.</p>
     </div>
     <footer class="studio">
       <a href="https://longlight.games/" rel="noopener" aria-label="Longlight Interactive, the studio site"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="150" height="48"></a>
       <div class="credit">© 2026 Kelbo / Longlight Interactive<br><span class="ver" id="verLbl"></span></div>
     </footer>
+  </main>
+
+  <!-- DESIGN BENCH (app/designer.js): the sticky top shows the motor; the tab panel below edits it -->
+  <main id="design" hidden aria-label="Design bench">
+    <div class="dz-stick">
+      <header class="dz-top">
+        <button type="button" class="btn sm" id="dzBack" aria-label="Back to the title">‹</button>
+        <div class="dz-name"><span class="site">Stand 3 · Design bench</span><b id="dzDes" class="sign" aria-live="polite">—</b></div>
+        <button type="button" class="btn sm" id="dzSheet">Data sheet</button>
+      </header>
+      <section class="dz-view" id="dzView">
+        <div class="segbar mini" role="tablist" aria-label="View"><button type="button" role="tab" data-view="curves">Curves</button><button type="button" role="tab" data-view="section">Cross-section</button></div>
+        <canvas id="dzCv" role="img"></canvas>
+        <label class="dz-scrub"><span class="vh">Burn time</span><input type="range" id="dzScrub" min="0" max="1000" step="1" value="500" aria-label="Scrub through the burn"><output id="dzScrubV" class="mono"></output></label>
+      </section>
+      <div class="dz-nums" id="dzNums"></div>
+      <div class="dz-flags" id="dzFlags" aria-live="polite"></div>
+      <nav class="dz-tabs" id="dzTabs" role="tablist" aria-label="Motor parts"></nav>
+    </div>
+    <section class="dz-panel" id="dzPanel"></section>
   </main>
 </div>
 
@@ -514,7 +601,8 @@ Object.assign(SIM,{designErrors,motorFromDesign});
    rate · (P / 5 MPa)^0.8. Erosive burning (6.5) arrives in stage 5.
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
-   opts (the variance model's hooks, stage 3; all optional): {aMul, eroMul, ignMul, areaAdd(t, x) -> extra m²}
+   opts (all optional): steps (regression steps over the web; fewer = faster, for live dragging), and the variance
+   model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight, areaAdd(t, x) -> extra m²}
    Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit, ...}. */
 function propCoef(prop,tGrain){return prop.rRef/1000/Math.pow(TUNING.pRef,prop.n)*Math.exp(prop.sigmaP*(tGrain-TUNING.tRef));}
 function simulate(motor,cond,opts){
@@ -522,7 +610,7 @@ function simulate(motor,cond,opts){
   const T=TUNING,prop=motor.prop,G=motor.grain,g=prop.gamma,cs=prop.cStar,rho=prop.rho;
   const RT=Math.pow(cs*vdk(g),2),n=prop.n,Pa=cond.pAmb!=null?cond.pAmb:T.pAmb,tGrain=cond.tGrain!=null?cond.tGrain:T.tRef;
   const a=propCoef(prop,tGrain)*(opts.aMul||1),eroRate=motor.throatMat.ero/1000*(opts.eroMul==null?1:opts.eroMul);
-  const Vch=motor.Vch,web=G.web,dxT=web/T.steps,areaAdd=opts.areaAdd||null;
+  const Vch=motor.Vch,web=G.web,dxT=web/(opts.steps||T.steps),areaAdd=opts.areaAdd||null;   // opts.steps: fewer while the player drags a slider
   /* igniter */
   const ig=motor.igniter,igGas=ig.gas*(opts.ignMul==null?1:opts.ignMul),need=T.ignNeedVol*(Vch-G.V(0))+T.ignNeedArea*G.A(0);
   const S=Math.max(1e-6,igGas/need),delay=T.ignDelay/S,spread=T.ignSpread/(S*S);
@@ -584,7 +672,7 @@ Object.assign(SIM,{propCoef,simulate});
 /* ===================== sim/derive.js: the data sheet, structure checks and warnings (plan sections 6.7 to 6.9) =====================
    summarize(motor, run) turns a run's traces into the numbers a data sheet shows, the structural margins, and the live
    warnings the designer flags (each with the design field to fix and a glossary key). Pure; nothing random.
-   predict(design, cond) = motorFromDesign + simulate + summarize, the designer's one call. */
+   predict(design, cond, opts) = motorFromDesign + simulate + summarize, the designer's one call. */
 function impulseClass(I){
   if(!(I>0))return{letter:"–",pct:0};
   const k=Math.max(0,Math.ceil(Math.log2(I/TUNING.classTop)-1e-12)),top=TUNING.classTop*Math.pow(2,k),bot=k?top/2:0;
@@ -636,7 +724,7 @@ function warnings(m,s){
   if(s.ign.strength<T.ignWeak)add("ign","warn",`The igniter is weak for this motor (strength ${s.ign.strength.toFixed(2)}). Slow start or a hang fire.`,"igniter","hangFire");
   return w;
 }
-function predict(design,cond){const m=motorFromDesign(design);if(!m.ok)return{ok:false,errors:m.errors};const r=simulate(m,cond);return{ok:true,motor:m,run:r,sum:summarize(m,r)};}
+function predict(design,cond,opts){const m=motorFromDesign(design);if(!m.ok)return{ok:false,errors:m.errors};const r=simulate(m,cond,opts);return{ok:true,motor:m,run:r,sum:summarize(m,r)};}
 Object.assign(SIM,{impulseClass,trapz,summarize,warnings,predict});
 return SIM;
 })();
@@ -644,11 +732,124 @@ if(typeof module!=="undefined")module.exports=BURN_SIM;
 </script>
 <script>__ld(.55,"Motor maths loaded")</script>
 <script>
+/* ===================== vis/open.js: opens the BURN_VIS block =====================
+   Burn Rate: drawing. Canvas 2D charts and the motor cross-section now; the 3D stand joins in stage 7. Reads BURN_SIM
+   results, never changes them. Colours come from the CSS tokens in css/style.css, read at draw time. */
+const BURN_VIS=(()=>{"use strict";const VIS={};
+/* ===================== vis/canvas.js: shared canvas helpers =====================
+   fit(cv, h) sizes a canvas to its CSS width at the screen's pixel ratio (capped at 2) and returns {c, W, H};
+   tokens() reads the colour and font tokens; nice(v) rounds an axis maximum up to 1, 2, 2.5 or 5 x 10^k. */
+function fit(cv,h){
+  const dpr=Math.min(2,window.devicePixelRatio||1),W=Math.max(200,cv.clientWidth||320),H=Math.round(h(W));
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  cv.style.height=H+"px";
+  const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);return{c,W,H};}
+function tokens(){const s=getComputedStyle(document.documentElement),g=k=>s.getPropertyValue(k).trim();
+  return{ink:g("--ink"),muted:g("--muted"),line:g("--line"),pred:g("--pred"),meas:g("--meas"),stencil:g("--stencil"),warn:g("--warn"),
+    card:g("--card"),prop:g("--prop"),propD:g("--propD"),liner:g("--linerC"),metal:g("--metal"),metalL:g("--metalL"),burn:g("--burn"),
+    mono:g("--mono")};}
+function nice(v){if(!(v>0))return 1;const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return(m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e;}
+function fmtAxis(v,max){return max<4?v.toFixed(1):max<20&&v%1?v.toFixed(1):v.toFixed(0);}
+Object.assign(VIS,{fit,tokens,nice});
+/* ===================== vis/chart.js: the predicted curves (plan section 9.3) =====================
+   curves(cv, run, o) draws chamber pressure (left scale, MPa, the predicted blue) and thrust (right scale, N, graphite)
+   against time. o (all optional): pYield (Pa: the case yield line, drawn when it fits on the scale), pMin (Pa: the grade's
+   stable minimum, dotted), cursor (s: a scrub line with dots on both traces). Hand-rolled Canvas 2D, no chart library. */
+function curves(cv,run,o){
+  o=o||{};
+  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.5,260))),k=tokens();
+  const L=36,R=42,T=12,B=22,w=W-L-R,h=H-T-B,n=run.t.length,tMax=run.t[n-1]*1.04;
+  let pPk=0,fPk=0;for(let i=0;i<n;i++){if(run.p[i]>pPk)pPk=run.p[i];if(run.f[i]>fPk)fPk=run.f[i];}
+  const pMax=nice(pPk/1e6*1.12),fMax=nice(fPk*1.12),X=t=>L+w*t/tMax,Yp=p=>T+h-h*Math.min(1.04,p/1e6/pMax),Yf=f=>T+h-h*Math.min(1.04,f/fMax);
+  c.font=`10px ${k.mono}`;c.lineWidth=1;c.textBaseline="middle";
+  for(let i=0;i<=4;i++){const y=T+h-h*i/4;c.strokeStyle=k.line;c.beginPath();c.moveTo(L,y+.5);c.lineTo(L+w,y+.5);c.stroke();
+    c.fillStyle=k.pred;c.textAlign="right";c.fillText(fmtAxis(pMax*i/4,pMax),L-5,y);
+    c.fillStyle=k.ink;c.textAlign="left";c.fillText(fmtAxis(fMax*i/4,fMax),L+w+5,y);}
+  /* units at the top of each scale stand in for a key: blue MPa on the left, graphite N on the right */
+  c.font=`600 10px ${k.mono}`;c.textBaseline="alphabetic";c.fillStyle=k.pred;c.textAlign="left";c.fillText("MPa",L+4,T+9);
+  c.fillStyle=k.ink;c.textAlign="right";c.fillText("thrust N",L+w-4,T+9);c.font=`10px ${k.mono}`;
+  const tStep=nice(tMax/4.5);c.fillStyle=k.muted;c.textAlign="center";c.textBaseline="alphabetic";
+  for(let t=0;t<=tMax+1e-9;t+=tStep)c.fillText(t.toFixed(tStep<1?1:0)+(t?"":" s"),X(t),H-6);
+  /* reference lines: case yield (stencil red, dashed) and the grade's stable minimum (dotted) */
+  const ref=(p,col,dash,label)=>{if(!(p>0)||p/1e6>pMax*1.02)return;const y=Yp(p);c.save();c.setLineDash(dash);c.strokeStyle=col;c.lineWidth=1.25;
+    c.beginPath();c.moveTo(L,y);c.lineTo(L+w,y);c.stroke();c.restore();c.fillStyle=col;c.textAlign="right";c.fillText(label,L+w-4,y-4);};
+  ref(o.pYield,k.stencil,[6,4],"case yield");ref(o.pMin,k.warn,[2,3],"stable minimum");
+  const line=(arr,Y,col,wd)=>{c.strokeStyle=col;c.lineWidth=wd;c.lineJoin="round";c.beginPath();
+    let lx=-9;for(let i=0;i<n;i++){const x=X(run.t[i]);if(i&&i<n-1&&x-lx<0.4)continue;lx=x;i?c.lineTo(x,Y(arr[i])):c.moveTo(x,Y(arr[i]));}c.stroke();};
+  line(run.f,Yf,k.ink,1.5);line(run.p,Yp,k.pred,2.5);
+  if(o.cursor!=null){const i=at(run,o.cursor),x=X(run.t[i]);c.strokeStyle=k.muted;c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(x,T);c.lineTo(x,T+h);c.stroke();c.setLineDash([]);
+    for(const[y,col]of[[Yf(run.f[i]),k.ink],[Yp(run.p[i]),k.pred]]){c.fillStyle=k.card;c.beginPath();c.arc(x,y,4.5,0,7);c.fill();c.strokeStyle=col;c.lineWidth=2;c.stroke();}}
+}
+/* the sample index at or just after time t (binary search; run.t only rises) */
+function at(run,t){let lo=0,hi=run.t.length-1;if(t<=run.t[0])return 0;if(t>=run.t[hi])return hi;
+  while(hi-lo>1){const m=(lo+hi)>>1;if(run.t[m]<t)lo=m;else hi=m;}return hi;}
+Object.assign(VIS,{curves,at});
+/* ===================== vis/section.js: the motor cross-section (plan section 9.2) =====================
+   section(cv, motor, x, info) draws the motor cut along its axis (forward closure on the left, nozzle on the right) with
+   the grain burned back by web distance x (m), and under it an end-on view of the aft segment's port. info: lines of text
+   drawn beside the end view (time, pressure...). Drawn to scale; burning surfaces glow. Stage 5 swaps the analytic
+   segments for the level-set cross-section. h(width) -> height, optional. */
+function section(cv,m,x,info,h){
+  const{c,W,H}=fit(cv,h||(w=>Math.min(w*0.62,300))),k=tokens(),T=BURN_SIM.TUNING;
+  const G=m.grain,id=m.id,R0=id/2+m.wall,clThk=T.closureThk*id,len=m.length,pad=10;
+  /* side cut: scale to fit the width, and at most 55% of the height */
+  const sideH=Math.min(H*0.5,(W-2*pad)*2*R0/len),s=Math.min((W-2*pad)/len,(sideH-4)/(2*R0));
+  const ox=(W-len*s)/2,cy=pad+R0*s+2,X=v=>ox+v*s,Y=r=>r*s;
+  const rect=(x0,x1,r0,r1,col)=>{c.fillStyle=col;c.fillRect(X(x0),cy-Y(r1),(x1-x0)*s,Y(r1-r0));c.fillRect(X(x0),cy+Y(r0),(x1-x0)*s,Y(r1-r0));};
+  /* case and liner */
+  rect(0,m.caseLen,id/2,R0,k.metal);
+  rect(clThk,m.caseLen-clThk,m.od/2,id/2,k.liner);
+  /* forward closure */
+  rect(0,clThk,0,id/2,k.metalL);
+  /* nozzle: the aft closure turned into a converging-diverging bore */
+  const xa=m.caseLen-clThk,conv=T.nozzleLen*id*0.6,xt=xa+conv,xe=len,rt=m.rt0,re=m.re,rin=Math.max(rt*1.6,m.od/2*0.85);
+  const rOutEnd=Math.max(re+m.wall*1.5,rt+m.wall*2);
+  for(const sg of[-1,1]){c.fillStyle=k.metalL;c.beginPath();
+    c.moveTo(X(xa),cy-sg*Y(id/2));c.lineTo(X(m.caseLen),cy-sg*Y(id/2));c.lineTo(X(m.caseLen),cy-sg*Y(R0));c.lineTo(X(xe),cy-sg*Y(rOutEnd));
+    c.lineTo(X(xe),cy-sg*Y(re));c.lineTo(X(xt),cy-sg*Y(rt));c.lineTo(X(xa),cy-sg*Y(rin));c.closePath();c.fill();}
+  /* grain segments, burned back by x */
+  let xs=clThk+T.headSpace*m.od;const gap=T.segGap/1000;
+  c.lineWidth=2;
+  for(const g of G.segs){
+    const L=g.L;
+    if(x<g.web){
+      let a0,a1,r0;
+      if(g.kind==="bates"){a0=xs+x;a1=xs+L-x;r0=g.rc+x;}
+      else if(g.kind==="tube"){a0=xs;a1=xs+L;r0=g.rc+x;}
+      else{a0=xs;a1=xs+L-x;r0=0;}
+      rect(a0,a1,r0,g.R,k.prop);
+      /* the burning surfaces: the port wall, and the ends of a BATES segment or the face of an end burner */
+      c.strokeStyle=k.burn;c.beginPath();
+      for(const sg of[-1,1]){
+        if(r0>0){c.moveTo(X(a0),cy+sg*Y(r0));c.lineTo(X(a1),cy+sg*Y(r0));}
+        if(g.kind!=="tube"){c.moveTo(X(a1),cy+sg*Y(r0));c.lineTo(X(a1),cy+sg*Y(g.R));}
+        if(g.kind==="bates"){c.moveTo(X(a0),cy+sg*Y(r0));c.lineTo(X(a0),cy+sg*Y(g.R));}}
+      c.stroke();}
+    xs+=L+gap;}
+  /* the axis */
+  c.strokeStyle=k.muted;c.lineWidth=1;c.setLineDash([8,3,2,3]);c.beginPath();c.moveTo(X(0)-4,cy);c.lineTo(X(len)+4,cy);c.stroke();c.setLineDash([]);
+  /* end view of the aft segment (looking forward from the nozzle) */
+  const top=cy+Y(R0)+12,dE=Math.max(36,Math.min(H-top-4,W*0.4)),cx=pad+dE/2,cyE=top+dE/2,sE=dE/2/R0,g=G.segs[G.segs.length-1];
+  const disc=(r,col)=>{c.fillStyle=col;c.beginPath();c.arc(cx,cyE,Math.max(0,r*sE),0,7);c.fill();};
+  disc(R0,k.metal);disc(id/2,k.liner);disc(m.od/2,k.card);
+  if(x<g.web){
+    disc(g.R,g.kind==="end"?k.burn:k.prop);
+    if(g.kind!=="end"){const r=g.rc+x;disc(r,k.card);c.strokeStyle=k.burn;c.lineWidth=2;c.beginPath();c.arc(cx,cyE,r*sE,0,7);c.stroke();}}
+  /* the readouts beside the end view, in columns of up to three lines */
+  c.textAlign="left";c.textBaseline="top";
+  const lines=info||[],rows=Math.min(3,lines.length),lh=Math.min(17,(H-top)/rows),colW=Math.max(96,(W-pad-dE-14)/2);
+  lines.forEach((ln,i)=>{const col=Math.floor(i/rows),row=i%rows;c.font=i?`11px ${k.mono}`:`600 12px ${k.mono}`;c.fillStyle=i?k.muted:k.ink;
+    c.fillText(ln,pad+dE+14+col*colW,top+4+row*lh);});
+}
+Object.assign(VIS,{section});
+return VIS;})();
+</script>
+<script>
 /* ===================== app/state.js: version, settings, small helpers, the sheet =====================
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-" (brn-settings now; brn-save and brn-slot1..3 arrive with careers in
    stage 4). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.2.0.0";
+const VERSION="0.3.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -708,10 +909,268 @@ const PWA=(()=>{
   }).catch(()=>{});
   return api;
 })();
-/* ===================== app/debug.js: the ?debug=1 page (stage 1) =====================
-   A plain bench for the motor model before the designer exists: pick a reference motor and a grain temperature, see the
-   predicted pressure and thrust curves and the data-sheet numbers. Open the game with ?debug=1 on the end of the address.
-   Not linked from anywhere in the game. */
+/* ===================== app/gloss.js: the tap-to-explain glossary (plan section 10) =====================
+   GLOSS[key] = {t: the term, d: a short plain-English explanation}. Any element with data-g="key" opens its entry.
+   The warnings in sim/derive.js name their entry in their gloss field. This teaches motor DESIGN only: geometry, pressure,
+   nozzles, cases. Propellants are described by their numbers, never by what is in them (plan section 3). */
+const GLOSS={
+  grade:{t:"Propellant grade",d:"Each grade is a set of numbers. Burn rate: how fast the surface recedes at 5 MPa. Exponent n: how strongly that rate follows pressure. Density, and c*, how much pressure the gas makes per kilogram flowing. A high-n grade gives big swings from small changes."},
+  exponent:{t:"Pressure exponent (n)",d:"Burn rate goes as pressure to the power n. With a low n (0.2 to 0.35) the motor settles calmly. With a high n (0.5 and up) a little more burning area or a little less throat sends the pressure up a lot, which is why high-n grades are touchy."},
+  shape:{t:"Grain shape",d:"BATES: short hollow cylinders burning inside and on both ends, so the area stays fairly flat. Tube: one long hollow grain with its ends covered; the core grows, so the area and the pressure climb (progressive). End burner: a solid cylinder burning only from its back face, small and steady, so it burns for a long time at low thrust."},
+  segments:{t:"Segments",d:"BATES grains are split into short segments so each one's burning ends balance its growing core. More segments: more propellant and more burning area, so higher pressure and more impulse."},
+  web:{t:"Web",d:"The thickness of propellant that has to burn through before a segment is gone: the smaller of the wall (outside minus core, halved) and half the segment length for BATES. Burn time is roughly web divided by burn rate."},
+  core:{t:"Core",d:"The hole down the middle of a cored grain. A bigger core means less propellant but more burning area at the start, and a wider port for the gas to flow out."},
+  kn:{t:"Kn (Klemmung)",d:"Burning area divided by throat area. It sets the chamber pressure: more Kn, more pressure. Most of designing a motor is keeping Kn in a good band for the whole burn."},
+  pressure:{t:"Chamber pressure",d:"The gas pressure inside the case. Higher pressure burns the grain faster and makes the nozzle work better, but the case has to hold it. The motor settles where the gas made by the burning grain equals the gas leaving through the throat."},
+  throat:{t:"Throat",d:"The narrowest point of the nozzle. A smaller throat lets less gas out, so the pressure rises until the flow balances. It is the quickest way to tune pressure."},
+  throatMat:{t:"Throat material",d:"Hot fast gas wears the throat wider during the burn (more at high pressure). As it widens, Kn falls and the pressure drops off. Graphite holds its size; plain steel wears fast; a refractory insert barely moves."},
+  exit:{t:"Nozzle exit and expansion ratio",d:"The exit area divided by the throat area is the expansion ratio. A bigger exit turns more of the pressure into speed, up to the point where the exhaust leaves at the outside air pressure. Go past that and the nozzle is over-expanded."},
+  halfAngle:{t:"Divergence half-angle",d:"How fast the cone of the nozzle opens. A wide cone throws some of the exhaust sideways, which is wasted thrust; a narrow one is long and heavy. 12 to 18 degrees is the usual band."},
+  separation:{t:"Flow separation",d:"When the exit is too big for the chamber pressure, the exhaust can't fill the cone at sea level: it peels off the wall partway down. Thrust drops and the jet can wobble. Use a smaller exit, or more pressure."},
+  caseMat:{t:"Case material",d:"The tube that holds the pressure. Its yield strength and wall thickness set the pressure it can take: hoop stress = pressure x radius / wall. Stronger material or a thicker wall holds more; it also weighs more."},
+  bore:{t:"Case bore",d:"The inside diameter of the case. Everything scales with it: the grain, the propellant mass, and the force on the closures."},
+  wall:{t:"Wall thickness",d:"Twice the wall holds twice the pressure, for twice the weight of tube. The safety factor is what the wall can hold at yield divided by the peak pressure."},
+  sf:{t:"Safety factor",d:"Case yield pressure divided by the predicted peak pressure. The real motor never matches the prediction exactly, so keep it at 1.5 or more. Under 1 the case starts to stretch; past its ultimate strength it bursts."},
+  cato:{t:"CATO",d:"A catastrophe at take-off: the motor comes apart. Usually the pressure went past what the case or its closures could hold. Ruslan Abenov will want a report."},
+  liner:{t:"Liner",d:"Insulation between the grain and the case. Where the grain has burned away, hot gas reaches the case wall and the liner buys time: its rating is seconds of protection. If the burn outlasts it, the case burns through."},
+  closure:{t:"Closures",d:"The forward bulkhead and the nozzle are held in by a snap ring or by bolts. Chamber pressure pushes on them with a force of pressure x bore area. A snap ring's rating grows with the bore; bolts add up one by one."},
+  retention:{t:"Closure retention",d:"How much force the snap ring or the bolts can hold before the nozzle or bulkhead lets go. Compare it with peak pressure x bore area, and keep a margin of 1.5."},
+  igniter:{t:"Igniter",d:"A small charge that fills the chamber with hot gas and lights the grain. Too small and the start is slow, or it hangs fire. Too big and its own gas spikes the pressure at the start."},
+  hangFire:{t:"Hang fire",d:"The igniter goes off but the grain doesn't light properly: a long delay, a weak start, or nothing at all. A bigger igniter fixes it."},
+  ignSpike:{t:"Start spike",d:"An igniter that is too big for the motor pushes the pressure past the steady burn while it is still going. The case has to hold that spike too. Pick a smaller igniter."},
+  chuffing:{t:"Chuffing",d:"Under each grade's stable minimum pressure the flame can't hold steady: it puffs out and relights in a slow, loud chuff, chuff. More Kn (a smaller throat) brings the pressure back up."},
+  portThroat:{t:"Port-to-throat ratio",d:"The open area of the core at the aft end divided by the throat area. Under about 2, the gas rushing down a narrow core scours the grain and burns it faster than the prediction: a pressure spike at the start. A bigger core or a smaller throat fixes it."},
+  massFlux:{t:"Mass flux",d:"Kilograms of gas per second flowing through each square metre of the port. High flux at the aft end of a long grain scours the surface (erosive burning) and spikes the pressure."},
+  isp:{t:"Specific impulse (Isp)",d:"Impulse per weight of propellant, in seconds: how well the motor turns propellant into push. A better nozzle and a higher pressure raise it."},
+  impulse:{t:"Total impulse",d:"Thrust added up over the whole burn, in newton-seconds. It is what a contract's class letter is based on."},
+  impulseClass:{t:"Impulse class",d:"A letter for the total impulse. A is up to 2.5 N·s and every letter after it doubles: G is 80 to 160, K is 1280 to 2560. The designation is the letter followed by the average thrust, like G55."},
+  burnTime:{t:"Burn time",d:"From when thrust first reaches 5% of its peak to when it falls back under 5%."},
+  thrust:{t:"Thrust",d:"Chamber pressure x throat area x the thrust coefficient (C_F), which says how well the nozzle turns pressure into push, usually 1.2 to 1.6."},
+  cf:{t:"Thrust coefficient (C_F)",d:"Thrust divided by chamber pressure x throat area. It rises with a well matched expansion ratio and with chamber pressure."}
+};
+function glossSheet(key){const e=GLOSS[key];if(!e)return;openSheet(e.t,`<p>${esc(e.d)}</p>`);}
+document.addEventListener("click",e=>{const el=e.target.closest("[data-g]");if(!el||el.closest("#sheet"))return;e.preventDefault();glossSheet(el.dataset.g);});
+/* ===================== app/designer.js: the design bench (stage 2; plan sections 4, 6.8 and 9.2) =====================
+   The player edits a motor and the predictor redraws as they drag. Top (sticky): the live view (predicted curves or the
+   cross-section, swipe or tap to switch) with a burn scrubber, the key numbers and the warning flags. Below: the tabs
+   Grain · Nozzle · Case · Igniter with thumb-sized controls.
+   While a slider moves, the sim runs with fewer steps (DRAG_STEPS) once per frame; on release it runs in full.
+   A warning flag opens its explanation with a button that jumps to the control to change.
+   The design lives in memory only for now; saving designs arrives with careers in stage 4 (brn-save). */
+const DRAG_STEPS=110;
+/* the live view's height: room for the controls below matters more than a tall chart on a short phone */
+const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false};
+const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
+const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
+  flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike"};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const getF=(d,f)=>f.split(".").reduce((o,k)=>o[k],d);
+function setF(d,f,v){const k=f.split(".");let o=d;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=v;}
+const r1=v=>Math.round(v*10)/10;
+
+/* ---- the controls on each tab, as data. type: pick (cards), seg (segmented buttons), step (- n +), slide ---- */
+function controls(tab,d){
+  const S=BURN_SIM,od=d.case.id-2*d.case.linerThk,cored=d.grain.shape!=="end";
+  if(tab==="grain")return[
+    {f:"grain.prop",type:"pick",label:"Propellant grade",g:"grade",items:S.PROPELLANTS,
+      sub:p=>`${p.rRef} mm/s at 5 MPa · n ${p.n.toFixed(2)} · ${p.rho} kg/m³ · c* ${p.cStar} m/s`},
+    {f:"grain.shape",type:"seg",label:"Grain shape",g:"shape",opts:[["bates","BATES"],["tube","Tube"],["end","End burner"]]},
+    {f:"grain.segs",type:"step",label:cored?"Segments":"Grain pieces",g:"segments",min:1,max:12},
+    {f:"grain.segLen",type:"slide",label:cored?"Segment length":"Piece length",g:"web",unit:"mm",min:10,max:Math.max(60,Math.round(d.case.id*5)),step:1},
+    cored&&{f:"grain.coreD",type:"slide",label:"Core diameter",g:"core",unit:"mm",min:2,max:r1(od-3),step:0.5}
+  ].filter(Boolean);
+  if(tab==="nozzle")return[
+    {f:"nozzle.mat",type:"pick",label:"Throat material",g:"throatMat",items:S.THROATS,
+      sub:t=>`wears ${t.ero.toFixed(3)} mm/s at 5 MPa · ${t.note}`},
+    {f:"nozzle.throatD",type:"slide",label:"Throat diameter",g:"throat",unit:"mm",min:1,max:r1(cored?d.grain.coreD-0.5:od-1),step:0.1},
+    {f:"nozzle.exitD",type:"slide",label:"Exit diameter",g:"exit",unit:"mm",min:d.nozzle.throatD,max:Math.round(d.case.id+2*d.case.wall+18),step:0.5,
+      extra:d=>`expansion ${(Math.pow(d.nozzle.exitD/d.nozzle.throatD,2)).toFixed(1)}`},
+    {f:"nozzle.half",type:"slide",label:"Cone half-angle",g:"halfAngle",unit:"°",min:5,max:30,step:1}];
+  if(tab==="case")return[
+    {f:"case.mat",type:"pick",label:"Case material",g:"caseMat",items:S.CASES,sub:m=>`yield ${m.yield} MPa · ${m.rho} kg/m³ · ${m.note}`},
+    {f:"case.id",type:"slide",label:"Bore",g:"bore",unit:"mm",min:18,max:160,step:1},
+    {f:"case.wall",type:"slide",label:"Wall thickness",g:"wall",unit:"mm",min:0.5,max:r1(Math.min(12,d.case.id/4-0.1)),step:0.1,
+      extra:d=>{const m=S.CASES[d.case.mat];return m?`holds ${(m.yield*d.case.wall/(d.case.id/2)).toFixed(1)} MPa at yield`:"";}},
+    {f:"case.liner",type:"pick",label:"Liner",g:"liner",items:S.LINERS,sub:l=>`${l.rate} s of protection per mm`},
+    {f:"case.linerThk",type:"slide",label:"Liner thickness",g:"liner",unit:"mm",min:0.3,max:r1(Math.min(6,d.case.id/6-0.1)),step:0.1,
+      extra:d=>{const l=S.LINERS[d.case.liner];return l?`${(l.rate*d.case.linerThk).toFixed(1)} s of protection`:"";}},
+    {f:"case.closure",type:"seg",label:"Closures held by",g:"closure",opts:[["ring","Snap ring"],["bolts","Radial bolts"]]},
+    d.case.closure==="bolts"&&{f:"case.bolts",type:"step",label:"Bolts",g:"retention",min:3,max:36}
+  ].filter(Boolean);
+  return[{f:"igniter",type:"pick",label:"Igniter",g:"igniter",items:S.IGNITERS,sub:i=>`${(i.gas*1000).toFixed(2)} g of gas over ${Math.round(i.burn*1000)} ms`}];
+}
+const TAB_OF=f=>f.split(".")[0];
+const fmtV=(c,v)=>c.step<1?(+v).toFixed(1):String(Math.round(v));
+
+/* keep dependent sizes legal after a change (the core inside the grain, the throat inside the core...) */
+function clampDesign(d){
+  const c=d.case,g=d.grain,z=d.nozzle;
+  c.wall=Math.min(c.wall,r1(c.id/4-0.1));c.linerThk=Math.min(c.linerThk,r1(c.id/6-0.1));
+  const od=c.id-2*c.linerThk;
+  if(g.shape!=="end"){g.coreD=Math.max(2,Math.min(g.coreD,r1(od-3)));z.throatD=Math.min(z.throatD,r1(g.coreD-0.5));}
+  else z.throatD=Math.min(z.throatD,r1(od-1));
+  z.throatD=Math.max(1,z.throatD);z.exitD=Math.max(z.exitD,z.throatD);
+  return d;}
+
+/* ---- rendering the tab panel ---- */
+function ctlHtml(c,d){
+  const v=getF(d,c.f),lab=`<button type="button" class="gl" data-g="${c.g}">${esc(c.label)}</button>`;
+  if(c.type==="pick")return`<fieldset class="ctl pick" data-field="${c.f}"><legend>${lab}</legend>${Object.entries(c.items).map(([id,it])=>
+    `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${it.tier>1?`<span class="tag">Tier ${it.tier}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
+  if(c.type==="seg")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}</div><div class="segbar" role="group">${c.opts.map(([id,n])=>
+    `<button type="button" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}" class="${id===v?"on":""}">${esc(n)}</button>`).join("")}</div></div>`;
+  if(c.type==="step")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}<span class="val mono">${v}</span></div><div class="stepper">
+    <button type="button" class="btn" data-step="${c.f}" data-by="-1" aria-label="Fewer ${esc(c.label.toLowerCase())}"${v<=c.min?" disabled":""}>−</button>
+    <button type="button" class="btn" data-step="${c.f}" data-by="1" aria-label="More ${esc(c.label.toLowerCase())}"${v>=c.max?" disabled":""}>+</button></div></div>`;
+  const ex=c.extra?`<span class="ex" data-ex="${c.f}">${esc(c.extra(d))}</span>`:"";
+  return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}<span class="val mono"><output data-out="${c.f}">${fmtV(c,v)}</output> ${c.unit}</span></div>
+    <div class="slide"><button type="button" class="nudge" data-nudge="${c.f}" data-by="-1" aria-label="Less">−</button>
+    <input type="range" data-slide="${c.f}" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" aria-label="${esc(c.label)}">
+    <button type="button" class="nudge" data-nudge="${c.f}" data-by="1" aria-label="More">+</button></div>${ex}</div>`;
+}
+function renderPanel(){
+  const d=DZ.d;
+  document.querySelectorAll("#dzTabs [data-tab]").forEach(b=>{const on=b.dataset.tab===DZ.tab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on);});
+  $("dzPanel").innerHTML=controls(DZ.tab,d).map(c=>ctlHtml(c,d)).join("");
+  markErrors();
+}
+function ctlSpec(f){return controls(TAB_OF(f),DZ.d).find(c=>c.f===f);}
+/* after a slider moves, update its readout and the extras of the controls on screen without rebuilding the panel */
+function refreshReadouts(){
+  for(const c of controls(DZ.tab,DZ.d)){
+    const o=document.querySelector(`[data-out="${c.f}"]`);if(o)o.textContent=fmtV(c,getF(DZ.d,c.f));
+    const e=document.querySelector(`[data-ex="${c.f}"]`);if(e&&c.extra)e.textContent=c.extra(DZ.d);}}
+function markErrors(){
+  const bad=new Set(DZ.res&&!DZ.res.ok?DZ.res.errors.map(e=>e.field):[]);
+  document.querySelectorAll("#dzPanel [data-field]").forEach(el=>el.classList.toggle("bad",bad.has(el.dataset.field)));}
+
+/* ---- the sim, at most once a frame ---- */
+function schedule(fast){
+  DZ.fast=DZ.fast===null?fast:(DZ.fast&&fast);
+  if(DZ.raf)return;
+  DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
+    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:20},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
+function change(f,v,fast){
+  setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);}
+
+/* ---- the top: designation, live view, numbers, flags ---- */
+function drawAll(){
+  const r=DZ.res;
+  if(!r.ok){
+    $("dzDes").textContent="—";$("dzNums").innerHTML="";
+    $("dzFlags").innerHTML=r.errors.map(e=>`<button type="button" class="flag crit" data-fix="${e.field}">${esc(e.text)}</button>`).join("");
+    const cv=$("dzCv"),{c,W,H}=BURN_VIS.fit(cv,VIEW_H);c.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--muted");
+    c.font="14px "+getComputedStyle(document.documentElement).getPropertyValue("--ui");c.textAlign="center";c.fillText("This motor can't be built yet.",W/2,H/2);
+    $("dzScrubV").textContent="";markErrors();return;}
+  const s=r.sum,m=r.motor;
+  $("dzDes").textContent=s.designation;
+  const sfCls=s.sf<1?"crit":s.sf<BURN_SIM.TUNING.sfWarn?"warn":"good";
+  const cell=(g,lab,val,cls)=>`<button type="button" class="num" data-g="${g}"><span>${lab}</span><b class="mono ${cls||""}">${val}</b></button>`;
+  $("dzNums").innerHTML=cell("impulse","N·s",s.I<100?s.I.toFixed(1):Math.round(s.I))+cell("thrust","Avg N",Math.round(s.Fav))+
+    cell("burnTime","Burn s",s.tb.toFixed(2))+cell("pressure","Peak MPa",(s.Pmax/1e6).toFixed(2))+
+    cell("isp","Isp s",s.Isp.toFixed(0))+cell("sf","Safety",s.sf>=10?s.sf.toFixed(0):s.sf.toFixed(2),sfCls);
+  $("dzFlags").innerHTML=s.warnings.length?s.warnings.map((w,i)=>`<button type="button" class="flag ${w.sev}" data-warn="${i}">${esc(FLAG_SHORT[w.key]||w.key)}</button>`).join("")
+    :`<span class="flag ok">No warnings</span>`;
+  drawView();markErrors();
+}
+function drawView(){
+  const r=DZ.res;if(!r||!r.ok)return;
+  const run=r.run,m=r.motor,tEnd=run.t[run.t.length-1],t=DZ.scrub*tEnd,i=BURN_VIS.at(run,t);
+  const info=[`t ${run.t[i].toFixed(2)} s`,`${(run.p[i]/1e6).toFixed(2)} MPa`,`${Math.round(run.f[i])} N`,`Kn ${Math.round(run.kn[i])}`,`web ${Math.min(100,Math.round(run.x[i]/run.web*100))}% burned`];
+  if(DZ.view==="curves"){BURN_VIS.curves($("dzCv"),run,{h:VIEW_H,pYield:m.pYield,pMin:m.prop.pMin*1e6,cursor:run.t[i]});}
+  else{BURN_VIS.section($("dzCv"),m,run.x[i],info,VIEW_H);}
+  $("dzScrubV").textContent=info.slice(0,2).join(" · ");
+  $("dzCv").setAttribute("aria-label",DZ.view==="curves"?`Predicted pressure and thrust. Peak ${(r.sum.Pmax/1e6).toFixed(2)} MPa, average thrust ${Math.round(r.sum.Fav)} N over ${r.sum.tb.toFixed(2)} s.`
+    :`Cross-section of the motor at ${run.t[i].toFixed(2)} s.`);
+}
+function setView(v){DZ.view=v;document.querySelectorAll("#dzView [data-view]").forEach(b=>{const on=b.dataset.view===v;b.classList.toggle("on",on);b.setAttribute("aria-selected",on);});drawView();}
+
+/* ---- sheets: a warning, the data sheet ---- */
+function warnSheet(w){
+  const c=ctlSpec(w.field),g=GLOSS[w.gloss];
+  openSheet(FLAG_SHORT[w.key]||"Warning",`<p class="sev ${w.sev}"><b>${w.sev==="crit"?"This will fail.":"Risky."}</b> ${esc(w.text)}</p>
+    ${g?`<h3>${esc(g.t)}</h3><p>${esc(g.d)}</p>`:""}
+    ${c?`<button type="button" class="btn pri" data-fix="${w.field}">Go to ${esc(c.label.toLowerCase())}</button>`:""}`);}
+function dataRows(r){
+  const s=r.sum,m=r.motor,row=(g,k,v)=>`<tr><th>${g?`<button type="button" class="gl" data-g="${g}">${k}</button>`:k}</th><td>${v}</td></tr>`;
+  return[row("impulseClass","Designation",`${s.designation} (${s.cls.pct}% of ${s.cls.letter})`),row("impulse","Total impulse",s.I.toFixed(1)+" N·s"),
+    row("thrust","Thrust avg / peak",`${s.Fav.toFixed(0)} / ${s.Fmax.toFixed(0)} N`),row("burnTime","Burn time",s.tb.toFixed(2)+" s"),
+    row("pressure","Pressure avg / peak",`${(s.Pav/1e6).toFixed(2)} / ${(s.Pmax/1e6).toFixed(2)} MPa`),row("isp","Isp",s.Isp.toFixed(1)+" s"),
+    row("kn","Kn start / range",`${s.kn0.toFixed(0)} / ${s.knMin.toFixed(0)}–${s.knMax.toFixed(0)}`),row("portThroat","Port-to-throat",s.pt0.toFixed(2)),
+    row("massFlux","Peak mass flux",Math.round(s.gMax)+" kg/m²s"),row("sf","Case safety factor",s.sf.toFixed(2)+` (yield at ${(m.pYield/1e6).toFixed(1)} MPa)`),
+    row("retention","Closure margin",s.closureSf.toFixed(2)),row("liner","Liner rating",m.linerRating.toFixed(1)+" s"),
+    row("igniter","Igniter strength",s.ign.strength.toFixed(2)),row("throatMat","Throat growth","+"+(s.throatGrowth*100).toFixed(2)+"%"),
+    row("exit","Expansion ratio",m.eps0.toFixed(1)),
+    row("","Propellant / total",`${(m.mass.prop*1000).toFixed(0)} / ${(m.mass.total*1000).toFixed(0)} g`),
+    row("","Mass fraction",(s.massFrac*100).toFixed(0)+"%"),
+    row("","Length × diameter",`${(m.length*1000).toFixed(0)} × ${(m.diameter*1000).toFixed(0)} mm`)].join("");}
+function dataSheet(){
+  const r=DZ.res;
+  const refs=Object.keys(BURN_SIM.REF_DESIGNS).map((k,i)=>`<button type="button" class="btn sm" data-ref="${i}">${esc(k)}</button>`).join("");
+  openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at 20 °C, sea level. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
+    :`<p>${esc(r.errors.map(e=>e.text).join(" "))}</p>`)+`<h3>Start again from a reference motor</h3><div class="refs">${refs}</div>`);}
+
+/* jump to the control a warning or error points at: switch tab, scroll to it, ring it */
+function goToField(f){
+  if(sheetOn())closeSheet();
+  DZ.tab=TAB_OF(f);renderPanel();
+  const el=document.querySelector(`#dzPanel [data-field="${f}"]`);if(!el)return;
+  /* scroll so the control sits just under the sticky top, not hidden behind it */
+  const top=el.getBoundingClientRect().top+scrollY-document.querySelector(".dz-stick").offsetHeight-14;
+  window.scrollTo({top:Math.max(0,top),behavior:reduced()?"auto":"smooth"});
+  el.classList.remove("ring");void el.offsetWidth;el.classList.add("ring");
+  const t=el.querySelector("input,button:not(.gl)");if(t)setTimeout(()=>t.focus({preventScroll:true}),reduced()?0:350);}
+
+/* ---- wiring, once ---- */
+function initDesigner(){
+  if(DZ.inited)return;DZ.inited=true;
+  $("dzTabs").innerHTML=TABS.map(([id,n])=>`<button type="button" role="tab" data-tab="${id}">${n}</button>`).join("");
+  $("dzTabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;DZ.tab=b.dataset.tab;renderPanel();});
+  $("dzView").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view);});
+  /* swipe the live view left or right to switch between the curves and the cross-section */
+  let sx=0,sy=0;const cv=$("dzCv");
+  cv.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+  cv.addEventListener("touchend",e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>50&&Math.abs(dy)<40)setView(DZ.view==="curves"?"section":"curves");},{passive:true});
+  $("dzScrub").addEventListener("input",e=>{DZ.scrub=+e.target.value/1000;drawView();});
+  const P=$("dzPanel");
+  P.addEventListener("input",e=>{const f=e.target.dataset.slide;if(!f)return;change(f,+e.target.value,true);refreshReadouts();});
+  P.addEventListener("change",e=>{const f=e.target.dataset.slide;if(!f)return;change(f,+e.target.value,false);renderPanel();});
+  P.addEventListener("click",e=>{
+    const b=e.target.closest("button");if(!b||b.classList.contains("gl"))return;
+    if(b.dataset.set){const f=b.dataset.set;change(f,b.dataset.v,false);renderPanel();}
+    else if(b.dataset.step){const c=ctlSpec(b.dataset.step),v=getF(DZ.d,c.f)+(+b.dataset.by);if(v>=c.min&&v<=c.max){change(c.f,v,false);renderPanel();}}
+    else if(b.dataset.nudge){const c=ctlSpec(b.dataset.nudge),v=Math.max(c.min,Math.min(c.max,+(getF(DZ.d,c.f)+c.step*(+b.dataset.by)).toFixed(2)));change(c.f,v,false);renderPanel();
+      const n=document.querySelector(`[data-nudge="${c.f}"][data-by="${b.dataset.by}"]`);if(n)n.focus({preventScroll:true});}});
+  $("dzFlags").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.fix)goToField(b.dataset.fix);else if(b.dataset.warn!=null)warnSheet(DZ.res.sum.warnings[+b.dataset.warn]);});
+  /* buttons inside a sheet: jump to a control, or load a reference motor */
+  document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
+    if(b.dataset.fix)goToField(b.dataset.fix);
+    else if(b.dataset.ref!=null){DZ.d=clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);closeSheet();renderPanel();schedule(false);toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);}});
+  $("dzSheet").addEventListener("click",dataSheet);
+  $("dzBack").addEventListener("click",()=>showScreen("title"));
+  addEventListener("resize",()=>{if(!$("design").hidden&&DZ.res)drawView();});
+}
+function openDesigner(){
+  initDesigner();
+  if(!DZ.d)DZ.d=clone(BURN_SIM.DEFAULT_DESIGN);
+  showScreen("design");renderPanel();setView(DZ.view);
+  $("dzScrub").value=Math.round(DZ.scrub*1000);
+  DZ.res=null;schedule(false);
+}
+/* screens: one <main> shows at a time. The phone's Back button from the bench returns to the title. */
+function showScreen(id){
+  for(const s of["title","design"])$(s).hidden=s!==id;
+  window.scrollTo(0,0);
+  if(id==="design"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:"design"},"");}catch(e){}}
+}
+window.addEventListener("popstate",e=>{if(sheetOn())return;if(!(e.state&&e.state.brnScreen)&&!$("design").hidden)showScreen("title");});
+/* ===================== app/debug.js: the ?debug=1 page =====================
+   A plain bench for checking the motor model: pick a reference motor and a grain temperature, see the predicted pressure
+   and thrust curves and the data-sheet numbers. Open the game with ?debug=1 on the end of the address. Not linked from
+   anywhere in the game. */
 function debugPage(){
   const S=BURN_SIM,names=Object.keys(S.REF_DESIGNS);
   const box=document.createElement("main");box.id="debug";box.className="concrete";
@@ -720,58 +1179,31 @@ function debugPage(){
   <h2>Predicted firing</h2>
   <label class="dbg-l">Motor <select id="dbgMotor">${names.map((k,i)=>`<option value="${i}">${esc(k)}</option>`).join("")}</select></label>
   <label class="dbg-l">Grain temperature <b id="dbgTv">20 °C</b><input type="range" id="dbgT" min="-20" max="45" step="1" value="20"></label>
-  <div class="card dbg-chart"><canvas id="dbgCv" aria-label="Pressure and thrust against time"></canvas>
-    <p class="dbg-key"><span class="k-p"></span>Chamber pressure (MPa) <span class="k-f"></span>Thrust (N)</p></div>
-  <div class="card"><table class="dbg-t mono" id="dbgSum"></table></div>
+  <div class="card dbg-chart"><canvas id="dbgCv" role="img" aria-label="Pressure and thrust against time"></canvas>
+    <p class="dz-key"><span class="k-p"></span>Chamber pressure, MPa <span class="k-f"></span>Thrust, N</p></div>
+  <div class="card"><table class="dtab mono" id="dbgSum"></table></div>
   <div id="dbgWarn"></div>
   <p class="hint"><a href="./">Back to the title</a></p>`;
-  $("title").hidden=true;$("app").appendChild(box);
+  for(const s of["title","design"])$(s).hidden=true;
+  $("app").appendChild(box);
   const draw=()=>{
     const d=S.REF_DESIGNS[names[+$("dbgMotor").value]],tG=+$("dbgT").value;$("dbgTv").textContent=tG+" °C";
     const r=S.predict(d,{tGrain:tG});
     if(!r.ok){$("dbgSum").innerHTML=`<tr><td>${esc(r.errors.map(e=>e.text).join(" "))}</td></tr>`;return;}
-    plot($("dbgCv"),r.run);
-    const s=r.sum,m=r.motor,row=(k,v)=>`<tr><th>${k}</th><td>${v}</td></tr>`;
-    $("dbgSum").innerHTML=[
-      row("Designation",`${s.designation} (${s.cls.pct}% of ${s.cls.letter})`),row("Total impulse",s.I.toFixed(1)+" N·s"),
-      row("Thrust avg / peak",`${s.Fav.toFixed(0)} / ${s.Fmax.toFixed(0)} N`),row("Burn time",s.tb.toFixed(2)+" s"),
-      row("Pressure avg / peak",`${(s.Pav/1e6).toFixed(2)} / ${(s.Pmax/1e6).toFixed(2)} MPa`),row("Isp",s.Isp.toFixed(1)+" s"),
-      row("Kn start / range",`${s.kn0.toFixed(0)} / ${s.knMin.toFixed(0)}–${s.knMax.toFixed(0)}`),row("Port-to-throat",s.pt0.toFixed(2)),
-      row("Peak mass flux",Math.round(s.gMax)+" kg/m²s"),row("Case safety factor",s.sf.toFixed(2)+` (yield ${(m.pYield/1e6).toFixed(1)} MPa)`),
-      row("Closure margin",s.closureSf.toFixed(2)),row("Liner rating",m.linerRating.toFixed(1)+" s"),
-      row("Igniter strength",s.ign.strength.toFixed(2)),row("Throat growth","+"+(s.throatGrowth*100).toFixed(2)+"%"),
-      row("Propellant / total",`${(m.mass.prop*1000).toFixed(0)} / ${(m.mass.total*1000).toFixed(0)} g`),
-      row("Length × diameter",`${(m.length*1000).toFixed(0)} × ${(m.diameter*1000).toFixed(0)} mm`)].join("");
-    $("dbgWarn").innerHTML=s.warnings.length?s.warnings.map(w=>`<p class="dbg-w ${w.sev}"><b>${w.sev==="crit"?"Fail":"Warning"}</b> ${esc(w.text)}</p>`).join(""):`<p class="hint">No warnings.</p>`;
+    BURN_VIS.curves($("dbgCv"),r.run,{pYield:r.motor.pYield,pMin:r.motor.prop.pMin*1e6});
+    $("dbgSum").innerHTML=dataRows(r);
+    $("dbgWarn").innerHTML=r.sum.warnings.length?r.sum.warnings.map(w=>`<p class="dbg-w ${w.sev}"><b>${w.sev==="crit"?"Fail":"Warning"}</b> ${esc(w.text)}</p>`).join(""):`<p class="hint">No warnings.</p>`;
   };
   $("dbgMotor").onchange=draw;$("dbgT").oninput=draw;addEventListener("resize",draw);
   draw();
 }
-/* two traces on one time axis: pressure on the left scale, thrust on the right */
-function plot(cv,r){
-  const dpr=Math.min(2,devicePixelRatio||1),W=cv.clientWidth||320,H=Math.round(W*0.62);
-  cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+"px";
-  const c=cv.getContext("2d"),css=getComputedStyle(document.documentElement),tok=k=>css.getPropertyValue(k).trim();
-  c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
-  const L=40,R=44,T=10,B=26,w=W-L-R,h=H-T-B,tMax=r.t[r.t.length-1]*1.04;
-  const pMax=nice(Math.max(...r.p)/1e6*1.1),fMax=nice(Math.max(...r.f)*1.1);
-  c.font=`11px ${tok("--mono")}`;c.lineWidth=1;
-  for(let i=0;i<=4;i++){const y=T+h-h*i/4;c.strokeStyle=tok("--line");c.beginPath();c.moveTo(L,y);c.lineTo(L+w,y);c.stroke();
-    c.fillStyle=tok("--pred");c.textAlign="right";c.fillText((pMax*i/4).toFixed(pMax<4?1:0),L-5,y+4);
-    c.fillStyle=tok("--ink");c.textAlign="left";c.fillText((fMax*i/4).toFixed(0),L+w+5,y+4);}
-  const tStep=nice(tMax/4);c.fillStyle=tok("--muted");c.textAlign="center";
-  for(let t=0;t<=tMax;t+=tStep)c.fillText(t.toFixed(tStep<1?1:0)+" s",L+w*t/tMax,H-8);
-  const line=(arr,k,max,col,wd)=>{c.strokeStyle=col;c.lineWidth=wd;c.beginPath();
-    for(let i=0;i<arr.length;i++){const x=L+w*r.t[i]/tMax,y=T+h-h*Math.min(1.05,arr[i]*k/max);i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();};
-  line(r.f,1,fMax,tok("--ink"),1.5);line(r.p,1e-6,pMax,tok("--pred"),2.5);
-}
-function nice(v){if(!(v>0))return 1;const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return(m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e;}
 /* ===================== app/boot.js: start-up and the title screen =====================
    start() runs once the page has parsed: settings, the version line, then the loading splash goes. */
 function start(){
   loadSettings();
   document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
   $("verLbl").textContent="v"+VERSION;
+  $("tStart").addEventListener("click",openDesigner);
   if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();
 }

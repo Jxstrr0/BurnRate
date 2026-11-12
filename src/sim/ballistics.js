@@ -18,7 +18,8 @@
    rate · (P / 5 MPa)^0.8. Erosive burning (6.5) arrives in stage 5.
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
-   opts (the variance model's hooks, stage 3; all optional): {aMul, eroMul, ignMul, areaAdd(t, x) -> extra m²}
+   opts (all optional): steps (regression steps over the web; fewer = faster, for live dragging), and the variance
+   model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight, areaAdd(t, x) -> extra m²}
    Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit, ...}. */
 function propCoef(prop,tGrain){return prop.rRef/1000/Math.pow(TUNING.pRef,prop.n)*Math.exp(prop.sigmaP*(tGrain-TUNING.tRef));}
 function simulate(motor,cond,opts){
@@ -26,7 +27,7 @@ function simulate(motor,cond,opts){
   const T=TUNING,prop=motor.prop,G=motor.grain,g=prop.gamma,cs=prop.cStar,rho=prop.rho;
   const RT=Math.pow(cs*vdk(g),2),n=prop.n,Pa=cond.pAmb!=null?cond.pAmb:T.pAmb,tGrain=cond.tGrain!=null?cond.tGrain:T.tRef;
   const a=propCoef(prop,tGrain)*(opts.aMul||1),eroRate=motor.throatMat.ero/1000*(opts.eroMul==null?1:opts.eroMul);
-  const Vch=motor.Vch,web=G.web,dxT=web/T.steps,areaAdd=opts.areaAdd||null;
+  const Vch=motor.Vch,web=G.web,dxT=web/(opts.steps||T.steps),areaAdd=opts.areaAdd||null;   // opts.steps: fewer while the player drags a slider
   /* igniter */
   const ig=motor.igniter,igGas=ig.gas*(opts.ignMul==null?1:opts.ignMul),need=T.ignNeedVol*(Vch-G.V(0))+T.ignNeedArea*G.A(0);
   const S=Math.max(1e-6,igGas/need),delay=T.ignDelay/S,spread=T.ignSpread/(S*S);

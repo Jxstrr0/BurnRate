@@ -9,11 +9,15 @@ data/tuning.js
 data/propellants.js
 data/materials.js
 data/designs.js
+data/variance.js
+data/contracts.js
 sim/grain.js
 sim/nozzle.js
 sim/motor.js
 sim/ballistics.js
 sim/derive.js
+sim/fire.js
+sim/grade.js
 sim/close.js
 html/ld-sim.html
 # --- the vis block (BURN_VIS): charts and the cross-section; reads sim results ---
@@ -21,12 +25,17 @@ vis/open.js
 vis/canvas.js
 vis/chart.js
 vis/section.js
+vis/strip.js
+vis/stand.js
 vis/close.js
 # --- the app block: the page glue ---
 app/state.js
 app/pwa.js
 app/gloss.js
 app/designer.js
+app/game.js
+app/firing.js
+app/report.js
 app/debug.js
 app/boot.js
 html/tail.html

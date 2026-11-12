@@ -4,7 +4,9 @@ function start(){
   loadSettings();
   document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
   $("verLbl").textContent="v"+VERSION;
-  $("tStart").addEventListener("click",openDesigner);
+  $("tStart").addEventListener("click",openBoard);$("tFree").addEventListener("click",freeDesign);
+  $("bdBack").addEventListener("click",()=>showScreen("title"));
+  initFiring();initReport();
   if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();
 }

@@ -1,7 +1,7 @@
 </style>
 
 <div id="app">
-  <!-- TITLE: the studio credit, the version and the way in (stage 2: straight to the design bench) -->
+  <!-- TITLE: the studio credit, the version and the way in: the work orders, or a free design -->
   <main id="title" class="concrete" aria-labelledby="t-name">
     <div class="stripe hazard" aria-hidden="true"></div>
     <div class="ghost" aria-hidden="true">ПОЛИГОН 41</div>
@@ -11,8 +11,9 @@
       <p class="lede">Design a solid rocket motor. Predict its curve. Bolt it to the stand and find out why it didn't match.</p>
     </div>
     <div class="actions">
-      <button type="button" class="btn pri big" id="tStart">Open the design bench</button>
-      <p class="note" id="tNote">Contracts and the test stand open in coming updates. For now, design a motor and watch its predicted curve.</p>
+      <button type="button" class="btn pri big" id="tStart">Work orders</button>
+      <button type="button" class="btn big" id="tFree">Free design</button>
+      <p class="note" id="tNote">First playable: six work orders and Stand 3. Nothing is saved yet; careers and save slots arrive in a coming update.</p>
     </div>
     <footer class="studio">
       <a href="https://longlight.games/" rel="noopener" aria-label="Longlight Interactive, the studio site"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="150" height="48"></a>
@@ -25,7 +26,7 @@
     <div class="dz-stick">
       <header class="dz-top">
         <button type="button" class="btn sm" id="dzBack" aria-label="Back to the title">‹</button>
-        <div class="dz-name"><span class="site">Stand 3 · Design bench</span><b id="dzDes" class="sign" aria-live="polite">—</b></div>
+        <div class="dz-name"><span class="site" id="dzSite">Stand 3 · Design bench</span><b id="dzDes" class="sign" aria-live="polite">—</b></div>
         <button type="button" class="btn sm" id="dzSheet">Data sheet</button>
       </header>
       <section class="dz-view" id="dzView">
@@ -38,7 +39,29 @@
       <nav class="dz-tabs" id="dzTabs" role="tablist" aria-label="Motor parts"></nav>
     </div>
     <section class="dz-panel" id="dzPanel"></section>
+    <div class="dz-go" id="dzGo"></div>
   </main>
+
+  <!-- WORK ORDERS (app/game.js): the first playable's fixed contracts -->
+  <main id="board" hidden aria-labelledby="bdTitle">
+    <header class="sc-top"><button type="button" class="btn sm back" id="bdBack" aria-label="Back to the title">‹</button>
+      <div class="dz-name"><span class="site">Aqsor Range · Stand 3</span><b class="sign" id="bdTitle">Work orders</b></div></header>
+    <p class="hint bd-note">Pick a job, design the motor on the bench, then fire it on the stand. The predictor is the ideal; the real motor never quite matches.</p>
+    <div class="bd-list" id="bdList"></div>
+  </main>
+
+  <!-- THE STAND (app/firing.js): countdown, the stand, the live strip chart -->
+  <main id="fire" hidden aria-label="Static firing">
+    <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span></header>
+    <div class="fr-stand"><canvas id="frStand" aria-hidden="true"></canvas><div class="fr-count sign" id="frCount" hidden aria-live="assertive"></div></div>
+    <div class="fr-gauges" aria-live="off"><div><span>Pressure</span><b class="mono" id="frP">0.00</b><small>MPa</small></div><div><span>Thrust</span><b class="mono" id="frF">0</b><small>N</small></div><div><span>Time</span><b class="mono" id="frT">0.00</b><small>s</small></div></div>
+    <div class="card fr-strip"><canvas id="frStrip" role="img" aria-label="Strip chart: measured pressure and thrust over the prediction"></canvas>
+      <p class="dz-key"><span class="k-pr"></span>Predicted<span class="k-me"></span>Measured</p></div>
+    <div class="fr-act"><button type="button" class="btn big abort" id="frAbort">Abort</button><button type="button" class="btn pri big" id="frNext" hidden>Read the report ›</button></div>
+  </main>
+
+  <!-- THE REPORT (app/report.js): range report, or the incident report when it failed -->
+  <main id="report" hidden aria-label="Range report"><article class="rp" id="rpBody"></article></main>
 </div>
 
 <div id="scrim"></div>

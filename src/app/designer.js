@@ -4,11 +4,13 @@
    Grain · Nozzle · Case · Igniter with thumb-sized controls.
    While a slider moves, the sim runs with fewer steps (DRAG_STEPS) once per frame; on release it runs in full.
    A warning flag opens its explanation with a button that jumps to the control to change.
-   The design lives in memory only for now; saving designs arrives with careers in stage 4 (brn-save). */
+   The bottom bar (app/game.js) checks the contract's spec against the prediction and leads to the stand. The predictor runs
+   at DZ.tGrain (20 °C, or a firing slot's temperature). The design lives in memory only for now; saving designs arrives
+   with careers in stage 4 (brn-save). */
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
-const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false};
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
   flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike"};
@@ -98,7 +100,7 @@ function schedule(fast){
   DZ.fast=DZ.fast===null?fast:(DZ.fast&&fast);
   if(DZ.raf)return;
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
-    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:20},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
+    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
 function change(f,v,fast){
   setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);}
 
@@ -110,7 +112,7 @@ function drawAll(){
     $("dzFlags").innerHTML=r.errors.map(e=>`<button type="button" class="flag crit" data-fix="${e.field}">${esc(e.text)}</button>`).join("");
     const cv=$("dzCv"),{c,W,H}=BURN_VIS.fit(cv,VIEW_H);c.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--muted");
     c.font="14px "+getComputedStyle(document.documentElement).getPropertyValue("--ui");c.textAlign="center";c.fillText("This motor can't be built yet.",W/2,H/2);
-    $("dzScrubV").textContent="";markErrors();return;}
+    $("dzScrubV").textContent="";markErrors();drawGo();return;}
   const s=r.sum,m=r.motor;
   $("dzDes").textContent=s.designation;
   const sfCls=s.sf<1?"crit":s.sf<BURN_SIM.TUNING.sfWarn?"warn":"good";
@@ -120,7 +122,7 @@ function drawAll(){
     cell("isp","Isp s",s.Isp.toFixed(0))+cell("sf","Safety",s.sf>=10?s.sf.toFixed(0):s.sf.toFixed(2),sfCls);
   $("dzFlags").innerHTML=s.warnings.length?s.warnings.map((w,i)=>`<button type="button" class="flag ${w.sev}" data-warn="${i}">${esc(FLAG_SHORT[w.key]||w.key)}</button>`).join("")
     :`<span class="flag ok">No warnings</span>`;
-  drawView();markErrors();
+  drawView();markErrors();drawGo();
 }
 function drawView(){
   const r=DZ.res;if(!r||!r.ok)return;
@@ -156,7 +158,7 @@ function dataRows(r){
 function dataSheet(){
   const r=DZ.res;
   const refs=Object.keys(BURN_SIM.REF_DESIGNS).map((k,i)=>`<button type="button" class="btn sm" data-ref="${i}">${esc(k)}</button>`).join("");
-  openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at 20 °C, sea level. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
+  openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at ${degC(DZ.tGrain)} grain, on the range. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
     :`<p>${esc(r.errors.map(e=>e.text).join(" "))}</p>`)+`<h3>Start again from a reference motor</h3><div class="refs">${refs}</div>`);}
 
 /* jump to the control a warning or error points at: switch tab, scroll to it, ring it */
@@ -196,9 +198,9 @@ function initDesigner(){
   /* buttons inside a sheet: jump to a control, or load a reference motor */
   document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
     if(b.dataset.fix)goToField(b.dataset.fix);
-    else if(b.dataset.ref!=null){DZ.d=clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);closeSheet();renderPanel();schedule(false);toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);}});
+    else if(b.dataset.ref!=null){setDesign(clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]));closeSheet();renderPanel();schedule(false);toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);}});
   $("dzSheet").addEventListener("click",dataSheet);
-  $("dzBack").addEventListener("click",()=>showScreen("title"));
+  $("dzBack").addEventListener("click",()=>{if(GAME.contract)openBoard();else showScreen("title");});
   addEventListener("resize",()=>{if(!$("design").hidden&&DZ.res)drawView();});
 }
 function openDesigner(){
@@ -208,10 +210,20 @@ function openDesigner(){
   $("dzScrub").value=Math.round(DZ.scrub*1000);
   DZ.res=null;schedule(false);
 }
-/* screens: one <main> shows at a time. The phone's Back button from the bench returns to the title. */
+/* screens: one <main> shows at a time. One history entry stands for "inside the game"; the phone's Back button walks
+   up a level (report -> bench -> work orders -> title) and pushes the entry again until the title. The firing screen
+   ignores Back while the motor burns. */
+const SCREENS=["title","board","design","fire","report"];
+const curScreen=()=>SCREENS.find(s=>!$(s).hidden)||"title";
+function parentScreen(id){return id==="board"?"title":id==="design"?(GAME.contract?"board":"title"):id==="report"?"design":id==="fire"?"fire":"title";}
 function showScreen(id){
-  for(const s of["title","design"])$(s).hidden=s!==id;
+  for(const s of SCREENS)$(s).hidden=s!==id;
+  document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);
-  if(id==="design"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:"design"},"");}catch(e){}}
+  if(id!=="title"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:1},"");}catch(e){}}
+  if(id==="board")renderBoard();
 }
-window.addEventListener("popstate",e=>{if(sheetOn())return;if(!(e.state&&e.state.brnScreen)&&!$("design").hidden)showScreen("title");});
+window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.brnScreen)return;
+  const cur=curScreen();if(cur==="title")return;
+  const p=parentScreen(cur);if(p==="fire"){try{history.pushState({brnScreen:1},"");}catch(err){}return;}
+  showScreen(p);if(p==="design"&&DZ.res)drawAll();});

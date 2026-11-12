@@ -201,6 +201,75 @@ p{margin:0 0 .7em}
 .refs{display:grid;gap:6px}.refs .btn{justify-content:flex-start;text-align:left}
 @media (max-width:359px){.dz-nums{grid-template-columns:repeat(3,1fr)}}
 
+/* ---- the bench's bottom bar (app/game.js): spec against the prediction, predictor temperature, to the stand ---- */
+.dz-go{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;
+  padding:8px 12px calc(8px + var(--safeB));background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -8px 16px -14px rgba(35,38,42,.6)}
+.dz-go .go-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dz-go .btn{flex:none}
+.temp{align-self:flex-start;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font-size:.72rem;min-height:28px;padding:0 9px;cursor:pointer}
+.temp[disabled]{cursor:default;color:var(--stateD);border-color:var(--state);opacity:1}
+.cks{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:.8rem;line-height:1.25}
+.ck{white-space:nowrap;color:var(--muted)}.ck i{font-style:normal;font-weight:700;margin-right:3px}
+.ck.ok{color:var(--good)}.ck.no{color:var(--crit)}.ck b{font-weight:600;color:var(--ink)}
+.has-go #toast{bottom:calc(84px + var(--safeB))}
+.fixes{list-style:none;padding:0;margin:0;display:grid;gap:12px}.fixes p{margin:0 0 6px}
+.btn.wide{width:100%;margin-top:14px}
+.tag.crit{color:var(--crit)}
+
+/* ---- shared screen header, the work orders (app/game.js) ---- */
+#board,#fire,#report{max-width:720px;margin:0 auto;min-height:100vh;min-height:100dvh;padding:calc(10px + var(--safeT)) 12px calc(24px + var(--safeB))}
+.sc-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sc-top .back{width:44px;padding:0;font-size:1.4rem}
+.bd-note{margin:0 2px 12px}
+.bd-list{display:grid;gap:12px}
+.wo header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.wo .site{font:600 .66rem/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--stateD)}
+.wo h3{font-size:1.2rem;margin:4px 0 6px}
+.wo p{font-size:.95rem}
+.wo-spec{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:4px;font-size:.92rem}
+.wo-spec b{font-weight:600;color:var(--ink)}
+.stamp{display:inline-block;font:400 1rem/1 var(--sign);letter-spacing:.06em;text-transform:uppercase;padding:5px 9px 4px;border:2px solid currentColor;border-radius:4px;transform:rotate(-4deg);flex:none}
+.stamp.pass{color:var(--good)}.stamp.fail{color:var(--stencil)}
+.stamp.big{font-size:1.5rem;padding:7px 12px 5px;border-width:3px}
+
+/* ---- the stand (app/firing.js) ---- */
+.fr-speed{margin-left:auto;font-size:.7rem;color:var(--muted);white-space:nowrap}
+.fr-stand{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+.fr-stand canvas{display:block;width:100%}
+.fr-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--stencil);background:rgba(251,250,247,.45)}
+.fr-gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.fr-gauges div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;display:grid;grid-template-columns:1fr auto;align-items:baseline}
+.fr-gauges span{grid-column:1/-1;font-size:.7rem;color:var(--muted)}
+.fr-gauges b{font-size:1.15rem;font-weight:600}.fr-gauges small{font-size:.7rem;color:var(--muted)}
+.fr-strip{padding:8px}.fr-strip canvas,.rp-chart canvas{display:block;width:100%}
+.dz-key .k-pr{background:var(--pred)}.dz-key .k-me{background:var(--meas);height:4px}
+.fr-act{display:grid;margin-top:12px}
+.btn.abort{background:var(--critBg);border-color:var(--crit);color:var(--crit)}
+
+/* ---- the report (app/report.js): an old range form, new data ---- */
+.rp{display:grid;gap:12px}
+.rp-form{position:relative;overflow:hidden;padding:4px 2px 0}
+.rp-form .ghost{position:absolute;right:-4px;top:30px;font:400 2.2rem/1 var(--mono);color:rgba(94,127,110,.11);pointer-events:none;white-space:nowrap}
+.rp-form .site{font:600 .66rem/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--stateD)}
+.rp-form h2{font-weight:400;font-size:1.7rem;margin:4px 0 2px}.rp-form h2 .mono{font-size:.8rem;color:var(--muted)}
+.rp-meta{color:var(--muted);margin:0 0 10px}
+.rp-chart{padding:8px}
+.rp-cause h3{margin:4px 0 6px}.rp-cause h3+p{font-size:1rem}
+.factors{list-style:none;padding:0;margin:0 0 6px;display:grid;gap:8px;font-size:.9rem}
+.factors li{display:grid;gap:3px}
+.factors .bar{display:block;height:5px;border-radius:3px;min-width:4px}.factors .bar.up{background:var(--crit)}.factors .bar.dn{background:var(--good)}
+.rp-note{margin:0;padding:8px 12px;border-left:4px solid var(--warn);background:var(--card);border-radius:8px;font-size:.92rem}
+.rp-tab thead th{font-size:.75rem;text-align:right;color:var(--muted);font-family:var(--ui);padding-bottom:4px}
+.rp-tab th small{display:block;font-size:.75rem;color:var(--muted)}
+.rp-tab td:last-child{width:22px;text-align:center}
+.rp-tab b.good{color:var(--good)}.rp-tab b.crit{color:var(--crit)}
+.rp-tab tr.sep td{padding:2px 0;border-top:2px solid var(--line2)}
+.rp-bh summary{cursor:pointer;font-weight:600;min-height:32px}
+.rp-bh ul{margin:8px 0;padding-left:18px;display:grid;gap:3px}
+.rp-sign{padding:4px 4px 0;font-size:1rem}.rp-sign p{margin:0}
+.rp-sign .sig{font:400 1.3rem/1.4 var(--sign);color:var(--stateD);transform:rotate(-2deg);display:inline-block;margin-top:4px}
+.rp-act{display:grid;gap:8px}
+
 /* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
 #scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #scrim.on{opacity:1;pointer-events:auto}
@@ -222,7 +291,7 @@ p{margin:0 0 .7em}
 </style>
 
 <div id="app">
-  <!-- TITLE: the studio credit, the version and the way in (stage 2: straight to the design bench) -->
+  <!-- TITLE: the studio credit, the version and the way in: the work orders, or a free design -->
   <main id="title" class="concrete" aria-labelledby="t-name">
     <div class="stripe hazard" aria-hidden="true"></div>
     <div class="ghost" aria-hidden="true">ПОЛИГОН 41</div>
@@ -232,8 +301,9 @@ p{margin:0 0 .7em}
       <p class="lede">Design a solid rocket motor. Predict its curve. Bolt it to the stand and find out why it didn't match.</p>
     </div>
     <div class="actions">
-      <button type="button" class="btn pri big" id="tStart">Open the design bench</button>
-      <p class="note" id="tNote">Contracts and the test stand open in coming updates. For now, design a motor and watch its predicted curve.</p>
+      <button type="button" class="btn pri big" id="tStart">Work orders</button>
+      <button type="button" class="btn big" id="tFree">Free design</button>
+      <p class="note" id="tNote">First playable: six work orders and Stand 3. Nothing is saved yet; careers and save slots arrive in a coming update.</p>
     </div>
     <footer class="studio">
       <a href="https://longlight.games/" rel="noopener" aria-label="Longlight Interactive, the studio site"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="150" height="48"></a>
@@ -246,7 +316,7 @@ p{margin:0 0 .7em}
     <div class="dz-stick">
       <header class="dz-top">
         <button type="button" class="btn sm" id="dzBack" aria-label="Back to the title">‹</button>
-        <div class="dz-name"><span class="site">Stand 3 · Design bench</span><b id="dzDes" class="sign" aria-live="polite">—</b></div>
+        <div class="dz-name"><span class="site" id="dzSite">Stand 3 · Design bench</span><b id="dzDes" class="sign" aria-live="polite">—</b></div>
         <button type="button" class="btn sm" id="dzSheet">Data sheet</button>
       </header>
       <section class="dz-view" id="dzView">
@@ -259,7 +329,29 @@ p{margin:0 0 .7em}
       <nav class="dz-tabs" id="dzTabs" role="tablist" aria-label="Motor parts"></nav>
     </div>
     <section class="dz-panel" id="dzPanel"></section>
+    <div class="dz-go" id="dzGo"></div>
   </main>
+
+  <!-- WORK ORDERS (app/game.js): the first playable's fixed contracts -->
+  <main id="board" hidden aria-labelledby="bdTitle">
+    <header class="sc-top"><button type="button" class="btn sm back" id="bdBack" aria-label="Back to the title">‹</button>
+      <div class="dz-name"><span class="site">Aqsor Range · Stand 3</span><b class="sign" id="bdTitle">Work orders</b></div></header>
+    <p class="hint bd-note">Pick a job, design the motor on the bench, then fire it on the stand. The predictor is the ideal; the real motor never quite matches.</p>
+    <div class="bd-list" id="bdList"></div>
+  </main>
+
+  <!-- THE STAND (app/firing.js): countdown, the stand, the live strip chart -->
+  <main id="fire" hidden aria-label="Static firing">
+    <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span></header>
+    <div class="fr-stand"><canvas id="frStand" aria-hidden="true"></canvas><div class="fr-count sign" id="frCount" hidden aria-live="assertive"></div></div>
+    <div class="fr-gauges" aria-live="off"><div><span>Pressure</span><b class="mono" id="frP">0.00</b><small>MPa</small></div><div><span>Thrust</span><b class="mono" id="frF">0</b><small>N</small></div><div><span>Time</span><b class="mono" id="frT">0.00</b><small>s</small></div></div>
+    <div class="card fr-strip"><canvas id="frStrip" role="img" aria-label="Strip chart: measured pressure and thrust over the prediction"></canvas>
+      <p class="dz-key"><span class="k-pr"></span>Predicted<span class="k-me"></span>Measured</p></div>
+    <div class="fr-act"><button type="button" class="btn big abort" id="frAbort">Abort</button><button type="button" class="btn pri big" id="frNext" hidden>Read the report ›</button></div>
+  </main>
+
+  <!-- THE REPORT (app/report.js): range report, or the incident report when it failed -->
+  <main id="report" hidden aria-label="Range report"><article class="rp" id="rpBody"></article></main>
 </div>
 
 <div id="scrim"></div>
@@ -334,8 +426,8 @@ const TUNING={
   sfWarn:1.5,          // case safety factor under this: warning
   ptWarn:2.0,          // port-to-throat area ratio under this: erosive-spike warning
   gWarn:1500,          // peak mass flux over this, kg/(m²·s): warning
-  linerWarn:0.85,
-  spikeWarn:1.3,       // a start-up peak over this x the steady peak: the igniter is too big (warning)      // burn time over this x liner rating: warning
+  linerWarn:0.85,      // burn time over this x liner rating: warning
+  spikeWarn:1.3,       // a start-up peak over this x the steady peak: the igniter is too big (warning)
   // impulse classes: A tops out at 2.5 N·s and each letter doubles (the usual hobby scheme)
   classTop:2.5,classLetters:"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
   // mass estimates that aren't a part's own stat: the nozzle is a solid of revolution this full, this long x case bore
@@ -432,6 +524,82 @@ const REF_DESIGNS={
   "98mm 5-seg BATES, Ox, composite":{grain:{prop:"tr9",shape:"bates",segs:5,segLen:150,coreD:42},case:{mat:"composite",id:94,wall:3.0,liner:"ablative",linerThk:2.5,closure:"bolts",bolts:12},nozzle:{mat:"insert",throatD:28,exitD:60,half:15},igniter:"l"}
 };
 Object.assign(SIM,{DEFAULT_DESIGN,REF_DESIGNS});
+/* ===================== data/variance.js: how a real firing differs from the prediction (plan section 7) =====================
+   The predictor is the ideal motor. A firing is the same motor plus seeded deviations, each one something the incident
+   report can name. sim/fire.js draws them, one named random stream per source, so adding a source never reshuffles the
+   others. Every spread is 1 standard deviation unless it says otherwise.
+   Propellant batch spread is each grade's aVar (data/propellants.js); case strength spread is each material's sVar
+   (data/materials.js). */
+const VARIANCE={
+  eroSd:0.30,          // throat erosion rate spread, fraction
+  eroMin:0.2,          //   never less than this x the material's rate
+  ignSd:0.15,          // igniter gas delivered, fraction
+  ignMin:0.4,
+  hangS:0.30,          // igniter strength (after its spread) under this: the grain never lights (hang fire)
+  retSd:0.06,          // closure retention spread, fraction
+  linerSd:0.07,        // liner protection time spread, fraction
+  /* casting voids: a hidden cavity the flame front reaches partway through the burn, a sudden jump in burning area.
+     Chance = voidBase + voidPerSeg x segments + voidPerL x litres of propellant, capped at voidMax. */
+  voidBase:0.02,voidPerSeg:0.012,voidPerL:0.05,voidMax:0.35,
+  voidAt:[0.15,0.80],  // where in the web the flame reaches it (fraction of the web)
+  voidArea:[0.06,0.22],// extra burning area while it burns, as a fraction of the grain's area there
+  voidLen:[0.04,0.12], // how much of the web it lasts for (fraction of the web)
+  /* grain cracks: a crack opens at ignition and adds a lot of area for the rest of the burn. The chance rises with a
+     cold grain and a fast pressure rise at the start (a harsh ignition shocks the grain):
+       chance = crackBase x (1 + crackCold x degrees under crackWarm) x (rise / crackRise)^crackRiseExp, capped at crackMax
+     rise = the fastest pressure rise in the predicted start-up, MPa/s. */
+  crackBase:0.012,crackWarm:15,crackCold:0.12,crackRise:250,crackRiseExp:1.5,crackMax:0.5,
+  crackArea:[0.25,0.70],
+  crackAt:[0.0,0.25],  // where in the web it opens (fraction of the web)
+  noiseP:0.006,noiseF:0.010,   // sensor noise on the measured traces, fraction of each trace's peak (display only)
+  logRate:400,         // the data logger's sample rate, Hz (the blockhouse upgrade raises it in stage 4)
+  logMax:1600,         // never more than this many samples per trace (long burns log slower)
+  ventTau:0.04,        // after a burst, an ejected nozzle or a burn-through, the chamber empties with this time constant, s
+  chuffHz:7            // the puffing rate drawn on a chuffing trace, Hz
+};
+/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. */
+const SLOTS={
+  dawn:{name:"Dawn",tGrain:-6,note:"Cold grain: slower burn, lower pressure, more cracks."},
+  noon:{name:"Noon",tGrain:31,note:"Hot grain: faster burn, higher pressure."},
+  dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."}
+};
+Object.assign(SIM,{VARIANCE,SLOTS});
+/* ===================== data/contracts.js: the first playable's fixed contracts (stage 3) =====================
+   Stage 4 replaces this list with the career's contract board. Each contract:
+     id, client, title, brief (the work order's text), tier (highest part tier allowed), stand (what fits),
+     slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id), spec (criteria, sim/grade.js),
+     start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
+     tools/sim-tests/fire.js fires it across seeds and slots, so every contract stays solvable). */
+const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
+const STANDS={s3:{name:"Stand 3",len:420,dia:64,note:"The smallest stand: a concrete pad, a load cell rated 2 kN, one camera."}};
+const CONTRACTS=[
+  {id:"first-light",client:"Aqsor Steppe Rocketry Club",title:"A G for field day",tier:1,stand:"s3",slot:null,
+    brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They will fly whatever passes.",
+    spec:[{k:"I",lo:80,hi:160},{k:"tb",lo:1.0,hi:3.5}],start:"29mm 2-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:42,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:13,half:15},igniter:"s"}},
+  {id:"dala-g48",client:"Dala Hobby Supply",title:"Catalogue G48",tier:1,stand:"s3",slot:null,
+    brief:"A hobby shop in town wants a motor for its catalogue: a G averaging close to 48 N. Customers read the label, so the motor has to match it.",
+    spec:[{k:"Fav",lo:42,hi:54},{k:"I",lo:110,hi:150}],start:"29mm 2-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:44,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:12,half:15},igniter:"s"}},
+  {id:"kumtal-tow",client:"Kumtal Weather Service",title:"A long, gentle push",tier:1,stand:"s3",slot:null,
+    brief:"The weather station sends instruments up on small gliders that drift home. They want a gentle motor that pushes for ten seconds or more, without shaking the instruments.",
+    spec:[{k:"tb",lo:10,hi:16},{k:"Fav",lo:5,hi:12}],
+    start:{grain:{prop:"swift9",shape:"end",segs:1,segLen:60,coreD:0},case:{mat:"mild",id:35,wall:2.0,liner:"paper",linerThk:3.0,closure:"bolts",bolts:6},nozzle:{mat:"graphite",throatD:2.5,exitD:5,half:15},igniter:"xs"},
+    solution:{grain:{prop:"tr2",shape:"end",segs:1,segLen:40,coreD:0},case:{mat:"mild",id:40,wall:2.0,liner:"paper",linerThk:5.5,closure:"bolts",bolts:6},nozzle:{mat:"graphite",throatD:2.0,exitD:4,half:15},igniter:"xs"}},
+  {id:"saryk-h",client:"Saryk Polytechnic rocket team",title:"Off the rail, fast",tier:1,stand:"s3",slot:null,
+    brief:"The students' rocket is heavy and their launch rail is short. They need a hard push: 180 N or more on average, all of it inside 1.8 seconds.",
+    spec:[{k:"Fav",lo:180,hi:280},{k:"I",lo:200,hi:400},{k:"tb",hi:1.8}],start:"38mm 3-seg BATES, Mule",
+    solution:{grain:{prop:"swift9",shape:"bates",segs:3,segLen:48,coreD:16},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:9,exitD:20,half:15},igniter:"s"}},
+  {id:"burkit-light",client:"Bürkit Aerospace",title:"A light 38 mm I",tier:1,stand:"s3",slot:null,
+    brief:"A small launch company is testing an upper stage on a tight budget. Every gram counts: an I motor that weighs 330 g or less, all up.",
+    spec:[{k:"I",lo:340,hi:440},{k:"mass",hi:330}],start:"38mm 3-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"phenolic",id:35,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:8,exitD:20,half:15},igniter:"s"}},
+  {id:"range-dawn",client:"Aqsor Range Authority",title:"Cold qualification",tier:1,stand:"s3",slot:"dawn",
+    brief:"Before the range signs off its new stands, R. Abenov wants to see a motor behave on a cold morning. Fired at dawn, whatever the weather: 120 to 160 N on average, and gentle on the case.",
+    spec:[{k:"Fav",lo:120,hi:160},{k:"I",lo:320,hi:450},{k:"Pmax",hi:3.0}],start:"38mm 3-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:7.5,exitD:18,half:15},igniter:"s"}}
+];
+Object.assign(SIM,{GRADING,STANDS,CONTRACTS});
 /* ===================== sim/grain.js: grain geometry (plan section 6.2) =====================
    A grain is one or more segments in the case. Every segment answers three questions at web distance x (metres burned
    back from the starting surface):
@@ -602,7 +770,8 @@ Object.assign(SIM,{designErrors,motorFromDesign});
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
    opts (all optional): steps (regression steps over the web; fewer = faster, for live dragging), and the variance
-   model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight, areaAdd(t, x) -> extra m²}
+   model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight (strength under which the grain never lights),
+   areaAdd(t, x) -> extra burning area in m² (a void or a crack; its propellant comes out of the grain's web)}
    Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit, ...}. */
 function propCoef(prop,tGrain){return prop.rRef/1000/Math.pow(TUNING.pRef,prop.n)*Math.exp(prop.sigmaP*(tGrain-TUNING.tRef));}
 function simulate(motor,cond,opts){
@@ -626,7 +795,7 @@ function simulate(motor,cond,opts){
     if(Math.abs(At-thrustCache.at)>1e-4*At){const eps=motor.Ae/At;thrustCache={at:At,eps,prE:presRatio(exitMach(eps,g),g)};}
     const c=thrustCoef(Pn,Pa,thrustCache.eps,g,thrustCache.prE);
     return{F:motor.eta*c.cf*Pn*At,cf:c.cf,sep:c.sep};};
-  const push=(Pn,At,F,cf,mdot)=>{o.t.push(t);o.p.push(Pn);o.f.push(F);o.kn.push((G.A(x)+(areaAdd?areaAdd(t,x):0))/At);o.x.push(x);o.mdot.push(mdot);o.at.push(At);o.cf.push(cf);};
+  const push=(Pn,At,F,cf,mdot)=>{o.t.push(t);o.p.push(Pn);o.f.push(F);o.kn.push((G.A(x)+(areaAdd&&x<web?areaAdd(t,x):0))/At);o.x.push(x);o.mdot.push(mdot);o.at.push(At);o.cf.push(cf);};
   push(P,PI*rt*rt,0,0,0);
   const ignEnd=Math.max(ig.burn,delay+spread);
   while(t<T.tMax&&steps<200000){
@@ -637,11 +806,12 @@ function simulate(motor,cond,opts){
     else if(burning)dt=Math.min(T.dtMax,dxT/Math.max(rLast,1e-5));
     else{const tau=Math.max(1e-5,(Vch-G.V(x))/(At*cs*vdk(g)*vdk(g)));dt=Math.min(0.01,Math.max(2e-4,tau/4));}
     const t1=t+dt,fl=lit(t1),ign=igIn(t,t1),V0=G.V(x),mOld=mg;
-    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*a*Math.pow(Pn,n)*dt):x;
-    /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain */
-    const extra=areaAdd?areaAdd(t1,x):0;
+    /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain, and the
+       propellant it burns comes out of the grain: the web is used up faster by (A + extra) / A, so mass still balances */
+    const extra=areaAdd&&burning?areaAdd(t1,x):0,Ax=G.A(x),boost=extra>0&&Ax>1e-12?1+extra/Ax:1;
+    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*boost*a*Math.pow(Pn,n)*dt):x;
     const resid=Pn=>{const xn=xOf(Pn),Vn=G.V(xn);
-      const gen=rho*(V0-Vn)+(extra>0&&fl>0?rho*extra*a*Math.pow(Pn,n)*dt:0);
+      const gen=rho*(V0-Vn);
       const out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
       return(Vch-Vn)*Pn/RT-mOld-gen-ign+out;};
     /* bracket and solve (bisection on log P with a secant guess; fixed upper bound on iterations) */
@@ -655,9 +825,9 @@ function simulate(motor,cond,opts){
       const rm=resid(m);
       if(rm<0){lo=m;rl=rm;}else{hi=m;rh=rm;}
       Pn=m;if((hi-lo)<1e-9*hi)break;}
-    const xn=xOf(Pn),gen=rho*(V0-G.V(xn))+(extra>0&&fl>0?rho*extra*a*Math.pow(Pn,n)*dt:0),out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
+    const xn=xOf(Pn),gen=rho*(V0-G.V(xn)),out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
     x=xn;t=t1;P=Pn;mg=(Vch-G.V(x))*P/RT;mOut+=out;mBurn+=gen;mIgn+=ign;
-    rLast=fl*a*Math.pow(P,n);
+    rLast=fl*boost*a*Math.pow(P,n);
     if(burning&&fl>=1&&P<prop.pMin*1e6&&x<web*0.98)chuffAny=true;
     rt+=eroRate*Math.pow(P/T.pRef,T.eroExp)*dt;
     const th=thrust(P,At);if(th.sep&&burning&&fl>=1&&x<web*0.97)sepAny=true;   // separation in the steady burn, not the start-up or tail
@@ -726,6 +896,205 @@ function warnings(m,s){
 }
 function predict(design,cond,opts){const m=motorFromDesign(design);if(!m.ok)return{ok:false,errors:m.errors};const r=simulate(m,cond,opts);return{ok:true,motor:m,run:r,sum:summarize(m,r)};}
 Object.assign(SIM,{impulseClass,trapz,summarize,warnings,predict});
+/* ===================== sim/fire.js: a static firing, the real motor (plan sections 7 and 8) =====================
+   fire(design, cond, seed) builds the motor, predicts it at the firing's grain temperature, draws the real motor's
+   deviations from named random streams (data/variance.js), fires it, and walks the trace for the first failure:
+     cato        the pressure passed what this case tube could hold (its ultimate, after its strength spread)
+     eject       the force on the closures passed their retention: the nozzle blew out
+     burnthrough the grain was still burning when the liner's protection ran out
+     hangfire    the igniter never lit the grain
+     chuff       the pressure sat under the grade's stable minimum (not destructive, but no grade)
+   After a burst, an ejection or a burn-through the trace is cut there and the chamber vents. The measured trace is then
+   logged at the data logger's rate with a little sensor noise (its own stream, display only).
+   Returns {ok, motor, cond, seed, draws, events, pred:{run,sum} (predicted at this temperature), pred20 (at 20 °C, what
+   the designer showed), meas:{run,sum}, log:{t,p,f}, plog:{t,p,f}, failure:{key,t,i,text,fix,destructive} | null,
+   notes:[{key,text,fix}], factors:[{key,text,pct}] (ranked), yielded}. Pure and deterministic: same design, cond
+   and seed, same firing. */
+function riseRate(run,tUntil){let r=0;for(let i=1;i<run.t.length&&run.t[i]<=tUntil;i++){const dt=run.t[i]-run.t[i-1];if(dt>0)r=Math.max(r,(run.p[i]-run.p[i-1])/dt);}return r/1e6;}
+function peak(a){let m=0;for(const v of a)if(v>m)m=v;return m;}
+const lerpR=(r,u)=>r[0]+(r[1]-r[0])*u;
+/* the real motor's deviations. Every stream always makes the same draws in the same order, so a tuning change to one
+   chance never moves another source's numbers. */
+function drawVariance(m,cond,seed,pred){
+  const V=VARIANCE,S=rngStreams(seed),G=m.grain;
+  const d={
+    aMul:Math.max(0.7,1+S.get("batch").normal(0,m.prop.aVar)),
+    caseMul:Math.max(0.6,1+S.get("case").normal(0,m.caseMat.sVar)),
+    eroMul:Math.max(V.eroMin,1+S.get("throat").normal(0,V.eroSd)),
+    ignMul:Math.max(V.ignMin,1+S.get("igniter").normal(0,V.ignSd)),
+    retMul:Math.max(0.6,1+S.get("closure").normal(0,V.retSd)),
+    linerMul:Math.max(0.5,1+S.get("liner").normal(0,V.linerSd))};
+  const litres=m.mass.prop/m.prop.rho*1000;
+  const vr=S.get("voids"),vu=vr.next(),vAt=lerpR(V.voidAt,vr.next()),vArea=lerpR(V.voidArea,vr.next()),vLen=lerpR(V.voidLen,vr.next());
+  d.voidChance=Math.min(V.voidMax,V.voidBase+V.voidPerSeg*m.design.grain.segs+V.voidPerL*litres);
+  d.void=vu<d.voidChance?{x0:vAt*G.web,x1:(vAt+vLen)*G.web,area:vArea*G.A(vAt*G.web),frac:vArea}:null;
+  const cr=S.get("cracks"),cu=cr.next(),cAt=lerpR(V.crackAt,cr.next()),cArea=lerpR(V.crackArea,cr.next());
+  const tSteady=Math.max(m.igniter.burn,pred.ign.delay+pred.ign.spread)+0.02;
+  d.rise=riseRate(pred,tSteady+0.05);
+  const cold=Math.max(0,V.crackWarm-(cond.tGrain!=null?cond.tGrain:TUNING.tRef));
+  d.crackChance=Math.min(V.crackMax,V.crackBase*(1+V.crackCold*cold)*Math.pow(Math.max(0,d.rise)/V.crackRise,V.crackRiseExp));
+  d.crack=cu<d.crackChance?{x0:cAt*G.web,area:cArea*G.A(cAt*G.web),frac:cArea}:null;
+  return d;
+}
+function areaHook(d){
+  if(!d.void&&!d.crack)return null;
+  return(t,x)=>(d.void&&x>=d.void.x0&&x<d.void.x1?d.void.area:0)+(d.crack&&x>=d.crack.x0?d.crack.area:0);}
+/* cut a run's traces after sample i, then let the chamber vent: pressure falls to ambient with time constant tau;
+   thrust falls with it (or at once, when the nozzle has gone) */
+const RUN_KEYS=["t","p","f","kn","x","mdot","at","cf"];
+function cutAndVent(run,i,tau,thrustNow){
+  const o=Object.assign({},run);for(const k of RUN_KEYS)o[k]=run[k].slice(0,i+1);
+  const t0=o.t[i],p0=o.p[i],f0=thrustNow?o.f[i]:0,Pa=run.pAmb;
+  for(let j=1;j<=30;j++){const dt=tau*5*j/30,e=Math.exp(-dt/tau);
+    o.t.push(t0+dt);o.p.push(Pa+(p0-Pa)*e);o.f.push(f0*e);o.kn.push(o.kn[i]);o.x.push(o.x[i]);o.mdot.push(o.mdot[i]*e);o.at.push(o.at[i]);o.cf.push(o.cf[i]);}
+  return o;}
+/* the data logger: resample to a steady rate, add sensor noise. A chuffing burn is drawn pulsing where it sat under pMin. */
+function logTrace(run,seed,noise,chuff){
+  const V=VARIANCE,n=run.t.length,tEnd=run.t[n-1],dt=Math.max(1/V.logRate,tEnd/V.logMax),out={t:[],p:[],f:[]};
+  const rn=noise?rngStreams(seed).get("sensor"):null,pPk=peak(run.p),fPk=peak(run.f);
+  let j=0;
+  for(let t=0;t<=tEnd+1e-9;t+=dt){
+    while(j<n-2&&run.t[j+1]<t)j++;
+    const t0=run.t[j],t1=run.t[j+1],u=t1>t0?Math.max(0,Math.min(1,(t-t0)/(t1-t0))):0;
+    let p=run.p[j]+(run.p[j+1]-run.p[j])*u,f=run.f[j]+(run.f[j+1]-run.f[j])*u;
+    if(chuff&&p<chuff.pMin&&run.x[j]<run.web*0.98&&t>chuff.t0){const k=Math.pow(0.5+0.5*Math.cos(2*PI*V.chuffHz*t),2);p=run.pAmb+(p-run.pAmb)*(0.15+1.7*k);f*=0.15+1.7*k;}
+    if(rn){p+=rn.normal(0,V.noiseP*pPk);f+=rn.normal(0,V.noiseF*fPk);}
+    out.t.push(t);out.p.push(Math.max(0,p));out.f.push(Math.max(0,f));}
+  /* always end on the run's last sample, so a failure moment is on the log */
+  if(out.t[out.t.length-1]<tEnd-1e-9){out.t.push(tEnd);out.p.push(run.p[n-1]);out.f.push(run.f[n-1]);}
+  return out;}
+const mpa=p=>(p/1e6).toFixed(2)+" MPa",pct=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(0)+"%";
+/* "4% stronger than its rating" */
+const vs=(mul,up,dn)=>`${Math.abs((mul-1)*100).toFixed(Math.abs(mul-1)<0.1?1:0)}% ${mul>=1?up:dn}`;
+function fire(design,cond,seed){
+  const m=motorFromDesign(design);if(!m.ok)return{ok:false,errors:m.errors};
+  cond=Object.assign({tGrain:TUNING.tRef},cond||{});seed=String(seed);
+  const pred=simulate(m,cond),predSum=summarize(m,pred),pred20=summarize(m,simulate(m,{tGrain:TUNING.tRef,pAmb:cond.pAmb}));
+  const d=drawVariance(m,cond,seed,pred),V=VARIANCE;
+  const hook=areaHook(d),opts={aMul:d.aMul,eroMul:d.eroMul,ignMul:d.ignMul,ignLight:V.hangS,areaAdd:hook};
+  let run=simulate(m,cond,opts);
+  /* the same firing without the void or crack, to say how much they added */
+  const base=hook?simulate(m,cond,Object.assign({},opts,{areaAdd:null})):run;
+  const pBurst=m.pUlt*d.caseMul,pYield=m.pYield*d.caseMul,ret=m.retention*d.retMul,linerT=m.linerRating*d.linerMul,Ab=PI*(m.id/2)*(m.id/2);
+  const tLit=run.ign.delay;
+  let failure=null,yielded=false,pMaxSeen=0;
+  if(run.notLit)failure={key:"hangfire",t:run.ign.delay,i:0,destructive:false};
+  else for(let i=1;i<run.t.length;i++){
+    const p=run.p[i],t=run.t[i];pMaxSeen=Math.max(pMaxSeen,p);
+    if(p>pBurst){failure={key:"cato",t,i,destructive:true,p};break;}
+    if(p*Ab>ret){failure={key:"eject",t,i,destructive:true,p,load:p*Ab};break;}
+    if(run.x[i]<run.web*0.98&&t-tLit>linerT){failure={key:"burnthrough",t,i,destructive:true,p};break;}
+    if(p>pYield)yielded=true;}
+  if(failure&&failure.destructive){
+    const tau=V.ventTau*(failure.key==="burnthrough"?3:1);
+    run=cutAndVent(run,failure.i,tau,failure.key==="burnthrough");
+    failure.i=run.t.length-31;}
+  if(!failure&&run.chuffAny)failure={key:"chuff",t:null,i:-1,destructive:false};
+  const sum=summarize(m,run);
+  const events=[];
+  const xT=x=>{const k=run.x.findIndex(v=>v>=x);return k<0?null:run.t[k];};
+  if(d.void){const t=xT(d.void.x0);if(t!=null&&(!failure||!failure.destructive||t<=failure.t))events.push({key:"void",t,frac:d.void.frac});}
+  if(d.crack){const t=xT(d.crack.x0);if(t!=null&&(!failure||!failure.destructive||t<=failure.t))events.push({key:"crack",t,frac:d.crack.frac});}
+  const evText=events.map(e=>e.key==="void"?`A casting void at ${e.t.toFixed(2)} s added ${Math.round(e.frac*100)}% burning area.`
+    :`A crack opened in the grain at ${e.t.toFixed(2)} s, adding ${Math.round(e.frac*100)}% burning area.`).join(" ");
+  /* the root cause in one sentence, the fields to change, the factors that pushed it over, ranked */
+  const factors=[],addF=(key,v,text)=>{if(isFinite(v))factors.push({key,pct:v,text});};
+  const cg=cond.tGrain,slotTxt=`${cg>TUNING.tRef?"Warm":"Cold"} grain (${Math.round(cg)} °C)`;
+  if(failure){
+    const k=failure.key,f=failure;
+    if(k==="cato"||k==="eject"){
+      f.text=k==="cato"?`Peak pressure reached ${mpa(f.p)}; this case could hold ${mpa(pBurst)}.`
+        :`The closures took ${(f.load/1000).toFixed(1)} kN at ${mpa(f.p)}; the retention held ${(ret/1000).toFixed(1)} kN. The nozzle let go at ${f.t.toFixed(2)} s.`;
+      if(evText)f.text+=" "+evText;
+      f.fix=k==="cato"?["case.wall","nozzle.throatD","case.mat"]:(design.case.closure==="bolts"?["case.bolts","case.closure","nozzle.throatD"]:["case.closure","nozzle.throatD"]);
+      if(d.crack)f.fix.push("igniter");
+      addF("margin",pred20.Pmax/(k==="cato"?m.pUlt:m.retention/Ab)-1,`Design margin: the predictor's peak at 20 °C was ${mpa(pred20.Pmax)} against a limit of ${mpa(k==="cato"?m.pUlt:m.retention/Ab)}.`);
+      addF("temp",predSum.Pmax/pred20.Pmax-1,`${slotTxt}: ${pct(predSum.Pmax/pred20.Pmax-1)} pressure against the 20 °C prediction.`);
+      addF("batch",peak(base.p)/predSum.Pmax-1,`This propellant batch burned ${vs(d.aMul,"faster","slower")} than the grade's rate: ${pct(peak(base.p)/predSum.Pmax-1)} pressure.`);
+      if(hook)addF(d.crack?"crack":"void",peak(run.p.slice(0,f.i+1))/peak(base.p)-1,(d.crack?"The crack":"The void")+` added ${pct(peak(run.p.slice(0,f.i+1))/peak(base.p)-1)} pressure.`);
+      if(k==="cato")addF("case",1-d.caseMul,`This case tube tested ${vs(d.caseMul,"stronger","weaker")} than its rating.`);
+      else addF("closure",1-d.retMul,`These closures held ${vs(d.retMul,"more","less")} than their rating.`);
+    }else if(k==="burnthrough"){
+      f.text=`The grain was still burning at ${f.t.toFixed(2)} s; the liner protected the case for ${linerT.toFixed(2)} s. Hot gas burned through the wall.`;
+      f.fix=["case.linerThk","case.liner","grain.coreD"];
+      addF("margin",pred20.tb/m.linerRating-1,`Design margin: the predicted burn at 20 °C lasted ${pred20.tb.toFixed(2)} s against a liner rated ${m.linerRating.toFixed(2)} s.`);
+      addF("temp",predSum.tb/pred20.tb-1,`${slotTxt}: ${pct(predSum.tb/pred20.tb-1)} burn time.`);
+      addF("liner",1-d.linerMul,`This liner protected ${vs(d.linerMul,"longer","shorter")} than its rating.`);
+      addF("batch",1/d.aMul-1,`This propellant batch burned ${vs(d.aMul,"faster","slower")} than the grade's rate.`);
+    }else if(k==="hangfire"){
+      const S=run.ign.strength;
+      f.text=`The igniter delivered ${vs(d.ignMul,"more","less")} gas than its rating: strength ${(S*d.ignMul).toFixed(2)}, under the ${V.hangS.toFixed(2)} the grain needs to light. It never caught.`;
+      f.fix=["igniter"];
+      addF("margin",V.hangS/S-1,`Design margin: the igniter's rated strength is ${S.toFixed(2)}; under ${TUNING.ignWeak} is risky.`);
+      addF("igniter",1-d.ignMul,`This igniter gave ${vs(d.ignMul,"more","less")} gas than its rating.`);
+    }else if(k==="chuff"){
+      f.text=`Pressure fell to ${mpa(sum.pLow)}, under ${m.prop.name}'s stable minimum of ${m.prop.pMin} MPa. The flame puffed out and relit: no grade.`;
+      f.fix=["nozzle.throatD","grain.segs"];
+      addF("margin",m.prop.pMin*1e6/pred20.pLow-1,`Design margin: the predictor's lowest steady pressure at 20 °C was ${mpa(pred20.pLow)}.`);
+      addF("temp",pred20.pLow/predSum.pLow-1,`${slotTxt}: ${pct(predSum.pLow/pred20.pLow-1)} pressure against the 20 °C prediction.`);
+      addF("batch",1/Math.pow(d.aMul,1/(1-m.prop.n))-1,`This propellant batch burned ${vs(d.aMul,"faster","slower")} than the grade's rate.`);
+    }
+    factors.sort((a,b)=>b.pct-a.pct);
+  }
+  const notes=[];
+  if(yielded&&!(failure&&failure.key==="cato"))notes.push({key:"yield",text:`Peak pressure ${mpa(sum.Pmax)} passed this case's yield (${mpa(pYield)}): the tube stretched and can't fly. One grade off.`,fix:["case.wall"]});
+  if(run.sepAny)notes.push({key:"sep",text:"The flow separated in the nozzle at ground pressure: thrust came in short.",fix:["nozzle.exitD"]});
+  if(events.length&&!(failure&&failure.destructive))notes.push({key:events[0].key,text:evText,fix:[]});
+  const chuffInfo=failure&&failure.key==="chuff"?{pMin:m.prop.pMin*1e6,t0:Math.max(m.igniter.burn,run.ign.delay+run.ign.spread)+0.02}:null;
+  return{ok:true,motor:m,cond,seed,draws:d,events,pred:{run:pred,sum:predSum},pred20,meas:{run,sum},
+    log:logTrace(run,seed,true,chuffInfo),plog:logTrace(pred,seed,false,null),
+    failure,notes,factors,yielded,limits:{pBurst,pYield,ret,linerT}};
+}
+Object.assign(SIM,{riseRate,drawVariance,fire});
+/* ===================== sim/grade.js: contracts, stand checks and grading (plan section 4) =====================
+   A contract's spec is a list of criteria {k, lo, hi} on the measured motor (either bound may be missing):
+     I (N·s)  Fav (N)  tb (s)  Pmax (MPa)  Fmax (N)  mass (total, g)  massFrac (%)
+   specValue(k, sum, motor) reads one; specCheck(spec, sum, motor) checks them all.
+   grade(contract, firing): fail if the firing failed or a criterion is out of its band; otherwise A, B or C by how close
+   the two-sided criteria sat to the middle of their bands (one-sided limits are pass or fail only). A case that yielded
+   loses one letter (and a C that yields fails).
+   preFire(contract, design, motor) lists what stops the motor going on the stand at all: it doesn't fit the stand, or it
+   uses parts from a later tier. Each item names the design field to change. */
+const SPEC_INFO={
+  I:{name:"Total impulse",short:"I",unit:"N·s",dp:1,gloss:"impulse",fix:["grain.segs","grain.segLen"]},
+  Fav:{name:"Average thrust",short:"avg",unit:"N",dp:0,gloss:"thrust",fix:["nozzle.throatD","grain.coreD"]},
+  tb:{name:"Burn time",short:"burn",unit:"s",dp:2,gloss:"burnTime",fix:["grain.coreD","grain.segLen"]},
+  Pmax:{name:"Peak pressure",short:"peak",unit:"MPa",dp:2,gloss:"pressure",fix:["nozzle.throatD"]},
+  Fmax:{name:"Peak thrust",short:"peak",unit:"N",dp:0,gloss:"thrust",fix:["nozzle.throatD"]},
+  mass:{name:"Motor mass",short:"mass",unit:"g",dp:0,gloss:"motorMass",fix:["case.mat","case.wall"]},
+  massFrac:{name:"Mass fraction",short:"frac",unit:"%",dp:0,gloss:"massFrac",fix:["case.mat","case.wall"]}
+};
+function specValue(k,s,m){
+  switch(k){case"I":return s.I;case"Fav":return s.Fav;case"tb":return s.tb;case"Pmax":return s.Pmax/1e6;case"Fmax":return s.Fmax;
+    case"mass":return m.mass.total*1000;case"massFrac":return s.massFrac*100;}
+  return NaN;}
+/* closeness to the middle of a two-sided band: 1 in the middle, 0 at the edge, negative outside */
+function specCheck(spec,s,m){
+  return spec.map(c=>{const v=specValue(c.k,s,m),lo=c.lo!=null?c.lo:-Infinity,hi=c.hi!=null?c.hi:Infinity,ok=v>=lo&&v<=hi;
+    const two=c.lo!=null&&c.hi!=null,close=two?1-Math.abs(v-(lo+hi)/2)/((hi-lo)/2):null;
+    return{k:c.k,lo:c.lo,hi:c.hi,v,ok,close,info:SPEC_INFO[c.k]};});}
+function grade(contract,f){
+  if(!f.ok)return{pass:false,letter:"–",why:"invalid",checks:[]};
+  const checks=specCheck(contract.spec,f.meas.sum,f.motor);
+  if(f.failure)return{pass:false,letter:"–",why:f.failure.key,checks};
+  const miss=checks.filter(c=>!c.ok);
+  if(miss.length)return{pass:false,letter:"–",why:"spec",checks,miss};
+  const cl=checks.filter(c=>c.close!=null).map(c=>c.close),worst=cl.length?Math.min(...cl):1;
+  const G=GRADING;let li=worst>=G.a?0:worst>=G.b?1:2;
+  if(f.yielded)li++;
+  if(li>2)return{pass:false,letter:"–",why:"yield",checks};
+  return{pass:true,letter:"ABC"[li],worst,checks};}
+function preFire(contract,design,m){
+  const out=[];if(!contract)return out;
+  const st=contract.stand,add=(field,text)=>out.push({field,text});
+  if(m&&m.ok){
+    if(m.length*1000>st.len)add("grain.segLen",`The motor is ${Math.round(m.length*1000)} mm long; ${st.name} takes ${st.len} mm.`);
+    if(m.diameter*1000>st.dia)add("case.id",`The motor is ${Math.round(m.diameter*1000)} mm across; ${st.name}'s clamps take ${st.dia} mm.`);}
+  const tier=contract.tier||1,parts=[["grain.prop",PROPELLANTS[design.grain.prop],"grade"],["case.mat",CASES[design.case.mat],"case material"],
+    ["case.liner",LINERS[design.case.liner],"liner"],["nozzle.mat",THROATS[design.nozzle.mat],"throat material"]];
+  for(const[f,p,what]of parts)if(p&&(p.tier||1)>tier)add(f,`${p.name} is a tier ${p.tier} ${what}. This contract allows tier ${tier} parts.`);
+  return out;}
+Object.assign(SIM,{SPEC_INFO,specValue,specCheck,grade,preFire});
 return SIM;
 })();
 if(typeof module!=="undefined")module.exports=BURN_SIM;
@@ -738,7 +1107,8 @@ if(typeof module!=="undefined")module.exports=BURN_SIM;
 const BURN_VIS=(()=>{"use strict";const VIS={};
 /* ===================== vis/canvas.js: shared canvas helpers =====================
    fit(cv, h) sizes a canvas to its CSS width at the screen's pixel ratio (capped at 2) and returns {c, W, H};
-   tokens() reads the colour and font tokens; nice(v) rounds an axis maximum up to 1, 2, 2.5 or 5 x 10^k. */
+   tokens() reads the colour and font tokens; nice(v) rounds an axis maximum up to 1, 2, 2.5 or 5 x 10^k; divs(max) picks a
+   gridline count that keeps every axis label a round number. */
 function fit(cv,h){
   const dpr=Math.min(2,window.devicePixelRatio||1),W=Math.max(200,cv.clientWidth||320),H=Math.round(h(W));
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
@@ -749,8 +1119,10 @@ function tokens(){const s=getComputedStyle(document.documentElement),g=k=>s.getP
     card:g("--card"),prop:g("--prop"),propD:g("--propD"),liner:g("--linerC"),metal:g("--metal"),metalL:g("--metalL"),burn:g("--burn"),
     mono:g("--mono")};}
 function nice(v){if(!(v>0))return 1;const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return(m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e;}
+/* how many gridlines to split an axis into so every label is a round number (5 -> 5 steps of 1, 2.5 -> 5 of 0.5, 2 -> 4 of 0.5) */
+function divs(max,few){const opts=few?[2,1]:[4,5,2];return opts.find(n=>Math.abs(Math.round(max/n*10)-max/n*10)<1e-9)||opts[0];}
 function fmtAxis(v,max){return max<4?v.toFixed(1):max<20&&v%1?v.toFixed(1):v.toFixed(0);}
-Object.assign(VIS,{fit,tokens,nice});
+Object.assign(VIS,{fit,tokens,nice,divs});
 /* ===================== vis/chart.js: the predicted curves (plan section 9.3) =====================
    curves(cv, run, o) draws chamber pressure (left scale, MPa, the predicted blue) and thrust (right scale, N, graphite)
    against time. o (all optional): pYield (Pa: the case yield line, drawn when it fits on the scale), pMin (Pa: the grade's
@@ -760,11 +1132,12 @@ function curves(cv,run,o){
   const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.5,260))),k=tokens();
   const L=36,R=42,T=12,B=22,w=W-L-R,h=H-T-B,n=run.t.length,tMax=run.t[n-1]*1.04;
   let pPk=0,fPk=0;for(let i=0;i<n;i++){if(run.p[i]>pPk)pPk=run.p[i];if(run.f[i]>fPk)fPk=run.f[i];}
-  const pMax=nice(pPk/1e6*1.12),fMax=nice(fPk*1.12),X=t=>L+w*t/tMax,Yp=p=>T+h-h*Math.min(1.04,p/1e6/pMax),Yf=f=>T+h-h*Math.min(1.04,f/fMax);
+  const pMax=nice(pPk/1e6*1.12),nd=divs(pMax),fMax=nice(fPk*1.12/nd)*nd,X=t=>L+w*t/tMax,Yp=p=>T+h-h*Math.min(1.04,p/1e6/pMax),Yf=f=>T+h-h*Math.min(1.04,f/fMax);
   c.font=`10px ${k.mono}`;c.lineWidth=1;c.textBaseline="middle";
-  for(let i=0;i<=4;i++){const y=T+h-h*i/4;c.strokeStyle=k.line;c.beginPath();c.moveTo(L,y+.5);c.lineTo(L+w,y+.5);c.stroke();
-    c.fillStyle=k.pred;c.textAlign="right";c.fillText(fmtAxis(pMax*i/4,pMax),L-5,y);
-    c.fillStyle=k.ink;c.textAlign="left";c.fillText(fmtAxis(fMax*i/4,fMax),L+w+5,y);}
+  /* the thrust scale shares the pressure scale's gridlines (nd of them), each a round step */
+  for(let i=0;i<=nd;i++){const y=T+h-h*i/nd;c.strokeStyle=k.line;c.beginPath();c.moveTo(L,y+.5);c.lineTo(L+w,y+.5);c.stroke();
+    c.fillStyle=k.pred;c.textAlign="right";c.fillText(fmtAxis(pMax*i/nd,pMax),L-5,y);
+    c.fillStyle=k.ink;c.textAlign="left";c.fillText(fmtAxis(fMax*i/nd,fMax),L+w+5,y);}
   /* units at the top of each scale stand in for a key: blue MPa on the left, graphite N on the right */
   c.font=`600 10px ${k.mono}`;c.textBaseline="alphabetic";c.fillStyle=k.pred;c.textAlign="left";c.fillText("MPa",L+4,T+9);
   c.fillStyle=k.ink;c.textAlign="right";c.fillText("thrust N",L+w-4,T+9);c.font=`10px ${k.mono}`;
@@ -842,6 +1215,118 @@ function section(cv,m,x,info,h){
     c.fillText(ln,pad+dE+14+col*colW,top+4+row*lh);});
 }
 Object.assign(VIS,{section});
+/* ===================== vis/strip.js: the firing's strip chart (plan sections 4 and 9.3) =====================
+   strip(cv, o) draws two panels on one time axis: chamber pressure on top, thrust below. The prediction (blue, thin) is
+   drawn whole; the measured trace (red, heavy) is drawn up to o.upto seconds, so the firing screen can reveal it live and
+   the report can show it all. The scales come from the prediction and the case rating, never from the measured peak, so
+   a burst runs off the top of the chart instead of giving itself away before it happens.
+   o: {h, pred:{t,p,f}, meas:{t,p,f}, upto, pLine (Pa, the case's burst rating), mark:{t,label} (the failure moment),
+       events:[{t,label}] (a void, a crack), now (true: draw a pen dot at the head of the measured trace)} */
+function strip(cv,o){
+  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,300))),k=tokens();
+  const P=o.pred,M=o.meas,nP=P.t.length,nM=M.t.length;
+  const L=38,R=10,T=8,B=20,gap=16,hP=Math.round((H-T-B-gap)*0.58),hF=H-T-B-gap-hP,w=W-L-R;
+  const tMax=Math.max(P.t[nP-1],M.t[nM-1])*1.03||1,X=t=>L+w*Math.min(1,t/tMax);
+  let pPk=0,fPk=0;for(let i=0;i<nP;i++){pPk=Math.max(pPk,P.p[i]);fPk=Math.max(fPk,P.f[i]);}
+  let pTop=pPk*1.3;if(o.pLine>0&&o.pLine<pTop*1.7)pTop=Math.max(pTop,o.pLine*1.08);
+  const pMax=nice(pTop/1e6),fMax=nice(fPk*1.3||1);
+  const panels=[{y0:T,h:hP,max:pMax,unit:"MPa",col:k.pred,get:(s,i)=>s.p[i]/1e6},{y0:T+hP+gap,h:hF,max:fMax,unit:"thrust N",col:k.ink,get:(s,i)=>s.f[i]}];
+  c.font=`10px ${k.mono}`;c.lineWidth=1;
+  for(const pn of panels){
+    const Y=v=>pn.y0+pn.h-pn.h*v/pn.max;
+    c.textBaseline="middle";
+    const nd=divs(pn.max,pn.h<=90);
+    for(let i=0;i<=nd;i++){const v=pn.max*i/nd,y=Math.round(Y(v))+.5;c.strokeStyle=k.line;c.beginPath();c.moveTo(L,y);c.lineTo(L+w,y);c.stroke();
+      c.fillStyle=k.muted;c.textAlign="right";c.fillText(fmtAxis(v,pn.max),L-5,y);}
+    c.font=`600 10px ${k.mono}`;c.textBaseline="alphabetic";c.textAlign="left";c.fillStyle=k.muted;c.fillText(pn.unit,L+4,pn.y0+10);c.font=`10px ${k.mono}`;
+    pn.Y=Y;}
+  /* the case's burst rating on the pressure panel */
+  if(o.pLine>0&&o.pLine/1e6<=pMax){const y=panels[0].Y(o.pLine/1e6);c.save();c.setLineDash([6,4]);c.strokeStyle=k.stencil;c.lineWidth=1.25;c.beginPath();c.moveTo(L,y);c.lineTo(L+w,y);c.stroke();c.restore();
+    c.fillStyle=k.stencil;c.textAlign="right";c.textBaseline="alphabetic";c.fillText("case bursts",L+w-4,y-4);}
+  /* time axis */
+  const tStep=nice(tMax/5);c.fillStyle=k.muted;c.textAlign="center";c.textBaseline="alphabetic";
+  for(let t=0;t<=tMax+1e-9;t+=tStep)c.fillText(t.toFixed(tStep<1?1:0)+(t?"":" s"),X(t),H-5);
+  /* events and the failure mark */
+  const vline=(t,col,label,dash)=>{const x=Math.round(X(t))+.5;c.save();c.setLineDash(dash);c.strokeStyle=col;c.lineWidth=1.25;c.beginPath();c.moveTo(x,T);c.lineTo(x,H-B);c.stroke();c.restore();
+    if(label){c.fillStyle=col;c.font=`600 10px ${k.mono}`;c.textAlign=x>L+w*0.7?"right":"left";c.textBaseline="alphabetic";c.fillText(label,x+(x>L+w*0.7?-4:4),T+hP+gap-4);c.font=`10px ${k.mono}`;}};
+  const upto=o.upto==null?Infinity:o.upto;
+  for(const e of o.events||[])if(e.t<=upto)vline(e.t,k.warn,e.label,[2,3]);
+  if(o.mark&&o.mark.t<=upto)vline(o.mark.t,k.stencil,o.mark.label,[]);
+  /* traces, clipped to each panel so a burst runs off the top */
+  const trace=(s,n,pn,col,wd,lim)=>{c.save();c.beginPath();c.rect(L,pn.y0-1,w,pn.h+2);c.clip();c.strokeStyle=col;c.lineWidth=wd;c.lineJoin="round";c.beginPath();
+    let lx=-9,last=-1;for(let i=0;i<n&&s.t[i]<=lim;i++){const x=X(s.t[i]);if(i&&x-lx<0.5&&i<n-1)continue;lx=x;last=i;const y=pn.Y(pn.get(s,i));i?c.lineTo(x,y):c.moveTo(x,y);}
+    c.stroke();c.restore();return last;};
+  for(const pn of panels){
+    c.globalAlpha=0.85;trace(P,nP,pn,k.pred,1.5,Infinity);c.globalAlpha=1;
+    const last=trace(M,nM,pn,k.meas,2.4,upto);
+    if(o.now&&last>=0){const x=X(M.t[last]),y=Math.max(pn.y0,pn.Y(pn.get(M,last)));c.fillStyle=k.meas;c.beginPath();c.arc(x,y,3.5,0,7);c.fill();}}
+}
+Object.assign(VIS,{strip});
+/* ===================== vis/stand.js: the test stand, a 2D placeholder (plan section 9.3; stage 7 makes it 3D) =====================
+   stand(cv, o) draws Stand 3 side on: the salt flat and a distant blockhouse, the concrete thrust block, the load cell and
+   the motor lying nozzle-right, then the plume, whose length and brightness follow thrust. Stateless: everything moves as
+   a function of the times passed in, so the caller only sends numbers each frame.
+   o: {h, len, dia (motor size, m), f (thrust now, 0 to 1 of the predicted peak), t (s since ignition, or <0 before),
+       fail:{key, age (s since it happened)}, smoke (s since the burn ended, or <0), still (reduced motion: no flicker)}
+   Failures: cato (flash, the case splits, debris), eject (the nozzle flies off), burnthrough (a side jet), hangfire (a
+   thin wisp, no flame). The debris pattern comes from a fixed seeded stream, so it is the same every time. */
+function stand(cv,o){
+  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.42,190))),k=tokens();
+  const ground=H*0.78,fail=o.fail||null,age=fail?fail.age:0;
+  /* shake for a moment after a burst */
+  let sx=0,sy=0;if(fail&&fail.key==="cato"&&age<0.6&&!o.still){const a=(1-age/0.6)*6;sx=Math.sin(age*90)*a;sy=Math.cos(age*70)*a*0.6;}
+  c.save();c.translate(sx,sy);
+  /* sky and salt flat */
+  const sky=c.createLinearGradient(0,0,0,ground);sky.addColorStop(0,k.card);sky.addColorStop(1,k.line);c.fillStyle=sky;c.fillRect(-10,-10,W+20,ground+10);
+  c.fillStyle=k.line;c.fillRect(-10,ground,W+20,H-ground+10);
+  /* a low blockhouse on the horizon, and a mast */
+  c.fillStyle=k.metalL;c.globalAlpha=0.45;c.fillRect(W*0.06,ground-16,W*0.14,16);c.fillRect(W*0.11,ground-24,W*0.04,8);c.fillRect(W*0.86,ground-46,2,46);c.globalAlpha=1;
+  /* motor size on screen: the longest of the fleet fits 46% of the width */
+  const len=o.len||0.2,dia=o.dia||0.03,s=Math.min(W*0.46/len,H*0.22/dia),mL=len*s,mD=Math.max(8,dia*s);
+  const blockW=Math.max(26,W*0.08),bx=W*0.16,cellW=10,mx=bx+blockW+cellW,my=ground-14-mD/2,noz=mL*0.16;
+  /* thrust block and pad */
+  c.fillStyle=k.metalL;c.fillRect(bx-16,ground-8,mL+blockW+60,8);
+  c.fillStyle=k.metal;c.fillRect(bx,my-mD*1.4,blockW,ground-8-(my-mD*1.4));
+  c.fillStyle=k.hazard;for(let i=0;i<4;i++)c.fillRect(bx+2+i*blockW/4,my-mD*1.4,blockW/8,5);
+  /* load cell */
+  c.fillStyle=k.ink;c.fillRect(bx+blockW,my-mD*0.3,cellW,mD*0.6);
+  const ex=mx+mL,ey=my;
+  const flame=o.t>=0&&o.f>0.003&&!(fail&&(fail.key==="cato"||fail.key==="eject")&&age>0.02);
+  /* the plume: a cone of light whose length and brightness follow thrust */
+  if(flame){const fl=Math.max(0.02,Math.min(1.3,o.f)),flick=o.still?1:0.9+0.1*Math.sin(o.t*67)+0.05*Math.sin(o.t*131);
+    const pl=(W-ex)*0.95*fl*flick,ph=mD*(0.45+0.6*fl);
+    const g=c.createLinearGradient(ex,0,ex+pl,0);g.addColorStop(0,"rgba(255,248,225,0.98)");g.addColorStop(0.18,"rgba(255,196,90,0.92)");g.addColorStop(0.6,"rgba(228,87,46,0.55)");g.addColorStop(1,"rgba(228,87,46,0)");
+    c.fillStyle=g;c.beginPath();c.moveTo(ex,ey-ph*0.35);c.quadraticCurveTo(ex+pl*0.35,ey-ph,ex+pl,ey);c.quadraticCurveTo(ex+pl*0.35,ey+ph,ex,ey+ph*0.35);c.closePath();c.fill();
+    /* shock diamonds when the plume is strong */
+    if(fl>0.6){c.fillStyle="rgba(255,250,235,0.55)";for(let i=1;i<=3;i++){const dx=ex+pl*0.12*i,r=ph*0.18*(1-i*0.2);c.beginPath();c.moveTo(dx-r,ey);c.lineTo(dx,ey-r*0.7);c.lineTo(dx+r,ey);c.lineTo(dx,ey+r*0.7);c.fill();}}}
+  /* the motor: case, forward closure, nozzle. After a burst the case is split and the halves are thrown */
+  const split=fail&&fail.key==="cato"?Math.min(1,age*3):0;
+  c.fillStyle=k.metal;
+  if(!split)c.fillRect(mx,my-mD/2,mL-noz,mD);
+  else{const d=split*mD*1.6;c.save();c.translate(0,-d);c.rotate(-0.08*split);c.fillRect(mx,my-mD/2,mL-noz,mD*0.45);c.restore();
+    c.save();c.translate(0,d*0.5);c.rotate(0.05*split);c.fillRect(mx,my+mD*0.05,mL-noz,mD*0.45);c.restore();}
+  c.fillStyle=k.metalL;c.fillRect(mx-3,my-mD/2-2,4,mD+4);
+  /* nozzle: flies away right after an ejection */
+  let nx=mx+mL-noz,ny=my;if(fail&&fail.key==="eject"){const a=Math.min(age,2.5);nx+=a*W*0.55;ny+=-a*40+a*a*120;if(ny>ground-mD/2)ny=ground-mD/2;}
+  if(!split||split<1){c.fillStyle=k.metalL;c.beginPath();c.moveTo(nx,ny-mD*0.42);c.lineTo(nx+noz,ny-mD*0.5);c.lineTo(nx+noz,ny+mD*0.5);c.lineTo(nx,ny+mD*0.42);c.closePath();c.fill();}
+  /* the case's stencil band */
+  if(!split){c.fillStyle=k.stencil;c.fillRect(mx+(mL-noz)*0.12,my-mD/2,Math.max(3,mL*0.03),mD);}
+  /* burn-through: a side jet from the middle of the case */
+  if(fail&&fail.key==="burnthrough"&&age<1.2){const a=Math.max(0,1-age/1.2),jx=mx+(mL-noz)*0.55,jl=mD*5*a;
+    const g=c.createLinearGradient(0,my-mD/2,0,my-mD/2-jl);g.addColorStop(0,"rgba(255,220,140,0.95)");g.addColorStop(1,"rgba(228,87,46,0)");
+    c.fillStyle=g;c.beginPath();c.moveTo(jx-mD*0.15,my-mD/2);c.lineTo(jx-mD*0.5,my-mD/2-jl);c.lineTo(jx+mD*0.5,my-mD/2-jl);c.lineTo(jx+mD*0.15,my-mD/2);c.fill();}
+  /* smoke: grey puffs drifting up and right after the burn, after a failure, or from a hang fire */
+  const smokeT=o.smoke>=0?o.smoke:(fail&&fail.key==="hangfire"?Math.max(0,o.t):-1);
+  if(smokeT>=0){for(let i=0;i<9;i++){const a=smokeT-i*0.18;if(a<0)continue;const r=mD*(0.4+a*0.9),x=ex+a*W*0.05+i*4,y=ey-a*22-i*2;
+    c.fillStyle=`rgba(120,118,112,${Math.max(0,0.32-a*0.06)})`;c.beginPath();c.arc(x,y,r,0,7);c.fill();}}
+  /* debris after a burst: a fixed pattern of fragments on ballistic arcs */
+  if(split){const rng=BURN_SIM.makeRng("debris"),a=Math.min(age,2.2);c.fillStyle=k.ink;
+    for(let i=0;i<14;i++){const vx=rng.float(-260,260),vy=rng.float(-320,-80),sz=rng.float(2,5),x=mx+mL*rng.float(0.2,0.8)+vx*a,y=Math.min(ground-2,my+vy*a+260*a*a);c.fillRect(x,y,sz,sz);}}
+  c.restore();
+  /* the flash: a white wash that fades */
+  if(fail&&fail.key==="cato"&&age<0.5){c.fillStyle=`rgba(255,250,235,${(0.9*(1-age/0.5)).toFixed(3)})`;c.fillRect(0,0,W,H);}
+}
+Object.assign(VIS,{stand});
 return VIS;})();
 </script>
 <script>
@@ -849,9 +1334,11 @@ return VIS;})();
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-" (brn-settings now; brn-save and brn-slot1..3 arrive with careers in
    stage 4). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.3.0.1";
+const VERSION="0.4.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* a temperature with a real minus sign: "−6 °C" */
+const degC=t=>(t<0?"−":"")+Math.abs(t)+" °C";
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---- settings (this phone only): brn-settings ---- */
@@ -946,6 +1433,16 @@ const GLOSS={
   impulseClass:{t:"Impulse class",d:"A letter for the total impulse. A is up to 2.5 N·s and every letter after it doubles: G is 80 to 160, K is 1280 to 2560. The designation is the letter followed by the average thrust, like G55."},
   burnTime:{t:"Burn time",d:"From when thrust first reaches 5% of its peak to when it falls back under 5%."},
   thrust:{t:"Thrust",d:"Chamber pressure x throat area x the thrust coefficient (C_F), which says how well the nozzle turns pressure into push, usually 1.2 to 1.6."},
+  motorMass:{t:"Motor mass",d:"Everything on the scale: propellant, case, liner, closures and nozzle. A thinner wall or a lighter case material saves the most; check the safety factor when you do."},
+  massFrac:{t:"Mass fraction",d:"Propellant mass divided by the whole motor's mass. Flight motors want it high: every gram of case is a gram the rocket has to lift."},
+  grainTemp:{t:"Grain temperature",d:"Burn rate rises with the grain's temperature. A motor fired on a cold dawn burns slower, at lower pressure and for longer than the same motor at a hot noon. High-exponent grades feel it most. The predictor's reference is 20 °C; tap the temperature on the bench to predict at a firing slot."},
+  firingSlot:{t:"Firing slot",d:"Dawn, noon or dusk. The motors sit out on the range overnight, so the grain is at the air's temperature when it fires."},
+  variance:{t:"Prediction and reality",d:"Every real motor is a little different from its numbers: the propellant batch burns a touch fast or slow, the case tube is a little stronger or weaker, the igniter gives a little more or less. Margins are what keep a motor safe through all of it."},
+  castingVoid:{t:"Casting void",d:"A hidden bubble inside the grain. When the flame front reaches it, the cavity's surface burns too: a sudden jump in burning area and a pressure bump. Bigger grains and more segments make one more likely."},
+  grainCrack:{t:"Grain crack",d:"A crack in the propellant adds a lot of burning area at once and keeps it for the rest of the burn. A cold grain and a harsh, fast start make cracks more likely. A gentler igniter and a warmer slot help."},
+  burnThrough:{t:"Burn-through",d:"Hot gas reached the case wall after the liner's protection ran out, and cut a hole in it. A thicker liner, a better liner material or a shorter burn fixes it."},
+  nozzleEject:{t:"Nozzle ejection",d:"The force of the chamber pressure on the closures beat what holds them in. The nozzle leaves, the pressure drops at once and thrust is gone. More bolts or less pressure."},
+  gradeLetter:{t:"Contract grade",d:"A pass is graded A, B or C by how close the measured motor sat to the middle of each band in the spec. A: inside the middle half of every band. A case that stretched past its yield costs one letter."},
   cf:{t:"Thrust coefficient (C_F)",d:"Thrust divided by chamber pressure x throat area. It rises with a well matched expansion ratio and with chamber pressure."}
 };
 function glossSheet(key){const e=GLOSS[key];if(!e)return;openSheet(e.t,`<p>${esc(e.d)}</p>`);}
@@ -956,11 +1453,13 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-g]");if(!
    Grain · Nozzle · Case · Igniter with thumb-sized controls.
    While a slider moves, the sim runs with fewer steps (DRAG_STEPS) once per frame; on release it runs in full.
    A warning flag opens its explanation with a button that jumps to the control to change.
-   The design lives in memory only for now; saving designs arrives with careers in stage 4 (brn-save). */
+   The bottom bar (app/game.js) checks the contract's spec against the prediction and leads to the stand. The predictor runs
+   at DZ.tGrain (20 °C, or a firing slot's temperature). The design lives in memory only for now; saving designs arrives
+   with careers in stage 4 (brn-save). */
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
-const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false};
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
   flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike"};
@@ -1050,7 +1549,7 @@ function schedule(fast){
   DZ.fast=DZ.fast===null?fast:(DZ.fast&&fast);
   if(DZ.raf)return;
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
-    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:20},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
+    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
 function change(f,v,fast){
   setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);}
 
@@ -1062,7 +1561,7 @@ function drawAll(){
     $("dzFlags").innerHTML=r.errors.map(e=>`<button type="button" class="flag crit" data-fix="${e.field}">${esc(e.text)}</button>`).join("");
     const cv=$("dzCv"),{c,W,H}=BURN_VIS.fit(cv,VIEW_H);c.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--muted");
     c.font="14px "+getComputedStyle(document.documentElement).getPropertyValue("--ui");c.textAlign="center";c.fillText("This motor can't be built yet.",W/2,H/2);
-    $("dzScrubV").textContent="";markErrors();return;}
+    $("dzScrubV").textContent="";markErrors();drawGo();return;}
   const s=r.sum,m=r.motor;
   $("dzDes").textContent=s.designation;
   const sfCls=s.sf<1?"crit":s.sf<BURN_SIM.TUNING.sfWarn?"warn":"good";
@@ -1072,7 +1571,7 @@ function drawAll(){
     cell("isp","Isp s",s.Isp.toFixed(0))+cell("sf","Safety",s.sf>=10?s.sf.toFixed(0):s.sf.toFixed(2),sfCls);
   $("dzFlags").innerHTML=s.warnings.length?s.warnings.map((w,i)=>`<button type="button" class="flag ${w.sev}" data-warn="${i}">${esc(FLAG_SHORT[w.key]||w.key)}</button>`).join("")
     :`<span class="flag ok">No warnings</span>`;
-  drawView();markErrors();
+  drawView();markErrors();drawGo();
 }
 function drawView(){
   const r=DZ.res;if(!r||!r.ok)return;
@@ -1108,7 +1607,7 @@ function dataRows(r){
 function dataSheet(){
   const r=DZ.res;
   const refs=Object.keys(BURN_SIM.REF_DESIGNS).map((k,i)=>`<button type="button" class="btn sm" data-ref="${i}">${esc(k)}</button>`).join("");
-  openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at 20 °C, sea level. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
+  openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at ${degC(DZ.tGrain)} grain, on the range. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
     :`<p>${esc(r.errors.map(e=>e.text).join(" "))}</p>`)+`<h3>Start again from a reference motor</h3><div class="refs">${refs}</div>`);}
 
 /* jump to the control a warning or error points at: switch tab, scroll to it, ring it */
@@ -1148,9 +1647,9 @@ function initDesigner(){
   /* buttons inside a sheet: jump to a control, or load a reference motor */
   document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
     if(b.dataset.fix)goToField(b.dataset.fix);
-    else if(b.dataset.ref!=null){DZ.d=clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);closeSheet();renderPanel();schedule(false);toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);}});
+    else if(b.dataset.ref!=null){setDesign(clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]));closeSheet();renderPanel();schedule(false);toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);}});
   $("dzSheet").addEventListener("click",dataSheet);
-  $("dzBack").addEventListener("click",()=>showScreen("title"));
+  $("dzBack").addEventListener("click",()=>{if(GAME.contract)openBoard();else showScreen("title");});
   addEventListener("resize",()=>{if(!$("design").hidden&&DZ.res)drawView();});
 }
 function openDesigner(){
@@ -1160,13 +1659,244 @@ function openDesigner(){
   $("dzScrub").value=Math.round(DZ.scrub*1000);
   DZ.res=null;schedule(false);
 }
-/* screens: one <main> shows at a time. The phone's Back button from the bench returns to the title. */
+/* screens: one <main> shows at a time. One history entry stands for "inside the game"; the phone's Back button walks
+   up a level (report -> bench -> work orders -> title) and pushes the entry again until the title. The firing screen
+   ignores Back while the motor burns. */
+const SCREENS=["title","board","design","fire","report"];
+const curScreen=()=>SCREENS.find(s=>!$(s).hidden)||"title";
+function parentScreen(id){return id==="board"?"title":id==="design"?(GAME.contract?"board":"title"):id==="report"?"design":id==="fire"?"fire":"title";}
 function showScreen(id){
-  for(const s of["title","design"])$(s).hidden=s!==id;
+  for(const s of SCREENS)$(s).hidden=s!==id;
+  document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);
-  if(id==="design"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:"design"},"");}catch(e){}}
+  if(id!=="title"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:1},"");}catch(e){}}
+  if(id==="board")renderBoard();
 }
-window.addEventListener("popstate",e=>{if(sheetOn())return;if(!(e.state&&e.state.brnScreen)&&!$("design").hidden)showScreen("title");});
+window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.brnScreen)return;
+  const cur=curScreen();if(cur==="title")return;
+  const p=parentScreen(cur);if(p==="fire"){try{history.pushState({brnScreen:1},"");}catch(err){}return;}
+  showScreen(p);if(p==="design"&&DZ.res)drawAll();});
+/* ===================== app/game.js: the first playable's work orders and the way to the stand (stage 3) =====================
+   GAME holds this visit's play in memory: the contract in hand, the design kept for each contract, how many motors each
+   has fired, the best grade, the firing log. Nothing is saved yet: careers, money and save slots arrive in stage 4.
+   The board lists the fixed contracts (data/contracts.js). Taking one opens the bench with its start design. The bench's
+   bottom bar checks the prediction against the spec and leads to the stand: pre-fire checks (does it fit, are the parts
+   allowed), then the firing slot (dawn, noon or dusk sets the grain temperature), then app/firing.js. */
+const GAME={contract:null,designs:{},attempts:{},best:{},log:[],slot:"dusk",last:null};
+const PRED_TEMPS=[["ref",null],["dawn","dawn"],["noon","noon"],["dusk","dusk"]];
+const gameKey=()=>GAME.contract?GAME.contract.id:"free";
+const withStand=c=>c?Object.assign({},c,{stand:BURN_SIM.STANDS[c.stand]}):null;
+const startDesign=c=>clone(typeof c.start==="string"?BURN_SIM.REF_DESIGNS[c.start]:c.start);
+const GRADE_RANK={A:3,B:2,C:1};
+/* "80–160 N·s", "1.8 s or less", "60% or more" */
+function bandText(s){const i=BURN_SIM.SPEC_INFO[s.k],u=i.unit==="%"?"%":" "+i.unit;
+  return s.lo!=null&&s.hi!=null?`${s.lo}–${s.hi}${u}`:s.hi!=null?`${s.hi}${u} or less`:`${s.lo}${u} or more`;}
+const fmtSpec=(k,v)=>{const i=BURN_SIM.SPEC_INFO[k];return(+v).toFixed(k==="I"&&v>=100?0:i.dp);};
+function setDesign(d){DZ.d=d;GAME.designs[gameKey()]=d;}
+
+/* ---- the board ---- */
+function renderBoard(){
+  $("bdList").innerHTML=BURN_SIM.CONTRACTS.map((c,i)=>{const b=GAME.best[c.id],n=GAME.attempts[c.id]||0,sl=c.slot&&BURN_SIM.SLOTS[c.slot];
+    return`<article class="wo card"><header><span class="site">Work order ${String(i+1).padStart(2,"0")} · ${esc(c.client)}</span>${b?`<span class="stamp pass">${b}</span>`:""}</header>
+      <h3>${esc(c.title)}</h3><p>${esc(c.brief)}</p>
+      <ul class="wo-spec">${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
+        ${sl?`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(sl.tGrain)})</span></li>`:""}</ul>
+      <div class="row"><button type="button" class="btn pri" data-take="${c.id}">${GAME.designs[c.id]?"Back to this job":"Take the job"}</button>
+      ${n?`<span class="hint">${n} motor${n>1?"s":""} fired${b?`, best ${b}`:""}</span>`:""}</div></article>`;}).join("");}
+function openBoard(){renderBoard();showScreen("board");}
+function takeContract(id){
+  const c=BURN_SIM.CONTRACTS.find(x=>x.id===id);if(!c)return;
+  GAME.contract=c;DZ.d=GAME.designs[id]||(GAME.designs[id]=startDesign(c));
+  DZ.tGrain=c.slot?BURN_SIM.SLOTS[c.slot].tGrain:20;DZ.predSlot=c.slot||"ref";
+  openDesigner();}
+function freeDesign(){GAME.contract=null;DZ.d=GAME.designs.free||(GAME.designs.free=clone(BURN_SIM.DEFAULT_DESIGN));DZ.tGrain=20;DZ.predSlot="ref";openDesigner();}
+
+/* ---- the bench's bottom bar: the spec against the prediction, the predictor's temperature, the way to the stand ---- */
+function drawGo(){
+  const c=GAME.contract,r=DZ.res,locked=!!(c&&c.slot);
+  const tl=DZ.predSlot==="ref"?degC(20):`${BURN_SIM.SLOTS[DZ.predSlot].name} ${degC(BURN_SIM.SLOTS[DZ.predSlot].tGrain)}`;
+  let checks="";
+  if(c&&r&&r.ok)checks=BURN_SIM.specCheck(c.spec,r.sum,r.motor).map(k=>`<span class="ck ${k.ok?"ok":"no"}"><i aria-hidden="true">${k.ok?"✓":"✗"}</i>${esc(k.info.short)} <b class="mono">${fmtSpec(k.k,k.v)}</b><span class="vh">${k.ok?" in spec":" out of spec"}</span></span>`).join("");
+  else if(c)checks=`<span class="ck no">Can't be built</span>`;
+  else checks=`<span class="ck">Free design, no client</span>`;
+  $("dzGo").innerHTML=`<div class="go-l"><button type="button" class="temp mono" id="dzTemp"${locked?" disabled":""} aria-label="Predict at ${tl}${locked?" (this contract fires then)":", tap to change"}">${esc(tl)}${locked?"":" ▾"}</button><div class="cks">${checks}</div></div>
+    <button type="button" class="btn pri" id="dzFire">${c?"To the stand":"Test fire"} ›</button>`;
+  $("dzSite").textContent=c?c.title:"Stand 3 · Design bench";}
+function cycleTemp(){
+  const i=PRED_TEMPS.findIndex(p=>p[0]===DZ.predSlot),nx=PRED_TEMPS[(i+1)%PRED_TEMPS.length];
+  DZ.predSlot=nx[0];DZ.tGrain=nx[1]?BURN_SIM.SLOTS[nx[1]].tGrain:20;schedule(false);
+  toast(nx[1]?`Predicting at ${BURN_SIM.SLOTS[nx[1]].name.toLowerCase()}: ${degC(DZ.tGrain)} grain`:"Predicting at the reference 20 °C");}
+
+/* ---- to the stand: pre-fire checks, then the slot ---- */
+function toStand(){
+  const r=DZ.res;if(!r)return;
+  const fixList=list=>list.map(e=>{const c=ctlSpec(e.field);return`<li><p>${esc(e.text)}</p>${c?`<button type="button" class="btn sm" data-fix="${e.field}">Go to ${esc(c.label.toLowerCase())}</button>`:""}</li>`;}).join("");
+  if(!r.ok){openSheet("Not buildable",`<p>This motor can't be built yet.</p><ul class="fixes">${fixList(r.errors)}</ul>`);return;}
+  const pf=BURN_SIM.preFire(withStand(GAME.contract),DZ.d,r.motor);
+  if(pf.length){openSheet("It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul>`);return;}
+  slotSheet();}
+function slotSheet(){
+  const c=GAME.contract,slots=c&&c.slot?[c.slot]:["dawn","noon","dusk"];
+  if(!slots.includes(GAME.slot))GAME.slot=slots[0];
+  const cards=slots.map(id=>{const sl=BURN_SIM.SLOTS[id],p=BURN_SIM.predict(DZ.d,{tGrain:sl.tGrain});if(!p.ok)return"";
+    const s=p.sum,crit=s.warnings.filter(w=>w.sev==="crit").length,ok=c?BURN_SIM.specCheck(c.spec,s,p.motor).filter(k=>k.ok).length:null;
+    return`<button type="button" class="opt${id===GAME.slot?" on":""}" data-slot="${id}" aria-pressed="${id===GAME.slot}"><b>${sl.name} · ${degC(sl.tGrain)}</b>${crit?`<span class="tag crit">${crit} critical</span>`:""}
+      <small>${esc(sl.note)}</small><small class="mono">peak ${(s.Pmax/1e6).toFixed(2)} MPa · avg ${Math.round(s.Fav)} N · ${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
+  openSheet("Firing slot",`<p class="hint">${c&&c.slot?"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".":"Pick when to fire. The grain sits out overnight, so it fires at the air's temperature."} Each line is the predictor at that temperature; the real motor won't match it exactly.</p>
+    <div class="pick">${cards}</div><button type="button" class="btn pri big wide" data-go="1">Clear the range and fire</button>`);}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.take){takeContract(b.dataset.take);return;}
+  if(b.id==="dzFire"){toStand();return;}
+  if(b.id==="dzTemp"){cycleTemp();return;}
+  if(!b.closest("#sheet"))return;
+  if(b.dataset.slot){GAME.slot=b.dataset.slot;document.querySelectorAll("#sheet [data-slot]").forEach(x=>{const on=x.dataset.slot===GAME.slot;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on);});}
+  else if(b.dataset.go){closeSheet();startFiring(GAME.slot);}});
+
+/* fire one motor: draw it, grade it, log it, then run the firing screen. undoFiring takes it back (an abort during the
+   countdown): the same motor stays on the stand, so the next attempt fires it again */
+function startFiring(slot){
+  const c=GAME.contract,key=gameKey(),n=(GAME.attempts[key]||0)+1;GAME.attempts[key]=n;
+  const sl=BURN_SIM.SLOTS[slot],f=BURN_SIM.fire(DZ.d,{tGrain:sl.tGrain},key+"/"+n);
+  if(!f.ok){toast("This motor can't be built.");return;}
+  const g=c?BURN_SIM.grade(c,f):null,prevBest=c?GAME.best[c.id]:null;
+  if(g&&g.pass&&(!GAME.best[c.id]||GRADE_RANK[g.letter]>GRADE_RANK[GAME.best[c.id]]))GAME.best[c.id]=g.letter;
+  GAME.log.push({key,n,slot,letter:g?g.letter:null});
+  GAME.last={f,g,c,slot,n,key,prevBest,no:GAME.log.length,design:clone(DZ.d)};
+  openFiring();}
+function undoFiring(){const L=GAME.last;if(!L)return;GAME.attempts[L.key]=L.n-1;GAME.log.pop();if(L.c){if(L.prevBest)GAME.best[L.c.id]=L.prevBest;else delete GAME.best[L.c.id];}GAME.last=null;}
+/* ===================== app/firing.js: the static firing screen (plan sections 4 and 9.2) =====================
+   A countdown, then the stand and the live strip chart: the measured trace (red) draws over the prediction (blue) as
+   the motor burns, with pressure, thrust and time gauges. Burns shorter than 2 s play slowed down and burns longer than
+   7 s sped up (the speed shows on screen). Abort works during the countdown; once it's lit, it's lit.
+   With reduced motion on, the countdown is skipped, the burn plays without flicker or shake. */
+const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1};
+const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
+const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
+function openFiring(){
+  const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot];
+  showScreen("fire");
+  $("frSite").textContent=`Stand 3 · ${sl.name} · ${degC(sl.tGrain)} grain`;$("frDes").textContent=f.pred.sum.designation;
+  const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
+  FR.fPk=Math.max(1,...f.plog.f);
+  const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;
+  $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
+  $("frNext").hidden=true;$("frAbort").hidden=false;$("frAbort").disabled=false;
+  FR.phase=reduced()?"burn":"count";FR.t0=performance.now();
+  cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
+function frameFiring(now){
+  const L=GAME.last;if(!L||$("fire").hidden){FR.phase="idle";return;}
+  const f=L.f,el=(now-FR.t0)/1000,still=reduced();
+  if(FR.phase==="count"){
+    const left=FIRE_COUNT-Math.floor(el/COUNT_STEP);
+    $("frCount").textContent=left>0?String(left):"Fire";$("frCount").hidden=false;
+    drawFiring(-1,still);
+    if(el>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
+    FR.raf=requestAnimationFrame(frameFiring);return;}
+  $("frCount").hidden=true;
+  const t=el*FR.sp;
+  drawFiring(t,still);
+  if(t<FR.tEnd+AFTER)FR.raf=requestAnimationFrame(frameFiring);
+  else FR.phase="done";
+  if(t>=FR.tEnd&&$("frNext").hidden){$("frNext").hidden=false;$("frAbort").hidden=true;$("frNext").focus({preventScroll:true});}}
+function drawFiring(t,still){
+  const L=GAME.last,f=L.f,lg=f.log,m=f.motor,fl=f.failure;
+  const i=t<0?0:BURN_VIS.at(lg,Math.min(t,FR.tEnd));
+  const failAt=fl&&fl.destructive?fl.t:null;
+  const failNow=fl&&(fl.key==="hangfire"?t>=0:failAt!=null&&t>=failAt)?{key:fl.key,age:fl.key==="hangfire"?t:t-failAt}:null;
+  BURN_VIS.stand($("frStand"),{len:m.length,dia:m.diameter,f:t<0?0:lg.f[i]/FR.fPk,t,fail:failNow,still,
+    smoke:t>FR.tEnd?t-FR.tEnd:(failNow&&fl.key!=="hangfire"?failNow.age:-1)});
+  BURN_VIS.strip($("frStrip"),{pred:f.plog,meas:lg,upto:t<0?-1:t,now:t>=0&&t<=FR.tEnd,pLine:f.limits.pBurst,
+    mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,events:f.events.map(e=>({t:e.t,label:e.key}))});
+  const tt=t<0?0:Math.min(t,FR.tEnd);
+  $("frP").textContent=(t<0?0:lg.p[i]/1e6).toFixed(2);$("frF").textContent=String(Math.round(t<0?0:lg.f[i]));$("frT").textContent=tt.toFixed(2);}
+function abortFiring(){
+  if(FR.phase==="count"){cancelAnimationFrame(FR.raf);FR.phase="idle";undoFiring();toast("Countdown held. The motor is still on the stand.");showScreen("design");return;}
+  toast("Once it's lit, it's lit.");$("frAbort").disabled=true;}
+function initFiring(){
+  $("frAbort").addEventListener("click",abortFiring);
+  $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";openReport();});
+  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(FR.tEnd+AFTER,reduced());}});}
+/* ===================== app/report.js: the range report and the incident report (plan section 8) =====================
+   After every firing: the measured trace over the prediction, the spec checked line by line, and the grade. When it
+   failed, the same form becomes the incident report: the failure moment marked on the chart, the root cause in one
+   sentence with the number that crossed the line, the contributing factors ranked, and "where to fix it" buttons that
+   jump back to the bench and ring the control (the Escapement CERT_FIX / goFix pattern). Ruslan Abenov signs it.
+   The blockhouse data (the real motor's deviations from the grade's and the materials' ratings) sit in a fold-out. */
+const STAMP={cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
+const RSO_LINES={
+  A:["Clean curve. Write it up and go home early.","It did what you said it would. Rare. Signed.","Textbook. I'll pin the trace on the blockhouse wall."],
+  B:["Close enough for the customer. Not for me.","A good motor. Next time, a better one."],
+  C:["It passed. I've seen better and I've seen worse.","Inside the lines, just. Don't make a habit of it."],
+  cato:["Stand 3 needs a new load cell. Bring a broom.","The case was optimistic. So were you.","I heard that one from the blockhouse, through a metre of concrete."],
+  eject:["The nozzle is somewhere east of the stand. Find it before the foxes do.","Good bolts are cheaper than a new nozzle."],
+  burnthrough:["The liner gave up before the propellant did.","There's a hole in your case the shape of a lesson."],
+  hangfire:["We waited the full thirty minutes. Nothing. Pull it and fit a bigger igniter.","It just sat there. So did we."],
+  chuff:["Sounded like a tractor that won't start. Give it more pressure.","Puff, puff, puff. The customer wanted a motor."],
+  spec:["It works. It just isn't what they ordered.","A fine motor for somebody else's contract."],
+  yield:["The tube came off the stand wider than it went on.","Stretched cases don't fly. Thicker wall."],
+  free:["Data logged. Nobody's paying for this one, so make it count.","Free firing. The range fee is not free."]};
+const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
+const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
+const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
+function openReport(){renderReport();showScreen("report");}
+function renderReport(){
+  const L=GAME.last;if(!L)return;
+  const f=L.f,g=L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
+  const pass=c?g.pass:!fl,key=c?(g.pass?g.letter:g.why):(fl?fl.key:"free");
+  const stamp=c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
+  /* the spec, line by line: band, predicted at this temperature, measured */
+  const checks=c?g.checks.length?g.checks:BURN_SIM.specCheck(c.spec,ms,m):[];
+  const predChecks=c?BURN_SIM.specCheck(c.spec,ps,m):[];
+  const rows=checks.map((k,i)=>`<tr><th><button type="button" class="gl" data-g="${k.info.gloss||"impulse"}">${esc(k.info.name)}</button><small>${esc(bandText(k))}</small></th>
+    <td class="mono">${fmtSpec(k.k,predChecks[i].v)}</td><td class="mono"><b class="${fl&&fl.destructive?"":k.ok?"good":"crit"}">${fmtSpec(k.k,k.v)}</b></td><td aria-label="${k.ok?"in spec":"out of spec"}">${fl&&fl.destructive?"–":k.ok?"✓":"✗"}</td></tr>`).join("");
+  const basic=[["impulse","Total impulse",ps.I.toFixed(1),ms.I.toFixed(1),"N·s"],["thrust","Average thrust",ps.Fav.toFixed(0),ms.Fav.toFixed(0),"N"],
+    ["burnTime","Burn time",ps.tb.toFixed(2),ms.tb.toFixed(2),"s"],["pressure","Peak pressure",(ps.Pmax/1e6).toFixed(2),(ms.Pmax/1e6).toFixed(2),"MPa"]]
+    .map(([gk,n,a,b,u])=>`<tr><th><button type="button" class="gl" data-g="${gk}">${n}</button><small>${u}</small></th><td class="mono">${a}</td><td class="mono"><b>${b}</b></td><td></td></tr>`).join("");
+  /* what went wrong and where to fix it */
+  let cause="",fixes=[];
+  if(fl){cause=fl.text;fixes=fixes.concat(fl.fix||[]);}
+  else if(c&&!g.pass&&g.why==="spec"){const miss=g.miss||[];cause=miss.map(k=>`${k.info.name} came in at ${fmtSpec(k.k,k.v)} ${k.info.unit}; the spec asked for ${bandText(k)}.`).join(" ");
+    for(const k of miss)fixes=fixes.concat(k.info.fix);}
+  for(const n of f.notes)fixes=fixes.concat(n.fix||[]);
+  if(c&&!g.pass&&g.why==="yield")cause=f.notes.find(n=>n.key==="yield").text;
+  fixes=[...new Set(fixes)].filter(fd=>ctlSpec(fd));
+  const factors=fl?f.factors.slice(0,4):[];
+  const maxF=Math.max(0.05,...factors.map(x=>Math.abs(x.pct)));
+  const d=f.draws;
+  const blockhouse=[`Propellant batch: ${pctS(d.aMul-1)} burn rate`,`Case tube: ${pctS(d.caseMul-1)} strength`,`Closures: ${pctS(d.retMul-1)} retention`,
+    `Liner: ${pctS(d.linerMul-1)} protection`,`Igniter: ${pctS(d.ignMul-1)} gas`,`Throat wear: ×${d.eroMul.toFixed(2)}`,
+    `Casting void: ${d.void?"yes, "+Math.round(d.void.frac*100)+"% extra area":"none"} (chance ${(d.voidChance*100).toFixed(1)}%)`,
+    `Grain crack: ${d.crack?"yes, "+Math.round(d.crack.frac*100)+"% extra area":"none"} (chance ${(d.crackChance*100).toFixed(1)}%)`];
+  $("rpBody").innerHTML=`
+    <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
+      <span class="site">Aqsor Range · Site 41 · Stand 3</span>
+      <h2 class="sign">${fl&&fl.destructive?"Incident report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
+      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(sl.tGrain)} grain · motor ${L.n}${c?` · ${esc(c.client)}`:""}</p>
+      <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
+    <section class="card rp-chart"><canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
+      <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(sl.tGrain)}<span class="k-me"></span>Measured</p></section>
+    ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
+      ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
+      ${fixes.length?`<h3>Where to fix it</h3><div class="row">${fixes.map(fd=>`<button type="button" class="btn" data-goto="${fd}">${esc(ctlSpec(fd).label)} ›</button>`).join("")}</div>`:""}</section>`:""}
+    ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
+    <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
+    <details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+      <p class="hint">Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.</p></details>
+    <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
+    <div class="rp-act"><button type="button" class="btn pri" id="rpBench">Back to the bench</button><button type="button" class="btn" id="rpAgain">Fire another</button>${c?`<button type="button" class="btn" id="rpBoard">Work orders</button>`:""}</div>`;
+  drawReportChart();}
+function drawReportChart(){
+  const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.f,fl=f.failure;
+  BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
+    events:f.events.map(e=>({t:e.t,label:e.key}))});}
+function initReport(){
+  $("rpBody").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.goto){showScreen("design");drawAll();goToField(b.dataset.goto);}
+    else if(b.id==="rpBench"){showScreen("design");drawAll();}
+    else if(b.id==="rpAgain"){showScreen("design");drawAll();toStand();}
+    else if(b.id==="rpBoard")openBoard();});
+  addEventListener("resize",()=>{if(!$("report").hidden)drawReportChart();});}
 /* ===================== app/debug.js: the ?debug=1 page =====================
    A plain bench for checking the motor model: pick a reference motor and a grain temperature, see the predicted pressure
    and thrust curves and the data-sheet numbers. Open the game with ?debug=1 on the end of the address. Not linked from
@@ -1203,7 +1933,9 @@ function start(){
   loadSettings();
   document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
   $("verLbl").textContent="v"+VERSION;
-  $("tStart").addEventListener("click",openDesigner);
+  $("tStart").addEventListener("click",openBoard);$("tFree").addEventListener("click",freeDesign);
+  $("bdBack").addEventListener("click",()=>showScreen("title"));
+  initFiring();initReport();
   if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();
 }

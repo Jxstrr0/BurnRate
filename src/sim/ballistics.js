@@ -19,7 +19,8 @@
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
    opts (all optional): steps (regression steps over the web; fewer = faster, for live dragging), and the variance
-   model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight, areaAdd(t, x) -> extra m²}
+   model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight (strength under which the grain never lights),
+   areaAdd(t, x) -> extra burning area in m² (a void or a crack; its propellant comes out of the grain's web)}
    Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit, ...}. */
 function propCoef(prop,tGrain){return prop.rRef/1000/Math.pow(TUNING.pRef,prop.n)*Math.exp(prop.sigmaP*(tGrain-TUNING.tRef));}
 function simulate(motor,cond,opts){
@@ -43,7 +44,7 @@ function simulate(motor,cond,opts){
     if(Math.abs(At-thrustCache.at)>1e-4*At){const eps=motor.Ae/At;thrustCache={at:At,eps,prE:presRatio(exitMach(eps,g),g)};}
     const c=thrustCoef(Pn,Pa,thrustCache.eps,g,thrustCache.prE);
     return{F:motor.eta*c.cf*Pn*At,cf:c.cf,sep:c.sep};};
-  const push=(Pn,At,F,cf,mdot)=>{o.t.push(t);o.p.push(Pn);o.f.push(F);o.kn.push((G.A(x)+(areaAdd?areaAdd(t,x):0))/At);o.x.push(x);o.mdot.push(mdot);o.at.push(At);o.cf.push(cf);};
+  const push=(Pn,At,F,cf,mdot)=>{o.t.push(t);o.p.push(Pn);o.f.push(F);o.kn.push((G.A(x)+(areaAdd&&x<web?areaAdd(t,x):0))/At);o.x.push(x);o.mdot.push(mdot);o.at.push(At);o.cf.push(cf);};
   push(P,PI*rt*rt,0,0,0);
   const ignEnd=Math.max(ig.burn,delay+spread);
   while(t<T.tMax&&steps<200000){
@@ -54,11 +55,12 @@ function simulate(motor,cond,opts){
     else if(burning)dt=Math.min(T.dtMax,dxT/Math.max(rLast,1e-5));
     else{const tau=Math.max(1e-5,(Vch-G.V(x))/(At*cs*vdk(g)*vdk(g)));dt=Math.min(0.01,Math.max(2e-4,tau/4));}
     const t1=t+dt,fl=lit(t1),ign=igIn(t,t1),V0=G.V(x),mOld=mg;
-    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*a*Math.pow(Pn,n)*dt):x;
-    /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain */
-    const extra=areaAdd?areaAdd(t1,x):0;
+    /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain, and the
+       propellant it burns comes out of the grain: the web is used up faster by (A + extra) / A, so mass still balances */
+    const extra=areaAdd&&burning?areaAdd(t1,x):0,Ax=G.A(x),boost=extra>0&&Ax>1e-12?1+extra/Ax:1;
+    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*boost*a*Math.pow(Pn,n)*dt):x;
     const resid=Pn=>{const xn=xOf(Pn),Vn=G.V(xn);
-      const gen=rho*(V0-Vn)+(extra>0&&fl>0?rho*extra*a*Math.pow(Pn,n)*dt:0);
+      const gen=rho*(V0-Vn);
       const out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
       return(Vch-Vn)*Pn/RT-mOld-gen-ign+out;};
     /* bracket and solve (bisection on log P with a secant guess; fixed upper bound on iterations) */
@@ -72,9 +74,9 @@ function simulate(motor,cond,opts){
       const rm=resid(m);
       if(rm<0){lo=m;rl=rm;}else{hi=m;rh=rm;}
       Pn=m;if((hi-lo)<1e-9*hi)break;}
-    const xn=xOf(Pn),gen=rho*(V0-G.V(xn))+(extra>0&&fl>0?rho*extra*a*Math.pow(Pn,n)*dt:0),out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
+    const xn=xOf(Pn),gen=rho*(V0-G.V(xn)),out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
     x=xn;t=t1;P=Pn;mg=(Vch-G.V(x))*P/RT;mOut+=out;mBurn+=gen;mIgn+=ign;
-    rLast=fl*a*Math.pow(P,n);
+    rLast=fl*boost*a*Math.pow(P,n);
     if(burning&&fl>=1&&P<prop.pMin*1e6&&x<web*0.98)chuffAny=true;
     rt+=eroRate*Math.pow(P/T.pRef,T.eroExp)*dt;
     const th=thrust(P,At);if(th.sep&&burning&&fl>=1&&x<web*0.97)sepAny=true;   // separation in the steady burn, not the start-up or tail

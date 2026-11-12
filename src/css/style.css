@@ -22,7 +22,12 @@
   --accent:#2A55C9;        /* startup cobalt: the player's controls */
   --accentD:#1E3F99;
   --onAccent:#FFFFFF;
+  --accentBg:#EEF2FC;--critBg:#FBEDEB;   /* pale grounds behind a picked option and a failing flag */
   --good:#2F7A4B;--warn:#8A5A00;--crit:#B3261E;
+  --prop:#C79B6B;--propD:#8C5E36;  /* propellant in the cross-section (fills only) */
+  --linerC:#D8C9A3;                /* liner fill */
+  --metal:#4C535B;--metalL:#9198A0;/* case tube; closures and nozzle */
+  --burn:#E4572E;                  /* burning surface glow (lines only) */
   --shadow:0 1px 0 rgba(35,38,42,.06),0 6px 18px -10px rgba(35,38,42,.35);
   --r:10px;
   --ui:"Saira SC",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -91,12 +96,74 @@ p{margin:0 0 .7em}
 .dbg-l select{min-height:44px;font:inherit;font-weight:400;border:1px solid var(--line2);border-radius:8px;background:var(--card);color:var(--ink);padding:0 10px}
 .dbg-l input[type=range]{width:100%;min-height:32px;accent-color:var(--accent)}
 .dbg-chart canvas{display:block;width:100%}
-.dbg-key{font-size:.85rem;color:var(--muted);margin:8px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.dbg-key span{display:inline-block;width:18px;height:3px;border-radius:2px}.dbg-key .k-p{background:var(--pred)}.dbg-key .k-f{background:var(--ink);margin-left:10px}
-.dbg-t{width:100%;border-collapse:collapse}.dbg-t th{text-align:left;font-weight:400;color:var(--muted);padding:4px 8px 4px 0}.dbg-t td{text-align:right;padding:4px 0}
-.dbg-t tr+tr{border-top:1px solid var(--line)}
 .dbg-w{margin:0 0 6px;padding:8px 12px;border-radius:8px;border-left:4px solid var(--warn);background:var(--card)}.dbg-w b{color:var(--warn)}
 .dbg-w.crit{border-left-color:var(--crit)}.dbg-w.crit b{color:var(--crit)}
+
+/* ---- shared bits: glossary links, segmented buttons, the data table, the chart key ---- */
+.gl{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:help;text-decoration:underline dotted;text-decoration-color:var(--line2);text-underline-offset:3px}
+.segbar{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--card)}
+.segbar button{flex:1;min-height:44px;border:0;background:none;font:600 .95rem/1.1 var(--ui);color:var(--ink);padding:4px 8px;cursor:pointer}
+.segbar button+button{border-left:1px solid var(--line2)}
+.segbar button.on{background:var(--ink);color:var(--onAccent)}
+.segbar.mini button{min-height:32px;font-size:.85rem}
+.dtab{width:100%;border-collapse:collapse;font-size:.8rem}.dtab th{text-align:left;font-weight:400;color:var(--muted);padding:6px 8px 6px 0;font-family:var(--ui);font-size:.92rem}
+.dtab td{text-align:right;padding:6px 0}.dtab tr+tr{border-top:1px solid var(--line)}
+.dz-key{font-size:.82rem;color:var(--muted);margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dz-key span{display:inline-block;width:16px;height:3px;border-radius:2px}.dz-key span:not(:first-child){margin-left:8px}
+.dz-key .k-p{background:var(--pred)}.dz-key .k-f{background:var(--ink)}
+.dz-key .k-g{background:var(--prop);height:10px}.dz-key .k-b{background:var(--burn)}.dz-key .k-l{background:var(--linerC);height:10px}
+
+/* ---- the design bench (app/designer.js) ---- */
+#design{max-width:720px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--ground)}
+.dz-stick{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 8px 16px -14px rgba(35,38,42,.6);
+  padding:calc(8px + var(--safeT)) 12px 0}
+.dz-top{display:flex;align-items:center;gap:10px}
+.dz-top #dzBack{width:44px;padding:0;font-size:1.4rem}
+.dz-name{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.1}
+.dz-name .site{font:600 .66rem/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--stateD)}
+.dz-name b{font-size:1.5rem;font-weight:400;color:var(--ink)}
+.dz-view{margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px 4px}
+.dz-view canvas{display:block;width:100%;margin-top:4px;touch-action:pan-y}
+.dz-scrub{display:flex;align-items:center;gap:8px;margin-top:2px}
+.dz-scrub input{flex:1;min-height:32px;accent-color:var(--muted)}
+.dz-scrub output{font-size:.72rem;color:var(--muted);white-space:nowrap;text-align:right}
+.dz-nums{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px}
+.num{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font:inherit;color:var(--ink);text-align:left;cursor:help;min-height:44px;min-width:0}
+.num span{font-size:.68rem;color:var(--muted);white-space:nowrap}.num b{font-size:.8rem;font-weight:600;white-space:nowrap}
+.num b.good{color:var(--good)}.num b.warn{color:var(--warn)}.num b.crit{color:var(--crit)}
+.dz-flags{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px;scrollbar-width:none;min-height:38px}
+.flag{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 11px;border-radius:16px;border:1px solid currentColor;background:var(--card);
+  font:600 .84rem/1 var(--ui);cursor:pointer;white-space:nowrap}
+.flag::before{content:"";width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid currentColor}
+.flag.warn{color:var(--warn)}.flag.crit{color:var(--crit);background:var(--critBg)}
+.flag.ok{color:var(--good);cursor:default}.flag.ok::before{border:0;width:8px;height:8px;border-radius:50%;background:currentColor}
+.dz-tabs{display:flex;margin:4px -12px 0;border-top:1px solid var(--line)}
+.dz-tabs button{flex:1;min-height:44px;border:0;background:none;font:600 .95rem var(--ui);color:var(--muted);border-bottom:3px solid transparent;cursor:pointer}
+.dz-tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.dz-panel{padding:14px 14px calc(50vh + var(--safeB));display:grid;gap:18px}   /* room to scroll the last control up under the sticky top */
+.ctl{border:0;margin:0;padding:0;min-width:0;border-radius:10px;transition:box-shadow .3s}
+.ctl legend,.ctl-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-weight:600;margin-bottom:6px;padding:0;width:100%}
+.ctl .val{font-weight:600;color:var(--accentD);font-size:.85rem}
+.ctl .ex{display:block;font-size:.82rem;color:var(--muted);margin-top:2px}
+.ctl.bad{box-shadow:0 0 0 2px var(--crit);padding:6px}
+.ctl.ring{animation:ring 1.6s ease-out}
+@keyframes ring{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 3px transparent}}
+.slide{display:flex;align-items:center;gap:6px}
+.slide input{flex:1;min-width:0;min-height:44px;accent-color:var(--accent)}
+.nudge{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line2);background:var(--card);font:600 1.2rem/1 var(--ui);color:var(--ink);cursor:pointer}
+.stepper{display:flex;gap:10px}.stepper .btn{width:64px;font-size:1.3rem}
+.pick{display:grid;gap:6px}
+.opt{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;text-align:left;padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--card);
+  font:inherit;color:var(--ink);cursor:pointer;min-height:48px}
+.opt small{grid-column:1/-1;font-size:.8rem;color:var(--muted)}
+.opt .tag{color:var(--muted)}
+.opt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accentBg)}
+#sheetBody .sev{padding:10px 12px;border-left:4px solid var(--warn);background:var(--card);border-radius:8px}
+#sheetBody .sev.crit{border-left-color:var(--crit)}
+#sheetBody .sev b{color:var(--warn)}#sheetBody .sev.crit b{color:var(--crit)}
+#sheetBody h3{margin-top:14px}
+.refs{display:grid;gap:6px}.refs .btn{justify-content:flex-start;text-align:left}
+@media (max-width:359px){.dz-nums{grid-template-columns:repeat(3,1fr)}}
 
 /* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
 #scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}

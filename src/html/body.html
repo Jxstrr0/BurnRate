@@ -1,7 +1,7 @@
 </style>
 
 <div id="app">
-  <!-- TITLE: the studio credit, the version and the way in (stage 0: the way in is still being built) -->
+  <!-- TITLE: the studio credit, the version and the way in (stage 2: straight to the design bench) -->
   <main id="title" class="concrete" aria-labelledby="t-name">
     <div class="stripe hazard" aria-hidden="true"></div>
     <div class="ghost" aria-hidden="true">ПОЛИГОН 41</div>
@@ -11,13 +11,33 @@
       <p class="lede">Design a solid rocket motor. Predict its curve. Bolt it to the stand and find out why it didn't match.</p>
     </div>
     <div class="actions">
-      <button type="button" class="btn pri big" id="tStart" disabled>Open the range</button>
-      <p class="note" id="tNote">The range opens in a coming update. This build sets up the site.</p>
+      <button type="button" class="btn pri big" id="tStart">Open the design bench</button>
+      <p class="note" id="tNote">Contracts and the test stand open in coming updates. For now, design a motor and watch its predicted curve.</p>
     </div>
     <footer class="studio">
       <a href="https://longlight.games/" rel="noopener" aria-label="Longlight Interactive, the studio site"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="150" height="48"></a>
       <div class="credit">© 2026 Kelbo / Longlight Interactive<br><span class="ver" id="verLbl"></span></div>
     </footer>
+  </main>
+
+  <!-- DESIGN BENCH (app/designer.js): the sticky top shows the motor; the tab panel below edits it -->
+  <main id="design" hidden aria-label="Design bench">
+    <div class="dz-stick">
+      <header class="dz-top">
+        <button type="button" class="btn sm" id="dzBack" aria-label="Back to the title">‹</button>
+        <div class="dz-name"><span class="site">Stand 3 · Design bench</span><b id="dzDes" class="sign" aria-live="polite">—</b></div>
+        <button type="button" class="btn sm" id="dzSheet">Data sheet</button>
+      </header>
+      <section class="dz-view" id="dzView">
+        <div class="segbar mini" role="tablist" aria-label="View"><button type="button" role="tab" data-view="curves">Curves</button><button type="button" role="tab" data-view="section">Cross-section</button></div>
+        <canvas id="dzCv" role="img"></canvas>
+        <label class="dz-scrub"><span class="vh">Burn time</span><input type="range" id="dzScrub" min="0" max="1000" step="1" value="500" aria-label="Scrub through the burn"><output id="dzScrubV" class="mono"></output></label>
+      </section>
+      <div class="dz-nums" id="dzNums"></div>
+      <div class="dz-flags" id="dzFlags" aria-live="polite"></div>
+      <nav class="dz-tabs" id="dzTabs" role="tablist" aria-label="Motor parts"></nav>
+    </div>
+    <section class="dz-panel" id="dzPanel"></section>
   </main>
 </div>
 

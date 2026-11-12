@@ -5,10 +5,20 @@ html/body.html
 # --- the sim block (BURN_SIM): pure, no DOM; tools/sim-test.js loads it in node ---
 sim/open.js
 sim/rng.js
+data/tuning.js
+data/propellants.js
+data/materials.js
+data/designs.js
+sim/grain.js
+sim/nozzle.js
+sim/motor.js
+sim/ballistics.js
+sim/derive.js
 sim/close.js
 html/ld-sim.html
 # --- the app block: the page glue ---
 app/state.js
 app/pwa.js
+app/debug.js
 app/boot.js
 html/tail.html

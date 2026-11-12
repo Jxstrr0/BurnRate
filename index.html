@@ -119,6 +119,21 @@ p{margin:0 0 .7em}
 #title .credit{font-size:.78rem;color:var(--muted);text-align:right}
 #title .ver{font-family:var(--mono);font-size:.72rem}
 
+/* ---- the ?debug=1 bench (app/debug.js) ---- */
+#debug{position:relative;min-height:100vh;min-height:100dvh;padding:calc(22px + var(--safeT)) 16px calc(24px + var(--safeB));max-width:720px;margin:0 auto;display:grid;gap:12px;align-content:start}
+#debug .stripe{position:absolute;left:0;right:0;top:0;height:8px}
+#debug .site{font:600 .78rem/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--stateD);margin:0}
+.dbg-l{display:grid;gap:6px;font-weight:600}
+.dbg-l select{min-height:44px;font:inherit;font-weight:400;border:1px solid var(--line2);border-radius:8px;background:var(--card);color:var(--ink);padding:0 10px}
+.dbg-l input[type=range]{width:100%;min-height:32px;accent-color:var(--accent)}
+.dbg-chart canvas{display:block;width:100%}
+.dbg-key{font-size:.85rem;color:var(--muted);margin:8px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dbg-key span{display:inline-block;width:18px;height:3px;border-radius:2px}.dbg-key .k-p{background:var(--pred)}.dbg-key .k-f{background:var(--ink);margin-left:10px}
+.dbg-t{width:100%;border-collapse:collapse}.dbg-t th{text-align:left;font-weight:400;color:var(--muted);padding:4px 8px 4px 0}.dbg-t td{text-align:right;padding:4px 0}
+.dbg-t tr+tr{border-top:1px solid var(--line)}
+.dbg-w{margin:0 0 6px;padding:8px 12px;border-radius:8px;border-left:4px solid var(--warn);background:var(--card)}.dbg-w b{color:var(--warn)}
+.dbg-w.crit{border-left-color:var(--crit)}.dbg-w.crit b{color:var(--crit)}
+
 /* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
 #scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #scrim.on{opacity:1;pointer-events:auto}
@@ -206,6 +221,423 @@ function makeRng(seedOrState){
 /* named streams from one seed: each name gets its own independent generator */
 function rngStreams(seed){const made={};return{seed:String(seed),get:name=>made[name]||(made[name]=makeRng(String(seed)+"/"+name))};}
 Object.assign(SIM,{cyrb128,hashStr,makeRng,rngStreams});
+/* ===================== data/tuning.js: physics constants and solver settings =====================
+   Every number the ballistics uses that is not a part's own stat. Change these, rerun node tools/sim-test.js. */
+const TUNING={
+  g0:9.80665,
+  pAmb:98500,          // ambient pressure at the range, Pa (the salt flat sits a few hundred metres up)
+  pRef:5e6,            // reference pressure for rRef and throat erosion, Pa
+  tRef:20,             // reference grain temperature, °C
+  steps:420,           // solver: about this many steps across the web
+  dtIgn:0.0005,        // solver: time step while the igniter and the flame spread run, s
+  dtMax:0.02,          // solver: longest step, s
+  tMax:60,             // solver: give up after this long, s
+  tailEnd:1.08,        // tail-off ends when chamber pressure falls under this x ambient
+  sepRatio:0.4,        // flow separates where nozzle wall pressure would fall under this x ambient (Summerfield)
+  eroExp:0.8,          // throat erosion grows as (P/pRef)^eroExp
+  headSpace:0.25,      // empty chamber ahead of the grain, as a fraction of grain diameter
+  segGap:2,            // gap between segments, mm
+  closureThk:0.14,     // each closure's thickness as a fraction of bore diameter (for mass)
+  closureRho:2700,     // closures are aluminium by default, kg/m³
+  ignNeedVol:3.0,      // igniter gas needed per m³ of free chamber volume, kg (fills it to a few bar)
+  ignNeedArea:0.025,   // igniter gas needed per m² of burning surface, kg (to heat it to ignition)
+  ignDelay:0.025,      // first-light delay at strength 1, s (grows as 1/strength)
+  ignSpread:0.06,      // flame spread time over the whole grain at strength 1, s (grows as 1/strength²)
+  ignWeak:0.45,        // strength under this: hang-fire risk (stage 3)
+  sfWarn:1.5,          // case safety factor under this: warning
+  ptWarn:2.0,          // port-to-throat area ratio under this: erosive-spike warning
+  gWarn:1500,          // peak mass flux over this, kg/(m²·s): warning
+  linerWarn:0.85,
+  spikeWarn:1.3,       // a start-up peak over this x the steady peak: the igniter is too big (warning)      // burn time over this x liner rating: warning
+  // impulse classes: A tops out at 2.5 N·s and each letter doubles (the usual hobby scheme)
+  classTop:2.5,classLetters:"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  // mass estimates that aren't a part's own stat: the nozzle is a solid of revolution this full, this long x case bore
+  nozzleFill:0.45,nozzleLen:0.35
+};
+Object.assign(SIM,{TUNING});
+/* ===================== data/propellants.js: the propellant grades =====================
+   HARD RULE (plan section 3): a grade is a STAT BLOCK, never a recipe. Fictional names and performance numbers only;
+   no ingredients, ratios or making steps, here or anywhere. The state grades (TR-) are old programme surplus named after
+   draught animals; the others are the startups' own.
+   Fields (plan section 6.1):
+     rRef    burn rate in mm/s at 5 MPa and 20 °C. The sim derives the coefficient a = rRef / (5 MPa)^n (SI, m/s per Pa^n).
+     n       pressure exponent (0.2 to 0.7): higher n is faster to respond and touchier about pressure
+     rho     density, kg/m³
+     cStar   delivered characteristic velocity, m/s
+     gamma   ratio of specific heats of the exhaust
+     sigmaP  temperature sensitivity of burn rate, per °C (a_eff = a·exp(sigmaP·(T − 20)))
+     pMin    below this chamber pressure the burn is unstable (chuffing), MPa
+     aVar    batch-to-batch burn rate spread (1 sd), fraction
+     kE      erosive burning gain, per (kg/m²s) above gTh (stage 5)
+     gTh     erosive threshold mass flux, kg/(m²·s) (stage 5)
+     cost    per kg, in the game's money
+     tier    career tier that unlocks it */
+const PROPELLANTS={
+  "tr2":{name:"TR-2 Mule",maker:"State surplus",note:"Forgiving, low exponent. Slow and steady.",
+    rRef:5.0,n:0.30,rho:1700,cStar:1380,gamma:1.21,sigmaP:0.0016,pMin:0.55,aVar:0.025,kE:6e-5,gTh:1100,cost:40,tier:1},
+  "swift9":{name:"Swift 9",maker:"Startup grade",note:"Fast and touchy. High exponent: small changes, big swings.",
+    rRef:9.0,n:0.52,rho:1660,cStar:1420,gamma:1.20,sigmaP:0.0030,pMin:0.9,aVar:0.040,kE:9e-5,gTh:900,cost:55,tier:1},
+  "tr5":{name:"TR-5 Dray",maker:"State surplus",note:"The workhorse. Middle of everything, plenty of it.",
+    rRef:7.0,n:0.38,rho:1760,cStar:1470,gamma:1.19,sigmaP:0.0020,pMin:0.7,aVar:0.020,kE:7e-5,gTh:1100,cost:70,tier:2},
+  "clearsky":{name:"Clearsky HP",maker:"Startup grade",note:"High energy, but it feels the weather.",
+    rRef:8.0,n:0.42,rho:1780,cStar:1540,gamma:1.18,sigmaP:0.0036,pMin:0.8,aVar:0.030,kE:8e-5,gTh:1000,cost:120,tier:2},
+  "tr9":{name:"TR-9 Ox",maker:"State surplus",note:"Dense, slow, very low exponent. Built for big boosters.",
+    rRef:4.0,n:0.24,rho:1820,cStar:1520,gamma:1.17,sigmaP:0.0012,pMin:0.6,aVar:0.012,kE:5e-5,gTh:1300,cost:95,tier:3},
+  "steppefire":{name:"Steppefire X",maker:"Startup grade",note:"Very fast for boost phases. Respect the margins.",
+    rRef:14.0,n:0.48,rho:1740,cStar:1500,gamma:1.18,sigmaP:0.0026,pMin:1.0,aVar:0.030,kE:1e-4,gTh:900,cost:150,tier:3}
+};
+Object.assign(SIM,{PROPELLANTS});
+/* ===================== data/materials.js: cases, liners, nozzles, closures, igniters =====================
+   Generic engineering materials with plausible round numbers (strengths in MPa, density kg/m³). Tuning lives here. */
+/* case tube materials. yield / ult in MPa (hoop), sVar = 1 sd spread on strength (stage 3), cost per kg */
+const CASES={
+  "phenolic":{name:"Phenolic tube",yield:70,ult:95,rho:1350,sVar:0.08,cost:30,tier:1,note:"Cheap and light. Low pressure only."},
+  "mild":{name:"Mild steel tube",yield:300,ult:420,rho:7850,sVar:0.04,cost:8,tier:1,note:"Strong and cheap, but heavy."},
+  "al6061":{name:"Aluminium 6061-T6",yield:275,ult:310,rho:2700,sVar:0.04,cost:20,tier:1,note:"The hobby standard. Little margin past yield."},
+  "cromo":{name:"Chromoly steel",yield:460,ult:670,rho:7850,sVar:0.03,cost:18,tier:2,note:"Tough steel for higher pressure."},
+  "composite":{name:"Filament-wound composite",yield:850,ult:1050,rho:1600,sVar:0.06,cost:120,tier:3,note:"Light and very strong. Pricey."}
+};
+/* liners / insulation between grain and case: rate = seconds of protection per mm of thickness */
+const LINERS={
+  "paper":{name:"Paper liner",rate:3.5,rho:900,cost:15,tier:1},
+  "rubber":{name:"Rubber insulation",rate:5.5,rho:1150,cost:45,tier:2},
+  "ablative":{name:"Ablative insulation",rate:9.0,rho:1400,cost:110,tier:3}
+};
+/* throat materials. ero = throat radius erosion in mm/s at 5 MPa (scales with (P/5 MPa)^0.8); finish = efficiency factor */
+const THROATS={
+  "steel":{name:"Steel",ero:0.070,finish:0.975,rho:7850,cost:6,tier:1,note:"Cheap, erodes fast at high pressure."},
+  "graphite":{name:"Graphite",ero:0.010,finish:0.985,rho:1800,cost:25,tier:1,note:"Holds its throat well."},
+  "insert":{name:"Refractory insert",ero:0.003,finish:0.99,rho:9000,cost:140,tier:3,note:"A throat insert that barely moves."}
+};
+/* closure retention: rating in N per mm of bore circumference (snap ring) or per bolt (bolts) */
+const CLOSURES={
+  "ring":{name:"Snap ring",perMm:110,tier:1,note:"Simple. Rated by the bore size."},
+  "bolts":{name:"Radial bolts",perBolt:4200,tier:1,note:"More bolts, more load."}
+};
+/* igniters: gas (kg) delivered over burn (s). Strength = gas / need, need from the chamber (tuning.ign) */
+const IGNITERS={
+  "xs":{name:"Micro igniter",gas:0.00005,burn:0.10,cost:3},
+  "s":{name:"Small igniter",gas:0.0004,burn:0.06,cost:5},
+  "m":{name:"Medium igniter",gas:0.0012,burn:0.08,cost:9},
+  "l":{name:"Large igniter",gas:0.004,burn:0.10,cost:16},
+  "xl":{name:"Booster igniter",gas:0.015,burn:0.15,cost:40}
+};
+Object.assign(SIM,{CASES,LINERS,THROATS,CLOSURES,IGNITERS});
+/* ===================== data/designs.js: the default design and the reference motors =====================
+   A design is what the player edits, in friendly units (mm, counts, table ids). sim/motor.js turns it into SI.
+     grain   prop (PROPELLANTS id), shape ("bates" | "tube" | "end"), segs, segLen (mm), coreD (mm; ignored by "end")
+     case    mat (CASES id), id (bore, mm), wall (mm), liner (LINERS id), linerThk (mm), closure (CLOSURES id), bolts
+     nozzle  mat (THROATS id), throatD (mm), exitD (mm), half (divergence half-angle, degrees)
+     igniter IGNITERS id
+   REF_DESIGNS are the yardstick motors tools/sim-test.js prints with --brief (keep them stable). */
+const DEFAULT_DESIGN={
+  grain:{prop:"tr2",shape:"bates",segs:2,segLen:48,coreD:10},
+  case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},
+  nozzle:{mat:"graphite",throatD:6.5,exitD:13,half:15},
+  igniter:"s"
+};
+const REF_DESIGNS={
+  "29mm 2-seg BATES, Mule":DEFAULT_DESIGN,
+  "38mm 3-seg BATES, Mule":{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:8,exitD:20,half:15},igniter:"s"},
+  "38mm tube, Swift 9 (progressive)":{grain:{prop:"swift9",shape:"tube",segs:1,segLen:120,coreD:12},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:9,exitD:17,half:15},igniter:"s"},
+  "38mm end burner, Swift 9":{grain:{prop:"swift9",shape:"end",segs:1,segLen:60,coreD:0},case:{mat:"mild",id:35,wall:2.0,liner:"rubber",linerThk:3.0,closure:"bolts",bolts:6},nozzle:{mat:"graphite",throatD:2.5,exitD:5,half:15},igniter:"xs"},
+  "54mm 4-seg BATES, Dray, steel throat":{grain:{prop:"tr5",shape:"bates",segs:4,segLen:80,coreD:20},case:{mat:"cromo",id:51,wall:2.0,liner:"rubber",linerThk:1.5,closure:"bolts",bolts:8},nozzle:{mat:"steel",throatD:14,exitD:36,half:15},igniter:"m"},
+  "98mm 5-seg BATES, Ox, composite":{grain:{prop:"tr9",shape:"bates",segs:5,segLen:150,coreD:42},case:{mat:"composite",id:94,wall:3.0,liner:"ablative",linerThk:2.5,closure:"bolts",bolts:12},nozzle:{mat:"insert",throatD:28,exitD:60,half:15},igniter:"l"}
+};
+Object.assign(SIM,{DEFAULT_DESIGN,REF_DESIGNS});
+/* ===================== sim/grain.js: grain geometry (plan section 6.2) =====================
+   A grain is one or more segments in the case. Every segment answers three questions at web distance x (metres burned
+   back from the starting surface):
+     A(x)      burning surface area, m²
+     V(x)      propellant volume left, m³
+     port(x)   flow area of the port at the segment's aft end, m² (for port-to-throat ratio and mass flux)
+   plus web, the x at which it has burned out. Beyond its web a segment has A = 0 and V = 0.
+   Tier 1 shapes are analytic (closed forms): "bates" (cored segments, both ends burning), "tube" (a cored grain with its
+   ends inhibited), "end" (an end burner: a solid cylinder burning from its aft face). Stage 5 adds level-set shapes
+   (star, slotted, finocyl, moonburner) that produce the same three tables from a rasterised cross-section. */
+const PI=Math.PI;
+/* one cored segment: outer radius R, core radius rc, length L, ends burning (true) or inhibited (false) */
+function coreSeg(R,rc,L,endsBurn){
+  const web=endsBurn?Math.min(R-rc,L/2):R-rc;
+  const len=x=>endsBurn?L-2*x:L;
+  return{kind:endsBurn?"bates":"tube",R,rc,L,web,
+    A(x){if(x>=web)return 0;const r=rc+x;return 2*PI*r*len(x)+(endsBurn?2*PI*(R*R-r*r):0);},
+    V(x){if(x>=web)return 0;const r=rc+x;return PI*(R*R-r*r)*len(x);},
+    port(x){const r=Math.min(R,rc+Math.max(0,x));return PI*r*r;}};
+}
+/* an end burner: one solid cylinder of radius R and length L burning from its aft face */
+function endSeg(R,L){
+  return{kind:"end",R,rc:0,L,web:L,
+    A(x){return x>=L?0:PI*R*R;},
+    V(x){return x>=L?0:PI*R*R*(L-x);},
+    port(){return PI*R*R;}};
+}
+/* buildGrain({shape, segs, segLen, coreD, od}) in metres. Returns the segments and whole-grain helpers.
+   Segments are listed forward to aft; the aft one carries the whole mass flow past its port. */
+function buildGrain(g){
+  const R=g.od/2,segs=[];
+  if(g.shape==="end")segs.push(endSeg(R,g.segLen*g.segs));
+  else for(let i=0;i<g.segs;i++)segs.push(coreSeg(R,g.coreD/2,g.segLen,g.shape==="bates"));
+  const gaps=g.shape==="end"?0:(g.segs-1)*TUNING.segGap/1000;
+  const len=(g.shape==="end"?g.segLen*g.segs:g.segLen*g.segs)+gaps;
+  const web=Math.max(...segs.map(s=>s.web));
+  return{shape:g.shape,R,segs,web,len,gaps,
+    A:x=>segs.reduce((s,q)=>s+q.A(x),0),
+    V:x=>segs.reduce((s,q)=>s+q.V(x),0),
+    port:x=>segs[segs.length-1].port(x),
+    minPort:x=>Math.min(...segs.map(q=>q.port(x)))};
+}
+Object.assign(SIM,{buildGrain,coreSeg,endSeg});
+/* ===================== sim/nozzle.js: the nozzle and thrust coefficient (plan section 6.4) =====================
+   Ideal one-dimensional isentropic flow of a frozen gas with ratio of specific heats gamma.
+     areaRatio(M, g)        A/A* at Mach M
+     exitMach(eps, g)       the supersonic Mach number with A/A* = eps (bisection, a fixed 80 steps, so it is deterministic)
+     presRatio(M, g)        P/Pc at Mach M
+     cfIdeal(pe, pa, pc, eps, g)  thrust coefficient: momentum term + pressure term
+     vdk(g)                 Gamma, the Vandenkerckhove function: RT = (c* · Gamma)²
+     chokedFrac(pc, pa, g)  mass flow through the throat as a fraction of the choked value (1 when choked)
+     thrustCoef(...)        C_F with flow separation (Summerfield: the jet leaves the wall where pressure would fall under
+                            sepRatio x ambient); returns {cf, sep} */
+function vdk(g){return Math.sqrt(g)*Math.pow(2/(g+1),(g+1)/(2*(g-1)));}
+function areaRatio(M,g){return(1/M)*Math.pow((2/(g+1))*(1+(g-1)/2*M*M),(g+1)/(2*(g-1)));}
+function presRatio(M,g){return Math.pow(1+(g-1)/2*M*M,-g/(g-1));}
+function exitMach(eps,g){
+  if(eps<=1)return 1;
+  let lo=1,hi=2;while(areaRatio(hi,g)<eps&&hi<64)hi*=2;
+  for(let i=0;i<80;i++){const m=(lo+hi)/2;if(areaRatio(m,g)<eps)lo=m;else hi=m;}
+  return(lo+hi)/2;}
+/* the subsonic Mach number with A/A* = eps (for a nozzle that is not running full) */
+function subMach(eps,g){if(eps<=1)return 1;let lo=1e-6,hi=1;for(let i=0;i<80;i++){const m=(lo+hi)/2;if(areaRatio(m,g)>eps)lo=m;else hi=m;}return(lo+hi)/2;}
+function cfMomentum(prr,g){return Math.sqrt(2*g*g/(g-1)*Math.pow(2/(g+1),(g+1)/(g-1))*Math.max(0,1-Math.pow(prr,(g-1)/g)));}
+function cfIdeal(pe,pa,pc,eps,g){return cfMomentum(pe/pc,g)+(pe-pa)/pc*eps;}
+function chokedFrac(pc,pa,g){
+  if(pc<=pa)return 0;
+  const pr=pa/pc,crit=Math.pow(2/(g+1),g/(g-1));
+  if(pr<=crit)return 1;
+  return Math.sqrt(2*g/(g-1)*(Math.pow(pr,2/g)-Math.pow(pr,(g+1)/g)))/vdk(g);}
+/* C_F for chamber pressure pc against ambient pa through a nozzle of expansion ratio eps (exit Mach mE, exit ratio prE
+   precomputed by the caller since they only change when the throat erodes) */
+function thrustCoef(pc,pa,eps,g,prE){
+  if(pc<=pa)return{cf:0,sep:false,choked:false};
+  const crit=Math.pow(2/(g+1),g/(g-1));
+  if(pa/pc>crit){   // not choked: a subsonic jet leaving the throat at ambient pressure, F/(pc·At) = rho·v²/pc
+    const pr=pa/pc,cf=2*g/(g-1)*(Math.pow(pr,1/g)-pr);
+    return{cf:Math.max(0,cf),sep:false,choked:false};}
+  const pe=prE*pc,pSep=TUNING.sepRatio*pa;
+  if(pe>=pSep)return{cf:Math.max(0,cfIdeal(pe,pa,pc,eps,g)),sep:false,choked:true};
+  /* separated: the flow follows the wall only out to where the pressure reaches pSep; past that the wall sees about
+     ambient. Thrust is what a nozzle cut off at that area ratio would give, plus nothing from the rest. */
+  const prS=pSep/pc;
+  if(prS>=crit)return{cf:Math.max(0,cfMomentum(crit,g)+(crit*pc-pa)/pc),sep:true,choked:true};
+  const mS=Math.sqrt(2/(g-1)*(Math.pow(prS,-(g-1)/g)-1)),epsS=areaRatio(mS,g);
+  return{cf:Math.max(0,cfIdeal(pSep,pa,pc,epsS,g)),sep:true,choked:true,epsS};
+}
+/* nozzle efficiency from the divergence half-angle (conical nozzle: lambda = (1 + cos a)/2) and the throat finish */
+function nozzleEta(halfDeg,finish){return(1+Math.cos(halfDeg*PI/180))/2*finish;}
+Object.assign(SIM,{vdk,areaRatio,presRatio,exitMach,subMach,cfMomentum,cfIdeal,chokedFrac,thrustCoef,nozzleEta});
+/* ===================== sim/motor.js: a design in friendly units -> a motor in SI =====================
+   motorFromDesign(design) checks the design and works out everything that doesn't change during a firing: the grain
+   geometry, throat and exit areas, nozzle efficiency, chamber volume, masses, ratings. It returns
+   {ok, errors:[{field, text}], ...motor}. An error names the design field to fix (the UI rings that control).
+   Nothing here is random; the variance model (stage 3) perturbs the motor, never the design. */
+const mm=v=>v/1000;
+function designErrors(d){
+  const e=[],add=(field,text)=>e.push({field,text});
+  const g=d.grain,c=d.case,z=d.nozzle;
+  if(!PROPELLANTS[g.prop])add("grain.prop","Pick a propellant grade.");
+  if(!CASES[c.mat])add("case.mat","Pick a case material.");
+  if(!LINERS[c.liner])add("case.liner","Pick a liner.");
+  if(!THROATS[z.mat])add("nozzle.mat","Pick a throat material.");
+  if(!CLOSURES[c.closure])add("case.closure","Pick how the closures are held.");
+  if(!IGNITERS[d.igniter])add("igniter","Pick an igniter.");
+  if(!(c.id>=10&&c.id<=600))add("case.id","Case bore must be 10 to 600 mm.");
+  if(!(c.wall>0.3&&c.wall<c.id/4))add("case.wall","Wall thickness must be more than 0.3 mm and under a quarter of the bore.");
+  if(!(c.linerThk>=0.3&&c.linerThk<c.id/6))add("case.linerThk","Liner must be at least 0.3 mm and leave room for the grain.");
+  const od=c.id-2*c.linerThk;
+  if(!(g.segs>=1&&g.segs<=12&&Math.round(g.segs)===g.segs))add("grain.segs","1 to 12 segments.");
+  if(!(g.segLen>=5&&g.segLen<=2000))add("grain.segLen","Segment length must be 5 to 2000 mm.");
+  if(!["bates","tube","end"].includes(g.shape))add("grain.shape","Pick a grain shape.");
+  if(g.shape!=="end"){
+    if(!(g.coreD>=2))add("grain.coreD","The core needs to be at least 2 mm across.");
+    else if(g.coreD>od-2)add("grain.coreD",`The core (${g.coreD} mm) leaves no propellant in a ${od.toFixed(1)} mm grain.`);
+    if(z.throatD>=g.coreD)add("nozzle.throatD",`The throat (${z.throatD} mm) is as wide as the core (${g.coreD} mm): the port would choke instead of the nozzle.`);
+  }
+  if(!(z.throatD>=1&&z.throatD<od))add("nozzle.throatD","Throat must be at least 1 mm and narrower than the grain.");
+  if(!(z.exitD>=z.throatD))add("nozzle.exitD","The exit can't be narrower than the throat.");
+  else if(z.exitD>c.id+2*c.wall+20)add("nozzle.exitD","The exit is much wider than the motor.");
+  if(!(z.half>=5&&z.half<=30))add("nozzle.half","Divergence half-angle must be 5 to 30 degrees.");
+  if(c.closure==="bolts"&&!(c.bolts>=3&&c.bolts<=36))add("case.bolts","3 to 36 bolts.");
+  return e;
+}
+function motorFromDesign(d){
+  const errors=designErrors(d);
+  if(errors.length)return{ok:false,errors};
+  const prop=PROPELLANTS[d.grain.prop],cm=CASES[d.case.mat],ln=LINERS[d.case.liner],th=THROATS[d.nozzle.mat],cl=CLOSURES[d.case.closure],ig=IGNITERS[d.igniter];
+  const id=mm(d.case.id),wall=mm(d.case.wall),lin=mm(d.case.linerThk),od=id-2*lin;
+  const grain=buildGrain({shape:d.grain.shape,segs:d.grain.segs,segLen:mm(d.grain.segLen),coreD:mm(d.grain.coreD),od});
+  const rt0=mm(d.nozzle.throatD)/2,re=mm(d.nozzle.exitD)/2,At0=PI*rt0*rt0,Ae=PI*re*re;
+  const chamberLen=grain.len+TUNING.headSpace*od,Vch=PI*(od/2)*(od/2)*chamberLen;
+  const clThk=TUNING.closureThk*id,caseLen=chamberLen+2*clThk;
+  const nozLen=(re-rt0)/Math.tan(d.nozzle.half*PI/180)+TUNING.nozzleLen*id;
+  const mass={
+    prop:prop.rho*grain.V(0),
+    case:cm.rho*PI*((id/2+wall)*(id/2+wall)-(id/2)*(id/2))*caseLen,
+    liner:ln.rho*PI*((id/2)*(id/2)-(od/2)*(od/2))*chamberLen,
+    closures:2*TUNING.closureRho*PI*(id/2)*(id/2)*clThk,
+    nozzle:th.rho*PI*(id/2)*(id/2)*nozLen*TUNING.nozzleFill};
+  mass.dry=mass.case+mass.liner+mass.closures+mass.nozzle;mass.total=mass.dry+mass.prop;
+  const retention=d.case.closure==="bolts"?cl.perBolt*d.case.bolts:cl.perMm*PI*d.case.id;
+  return{ok:true,errors,design:d,prop,caseMat:cm,liner:ln,throatMat:th,igniter:ig,
+    grain,od,id,wall,linThk:lin,rt0,re,At0,Ae,eps0:Ae/At0,eta:nozzleEta(d.nozzle.half,th.finish),
+    Vch,chamberLen,caseLen,length:caseLen+nozLen,diameter:id+2*wall,mass,retention,
+    linerRating:ln.rate*d.case.linerThk,   // seconds of protection
+    pYield:cm.yield*1e6*wall/(id/2),pUlt:cm.ult*1e6*wall/(id/2)};   // pressure at which the hoop stress reaches yield / ultimate
+}
+Object.assign(SIM,{designErrors,motorFromDesign});
+/* ===================== sim/ballistics.js: the firing, step by step (plan sections 6.3 to 6.6) =====================
+   simulate(motor, cond, opts) fires a motor from motorFromDesign() and returns its traces.
+
+   The model is the textbook lumped chamber: one pressure for the whole chamber, gas mass m = P·Vfree/RT, with
+     dm/dt = (propellant burned) + (igniter gas) − (flow out of the throat)
+     burned = rho · (V(x) − V(x + r·dt)),   r = a·P^n,   out = P·At/c* (choked; less when it isn't)
+   It is stepped with backward Euler: each step solves for the new pressure so the mass balance closes exactly, so the
+   mass that leaves the nozzle is the propellant + igniter gas + the air that was in the chamber, to rounding. Backward
+   Euler is stable for any step, so once the igniter has done its work the steps grow to about web/steps of regression
+   each (the plan's "step by web distance") and the pressure sits on the quasi-steady value P = (Kn·a·rho·c*)^(1/(1−n)).
+   When the web is gone the same equation, with nothing burning, is the exponential blowdown of the tail-off
+   (time constant tau = Vfree / (At · c* · Gamma²)).
+
+   The igniter (plan section 6.3): its gas arrives over its burn time; first light comes after a delay and the flame
+   spreads over the grain, both slower for a weaker igniter (strength = igniter gas / gas the chamber needs). Burning area
+   is scaled by the lit fraction while the flame spreads.
+   Temperature (6.6): a = a20 · exp(sigmaP · (T − 20)). Throat erosion (6.4): the throat radius grows at the material's
+   rate · (P / 5 MPa)^0.8. Erosive burning (6.5) arrives in stage 5.
+
+   cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
+   opts (the variance model's hooks, stage 3; all optional): {aMul, eroMul, ignMul, areaAdd(t, x) -> extra m²}
+   Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit, ...}. */
+function propCoef(prop,tGrain){return prop.rRef/1000/Math.pow(TUNING.pRef,prop.n)*Math.exp(prop.sigmaP*(tGrain-TUNING.tRef));}
+function simulate(motor,cond,opts){
+  cond=cond||{};opts=opts||{};
+  const T=TUNING,prop=motor.prop,G=motor.grain,g=prop.gamma,cs=prop.cStar,rho=prop.rho;
+  const RT=Math.pow(cs*vdk(g),2),n=prop.n,Pa=cond.pAmb!=null?cond.pAmb:T.pAmb,tGrain=cond.tGrain!=null?cond.tGrain:T.tRef;
+  const a=propCoef(prop,tGrain)*(opts.aMul||1),eroRate=motor.throatMat.ero/1000*(opts.eroMul==null?1:opts.eroMul);
+  const Vch=motor.Vch,web=G.web,dxT=web/T.steps,areaAdd=opts.areaAdd||null;
+  /* igniter */
+  const ig=motor.igniter,igGas=ig.gas*(opts.ignMul==null?1:opts.ignMul),need=T.ignNeedVol*(Vch-G.V(0))+T.ignNeedArea*G.A(0);
+  const S=Math.max(1e-6,igGas/need),delay=T.ignDelay/S,spread=T.ignSpread/(S*S);
+  const notLit=S<(opts.ignLight!=null?opts.ignLight:0);   // the variance model can set a hang-fire threshold
+  const lit=t=>notLit?0:Math.max(0,Math.min(1,(t-delay)/spread));
+  const igIn=(t0,t1)=>igGas*Math.max(0,Math.min(t1,ig.burn)-Math.min(t0,ig.burn))/ig.burn;
+  /* outputs */
+  const o={t:[],p:[],f:[],kn:[],x:[],mdot:[],at:[],cf:[]};
+  let t=0,x=0,P=Pa,rt=motor.rt0,mg=P*(Vch-G.V(0))/RT,rLast=0,sepAny=false,chuffAny=false,mOut=0,mBurn=0,mIgn=0,steps=0;
+  const m0=mg;
+  let thrustCache={at:-1};
+  const thrust=(Pn,At)=>{
+    if(Math.abs(At-thrustCache.at)>1e-4*At){const eps=motor.Ae/At;thrustCache={at:At,eps,prE:presRatio(exitMach(eps,g),g)};}
+    const c=thrustCoef(Pn,Pa,thrustCache.eps,g,thrustCache.prE);
+    return{F:motor.eta*c.cf*Pn*At,cf:c.cf,sep:c.sep};};
+  const push=(Pn,At,F,cf,mdot)=>{o.t.push(t);o.p.push(Pn);o.f.push(F);o.kn.push((G.A(x)+(areaAdd?areaAdd(t,x):0))/At);o.x.push(x);o.mdot.push(mdot);o.at.push(At);o.cf.push(cf);};
+  push(P,PI*rt*rt,0,0,0);
+  const ignEnd=Math.max(ig.burn,delay+spread);
+  while(t<T.tMax&&steps<200000){
+    steps++;
+    const At=PI*rt*rt,burning=x<web,inIgn=t<ignEnd+0.01;
+    let dt;
+    if(inIgn)dt=T.dtIgn;
+    else if(burning)dt=Math.min(T.dtMax,dxT/Math.max(rLast,1e-5));
+    else{const tau=Math.max(1e-5,(Vch-G.V(x))/(At*cs*vdk(g)*vdk(g)));dt=Math.min(0.01,Math.max(2e-4,tau/4));}
+    const t1=t+dt,fl=lit(t1),ign=igIn(t,t1),V0=G.V(x),mOld=mg;
+    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*a*Math.pow(Pn,n)*dt):x;
+    /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain */
+    const extra=areaAdd?areaAdd(t1,x):0;
+    const resid=Pn=>{const xn=xOf(Pn),Vn=G.V(xn);
+      const gen=rho*(V0-Vn)+(extra>0&&fl>0?rho*extra*a*Math.pow(Pn,n)*dt:0);
+      const out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
+      return(Vch-Vn)*Pn/RT-mOld-gen-ign+out;};
+    /* bracket and solve (bisection on log P with a secant guess; fixed upper bound on iterations) */
+    let lo=Math.min(Pa,P)*0.5,hi=Math.max(P,Pa)*2,rl=resid(lo),rh=resid(hi),k=0;
+    while(rh<0&&k++<80){lo=hi;rl=rh;hi*=2;rh=resid(hi);}
+    k=0;while(rl>0&&k++<60){hi=lo;rh=rl;lo*=0.5;rl=resid(lo);}
+    let Pn=hi;
+    for(let i=0;i<64;i++){
+      let m=lo-rl*(hi-lo)/(rh-rl);                         // secant (regula falsi) guess
+      if(!(m>lo&&m<hi)||i%3===2)m=Math.sqrt(lo*hi);        // every third step, or if it misbehaves: bisect in log P
+      const rm=resid(m);
+      if(rm<0){lo=m;rl=rm;}else{hi=m;rh=rm;}
+      Pn=m;if((hi-lo)<1e-9*hi)break;}
+    const xn=xOf(Pn),gen=rho*(V0-G.V(xn))+(extra>0&&fl>0?rho*extra*a*Math.pow(Pn,n)*dt:0),out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
+    x=xn;t=t1;P=Pn;mg=(Vch-G.V(x))*P/RT;mOut+=out;mBurn+=gen;mIgn+=ign;
+    rLast=fl*a*Math.pow(P,n);
+    if(burning&&fl>=1&&P<prop.pMin*1e6&&x<web*0.98)chuffAny=true;
+    rt+=eroRate*Math.pow(P/T.pRef,T.eroExp)*dt;
+    const th=thrust(P,At);if(th.sep&&burning&&fl>=1&&x<web*0.97)sepAny=true;   // separation in the steady burn, not the start-up or tail
+    push(P,At,th.F,th.cf,out/dt);
+    if(!burning&&P<T.tailEnd*Pa)break;
+    if(notLit&&t>ig.burn+0.3&&P<T.tailEnd*Pa)break;
+  }
+  return{ok:true,...o,ign:{strength:S,delay,spread,notLit},sepAny,chuffAny,notLit,
+    a,tGrain,pAmb:Pa,steps,web,mass:{out:mOut,burned:mBurn,ign:mIgn,gas0:m0,gasEnd:mg},rtEnd:rt};
+}
+Object.assign(SIM,{propCoef,simulate});
+/* ===================== sim/derive.js: the data sheet, structure checks and warnings (plan sections 6.7 to 6.9) =====================
+   summarize(motor, run) turns a run's traces into the numbers a data sheet shows, the structural margins, and the live
+   warnings the designer flags (each with the design field to fix and a glossary key). Pure; nothing random.
+   predict(design, cond) = motorFromDesign + simulate + summarize, the designer's one call. */
+function impulseClass(I){
+  if(!(I>0))return{letter:"–",pct:0};
+  const k=Math.max(0,Math.ceil(Math.log2(I/TUNING.classTop)-1e-12)),top=TUNING.classTop*Math.pow(2,k),bot=k?top/2:0;
+  return{letter:TUNING.classLetters[Math.min(k,TUNING.classLetters.length-1)],pct:Math.round(100*(I-bot)/(top-bot)),top,bot};}
+function trapz(y,t,i0,i1){let s=0;for(let i=Math.max(1,i0||1);i<=(i1==null?t.length-1:i1);i++)s+=(y[i]+y[i-1])/2*(t[i]-t[i-1]);return s;}
+function summarize(m,r){
+  const T=TUNING,n=r.t.length;
+  let iF=0,iP=0;for(let i=1;i<n;i++){if(r.f[i]>r.f[iF])iF=i;if(r.p[i]>r.p[iP])iP=i;}
+  const Fmax=r.f[iF],Pmax=r.p[iP],I=trapz(r.f,r.t);
+  /* burn time: from 5% of peak thrust rising to 5% falling */
+  let i0=0,i1=n-1;while(i0<n-1&&r.f[i0]<0.05*Fmax)i0++;while(i1>0&&r.f[i1]<0.05*Fmax)i1--;
+  const tb=i1>i0?r.t[i1]-r.t[i0]:0,Fav=tb>0?I/tb:0,Pav=tb>0?trapz(r.p,r.t,i0+1,i1)/tb:0;
+  /* the steady part of the burn: igniter spent, web left; Kn range and pressure range there */
+  const tSteady=Math.max(m.igniter.burn,r.ign.delay+r.ign.spread)+0.02;   // the igniter is spent
+  let knMin=Infinity,knMax=0,pLow=Infinity,pHigh=0,gMax=0;
+  for(let i=1;i<n;i++){
+    if(r.x[i]<r.web*0.97&&r.t[i]>tSteady){knMin=Math.min(knMin,r.kn[i]);knMax=Math.max(knMax,r.kn[i]);pLow=Math.min(pLow,r.p[i]);pHigh=Math.max(pHigh,r.p[i]);}
+    if(r.x[i]<r.web)gMax=Math.max(gMax,r.mdot[i]/m.grain.port(r.x[i]));}
+  if(!isFinite(knMin)){knMin=knMax=0;pLow=0;}
+  /* a start spike: the peak comes while the igniter is still burning and stands well over the steady burn */
+  const spike=pHigh>0&&r.t[iP]<tSteady&&Pmax>T.spikeWarn*pHigh;
+  const mp=m.mass.prop,Isp=mp>0?I/(mp*T.g0):0,cls=impulseClass(I);
+  const hoop=Pmax*(m.id/2)/m.wall,closureLoad=Pmax*PI*(m.id/2)*(m.id/2);
+  const s={I,Fmax,tFmax:r.t[iF],Pmax,tPmax:r.t[iP],tb,tStart:r.t[i0],tEnd:r.t[i1],Fav,Pav,Isp,cls,
+    designation:cls.letter+Math.round(Fav),knMin,knMax,pHigh,spike,kn0:m.grain.A(0)/m.At0,pLow,gMax,
+    pt0:m.grain.minPort(0)/m.At0,massFrac:mp/m.mass.total,mass:m.mass,
+    hoop,sf:m.caseMat.yield*1e6/hoop,sfUlt:m.caseMat.ult*1e6/hoop,closureLoad,closureSf:m.retention/closureLoad,
+    linerRating:m.linerRating,burnAll:r.t[n-1],sep:r.sepAny,chuff:r.chuffAny,ign:r.ign,rtEnd:r.rtEnd,
+    throatGrowth:r.rtEnd/m.rt0-1};
+  s.warnings=warnings(m,s);
+  return s;
+}
+/* the designer's live flags (plan section 6.8): {key, sev ("warn" | "crit"), text, field (the control to change), gloss} */
+function warnings(m,s){
+  const T=TUNING,w=[],add=(key,sev,text,field,gloss)=>w.push({key,sev,text,field,gloss:gloss||key});
+  const mpa=p=>(p/1e6).toFixed(2)+" MPa";
+  if(s.Pmax>m.pUlt)add("burst","crit",`Peak pressure ${mpa(s.Pmax)} is past what the case can hold (${mpa(m.pUlt)}). It will burst.`,"case.wall","cato");
+  else if(s.sf<1)add("yield","crit",`Peak pressure ${mpa(s.Pmax)} is past the case's yield (${mpa(m.pYield)}). Safety factor ${s.sf.toFixed(2)}.`,"case.wall","sf");
+  else if(s.sf<T.sfWarn)add("sf","warn",`Case safety factor ${s.sf.toFixed(2)} at peak pressure. Aim for ${T.sfWarn} or more.`,"case.wall","sf");
+  if(s.closureSf<1)add("closure","crit",`The closures see ${(s.closureLoad/1000).toFixed(1)} kN; the retention is rated ${(m.retention/1000).toFixed(1)} kN. The nozzle will blow out.`,"case.closure","retention");
+  else if(s.closureSf<T.sfWarn)add("closure","warn",`Closure retention margin ${s.closureSf.toFixed(2)}. Aim for ${T.sfWarn} or more.`,"case.closure","retention");
+  if(s.pLow>0&&s.pLow<m.prop.pMin*1e6)add("chuff","warn",`Pressure falls to ${mpa(s.pLow)}, under ${m.prop.name}'s stable minimum of ${m.prop.pMin} MPa. Expect chuffing.`,"nozzle.throatD","chuffing");
+  if(s.pt0<T.ptWarn)add("pt","warn",`Port-to-throat ratio ${s.pt0.toFixed(2)} at ignition. Under ${T.ptWarn}, expect an erosive spike.`,"grain.coreD","portThroat");
+  if(s.gMax>T.gWarn)add("flux","warn",`Peak mass flux ${Math.round(s.gMax)} kg/m²s. Over ${T.gWarn}, the port scours the grain.`,"grain.coreD","massFlux");
+  if(s.tb>m.linerRating)add("liner","crit",`The burn lasts ${s.tb.toFixed(1)} s; the liner protects the case for ${m.linerRating.toFixed(1)} s. Expect a burn-through.`,"case.linerThk","liner");
+  else if(s.tb>T.linerWarn*m.linerRating)add("liner","warn",`The burn (${s.tb.toFixed(1)} s) uses most of the liner's ${m.linerRating.toFixed(1)} s.`,"case.linerThk","liner");
+  if(s.sep)add("sep","warn","The nozzle is over-expanded for the ground: the flow separates and thrust drops.","nozzle.exitD","separation");
+  if(s.spike)add("spike","warn",`The igniter alone pushes the chamber to ${mpa(s.Pmax)}, well over the burn's ${mpa(s.pHigh)}. A smaller igniter would do.`,"igniter","ignSpike");
+  if(s.ign.strength<T.ignWeak)add("ign","warn",`The igniter is weak for this motor (strength ${s.ign.strength.toFixed(2)}). Slow start or a hang fire.`,"igniter","hangFire");
+  return w;
+}
+function predict(design,cond){const m=motorFromDesign(design);if(!m.ok)return{ok:false,errors:m.errors};const r=simulate(m,cond);return{ok:true,motor:m,run:r,sum:summarize(m,r)};}
+Object.assign(SIM,{impulseClass,trapz,summarize,warnings,predict});
 return SIM;
 })();
 if(typeof module!=="undefined")module.exports=BURN_SIM;
@@ -216,7 +648,7 @@ if(typeof module!=="undefined")module.exports=BURN_SIM;
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-" (brn-settings now; brn-save and brn-slot1..3 arrive with careers in
    stage 4). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.1.0.0";
+const VERSION="0.2.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -276,12 +708,71 @@ const PWA=(()=>{
   }).catch(()=>{});
   return api;
 })();
+/* ===================== app/debug.js: the ?debug=1 page (stage 1) =====================
+   A plain bench for the motor model before the designer exists: pick a reference motor and a grain temperature, see the
+   predicted pressure and thrust curves and the data-sheet numbers. Open the game with ?debug=1 on the end of the address.
+   Not linked from anywhere in the game. */
+function debugPage(){
+  const S=BURN_SIM,names=Object.keys(S.REF_DESIGNS);
+  const box=document.createElement("main");box.id="debug";box.className="concrete";
+  box.innerHTML=`<div class="stripe hazard" aria-hidden="true"></div>
+  <p class="site">Debug bench · motor model ${esc(VERSION)}</p>
+  <h2>Predicted firing</h2>
+  <label class="dbg-l">Motor <select id="dbgMotor">${names.map((k,i)=>`<option value="${i}">${esc(k)}</option>`).join("")}</select></label>
+  <label class="dbg-l">Grain temperature <b id="dbgTv">20 °C</b><input type="range" id="dbgT" min="-20" max="45" step="1" value="20"></label>
+  <div class="card dbg-chart"><canvas id="dbgCv" aria-label="Pressure and thrust against time"></canvas>
+    <p class="dbg-key"><span class="k-p"></span>Chamber pressure (MPa) <span class="k-f"></span>Thrust (N)</p></div>
+  <div class="card"><table class="dbg-t mono" id="dbgSum"></table></div>
+  <div id="dbgWarn"></div>
+  <p class="hint"><a href="./">Back to the title</a></p>`;
+  $("title").hidden=true;$("app").appendChild(box);
+  const draw=()=>{
+    const d=S.REF_DESIGNS[names[+$("dbgMotor").value]],tG=+$("dbgT").value;$("dbgTv").textContent=tG+" °C";
+    const r=S.predict(d,{tGrain:tG});
+    if(!r.ok){$("dbgSum").innerHTML=`<tr><td>${esc(r.errors.map(e=>e.text).join(" "))}</td></tr>`;return;}
+    plot($("dbgCv"),r.run);
+    const s=r.sum,m=r.motor,row=(k,v)=>`<tr><th>${k}</th><td>${v}</td></tr>`;
+    $("dbgSum").innerHTML=[
+      row("Designation",`${s.designation} (${s.cls.pct}% of ${s.cls.letter})`),row("Total impulse",s.I.toFixed(1)+" N·s"),
+      row("Thrust avg / peak",`${s.Fav.toFixed(0)} / ${s.Fmax.toFixed(0)} N`),row("Burn time",s.tb.toFixed(2)+" s"),
+      row("Pressure avg / peak",`${(s.Pav/1e6).toFixed(2)} / ${(s.Pmax/1e6).toFixed(2)} MPa`),row("Isp",s.Isp.toFixed(1)+" s"),
+      row("Kn start / range",`${s.kn0.toFixed(0)} / ${s.knMin.toFixed(0)}–${s.knMax.toFixed(0)}`),row("Port-to-throat",s.pt0.toFixed(2)),
+      row("Peak mass flux",Math.round(s.gMax)+" kg/m²s"),row("Case safety factor",s.sf.toFixed(2)+` (yield ${(m.pYield/1e6).toFixed(1)} MPa)`),
+      row("Closure margin",s.closureSf.toFixed(2)),row("Liner rating",m.linerRating.toFixed(1)+" s"),
+      row("Igniter strength",s.ign.strength.toFixed(2)),row("Throat growth","+"+(s.throatGrowth*100).toFixed(2)+"%"),
+      row("Propellant / total",`${(m.mass.prop*1000).toFixed(0)} / ${(m.mass.total*1000).toFixed(0)} g`),
+      row("Length × diameter",`${(m.length*1000).toFixed(0)} × ${(m.diameter*1000).toFixed(0)} mm`)].join("");
+    $("dbgWarn").innerHTML=s.warnings.length?s.warnings.map(w=>`<p class="dbg-w ${w.sev}"><b>${w.sev==="crit"?"Fail":"Warning"}</b> ${esc(w.text)}</p>`).join(""):`<p class="hint">No warnings.</p>`;
+  };
+  $("dbgMotor").onchange=draw;$("dbgT").oninput=draw;addEventListener("resize",draw);
+  draw();
+}
+/* two traces on one time axis: pressure on the left scale, thrust on the right */
+function plot(cv,r){
+  const dpr=Math.min(2,devicePixelRatio||1),W=cv.clientWidth||320,H=Math.round(W*0.62);
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+"px";
+  const c=cv.getContext("2d"),css=getComputedStyle(document.documentElement),tok=k=>css.getPropertyValue(k).trim();
+  c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  const L=40,R=44,T=10,B=26,w=W-L-R,h=H-T-B,tMax=r.t[r.t.length-1]*1.04;
+  const pMax=nice(Math.max(...r.p)/1e6*1.1),fMax=nice(Math.max(...r.f)*1.1);
+  c.font=`11px ${tok("--mono")}`;c.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=T+h-h*i/4;c.strokeStyle=tok("--line");c.beginPath();c.moveTo(L,y);c.lineTo(L+w,y);c.stroke();
+    c.fillStyle=tok("--pred");c.textAlign="right";c.fillText((pMax*i/4).toFixed(pMax<4?1:0),L-5,y+4);
+    c.fillStyle=tok("--ink");c.textAlign="left";c.fillText((fMax*i/4).toFixed(0),L+w+5,y+4);}
+  const tStep=nice(tMax/4);c.fillStyle=tok("--muted");c.textAlign="center";
+  for(let t=0;t<=tMax;t+=tStep)c.fillText(t.toFixed(tStep<1?1:0)+" s",L+w*t/tMax,H-8);
+  const line=(arr,k,max,col,wd)=>{c.strokeStyle=col;c.lineWidth=wd;c.beginPath();
+    for(let i=0;i<arr.length;i++){const x=L+w*r.t[i]/tMax,y=T+h-h*Math.min(1.05,arr[i]*k/max);i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();};
+  line(r.f,1,fMax,tok("--ink"),1.5);line(r.p,1e-6,pMax,tok("--pred"),2.5);
+}
+function nice(v){if(!(v>0))return 1;const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return(m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e;}
 /* ===================== app/boot.js: start-up and the title screen =====================
    start() runs once the page has parsed: settings, the version line, then the loading splash goes. */
 function start(){
   loadSettings();
   document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
   $("verLbl").textContent="v"+VERSION;
+  if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();
 }
 start();

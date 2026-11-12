@@ -5,8 +5,8 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | Stage | Version | State |
 | --- | --- | --- |
 | 0. Scaffold | 0.1.0.0 | Done |
-| 1. Ballistics core | 0.2.0.0 | Next |
-| 2. Designer | 0.3.0.0 | |
+| 1. Ballistics core | 0.2.0.0 | Done |
+| 2. Designer | 0.3.0.0 | Next |
 | 3. Static fire and incident report (first playable) | 0.4.0.0 | |
 | 4. Career and saves | 0.5.0.0 | |
 | 5. Advanced grains and effects | 0.6.0.0 | |
@@ -14,6 +14,21 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 7. The test stand in 3D | 0.8.0.0 | |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.2.0.0 — Stage 1: ballistics core
+
+- Data tables (`src/data/`): six fictional propellant grades as stat blocks, case materials, liners, throat materials,
+  closures, igniters (now five sizes, from a micro igniter for end burners), and every tuning number in `TUNING`.
+- Grain geometry (`sim/grain.js`): BATES, tube and end burner, analytic area / volume / port tables per segment.
+- Nozzle (`sim/nozzle.js`): isentropic area-Mach, C_F with flow separation and unchoked flow, cone efficiency.
+- Motor build (`sim/motor.js`): a design in mm becomes an SI motor with masses, retention, liner rating, case ratings;
+  invalid designs return errors naming the field to fix.
+- The firing (`sim/ballistics.js`): a lumped chamber stepped with backward Euler (mass closes to rounding), igniter
+  delay and flame spread, temperature sensitivity, throat erosion, blowdown tail-off.
+- The data sheet (`sim/derive.js`): impulse class and designation, averages and peaks, burn time, Isp, Kn range,
+  port-to-throat, mass flux, safety factors, and the live warnings with the field each one points at.
+- 15 physics invariant checks in `tools/sim-tests/physics.js`; `--brief` prints the reference motors.
+- `?debug=1` bench page: pick a reference motor and a grain temperature, see the predicted curves and numbers.
 
 ## 0.1.0.0 — Stage 0: scaffold
 

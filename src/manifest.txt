@@ -11,6 +11,7 @@ data/materials.js
 data/designs.js
 data/variance.js
 data/contracts.js
+data/career.js
 sim/grain.js
 sim/nozzle.js
 sim/motor.js
@@ -18,6 +19,7 @@ sim/ballistics.js
 sim/derive.js
 sim/fire.js
 sim/grade.js
+sim/career.js
 sim/close.js
 html/ld-sim.html
 # --- the vis block (BURN_VIS): charts and the cross-section; reads sim results ---
@@ -32,8 +34,11 @@ vis/close.js
 app/state.js
 app/pwa.js
 app/gloss.js
+app/save.js
+app/savecode.js
 app/designer.js
 app/game.js
+app/career.js
 app/firing.js
 app/report.js
 app/debug.js

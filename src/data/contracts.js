@@ -1,36 +1,70 @@
-/* ===================== data/contracts.js: the first playable's fixed contracts (stage 3) =====================
-   Stage 4 replaces this list with the career's contract board. Each contract:
-     id, client, title, brief (the work order's text), tier (highest part tier allowed), stand (what fits),
+/* ===================== data/contracts.js: the stands and the work orders (stages 3 and 4) =====================
+   The career's board (sim/career.js) offers these in list order, tier by tier. Each contract:
+     id, client, title, brief (the work order's text), tier (the career tier it appears at), stand (where it fires),
+     pay (cr, before the grade), days (range days from taking it to the deadline), repeat ({pay, every}: once delivered,
+     the client orders again after `every` days for this share of the pay; optional),
      slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id), spec (criteria, sim/grade.js),
      start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
      tools/sim-tests/fire.js fires it across seeds and slots, so every contract stays solvable). */
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
-const STANDS={s3:{name:"Stand 3",len:420,dia:64,note:"The smallest stand: a concrete pad, a load cell rated 2 kN, one camera."}};
+/* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
+const STANDS={
+  s3:{name:"Stand 3",len:420,dia:64,cell:2000,fee:150,note:"The smallest stand: a concrete pad, a load cell rated 2 kN, one camera."},
+  s2:{name:"Stand 2",len:900,dia:110,cell:10000,fee:400,note:"The medium stand: a thrust frame in a blast bay, a 10 kN load cell, two cameras."}};
 const CONTRACTS=[
-  {id:"first-light",client:"Aqsor Steppe Rocketry Club",title:"A G for field day",tier:1,stand:"s3",slot:null,
+  {id:"first-light",client:"Aqsor Steppe Rocketry Club",title:"A G for field day",tier:1,stand:"s3",slot:null,pay:800,days:6,repeat:{pay:0.6,every:5},
     brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They will fly whatever passes.",
     spec:[{k:"I",lo:80,hi:160},{k:"tb",lo:1.0,hi:3.5}],start:"29mm 2-seg BATES, Mule",
     solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:42,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:13,half:15},igniter:"s"}},
-  {id:"dala-g48",client:"Dala Hobby Supply",title:"Catalogue G48",tier:1,stand:"s3",slot:null,
+  {id:"dala-g48",client:"Dala Hobby Supply",title:"Catalogue G48",tier:1,stand:"s3",slot:null,pay:1000,days:6,repeat:{pay:0.6,every:4},
     brief:"A hobby shop in town wants a motor for its catalogue: a G averaging close to 48 N. Customers read the label, so the motor has to match it.",
     spec:[{k:"Fav",lo:42,hi:54},{k:"I",lo:110,hi:150}],start:"29mm 2-seg BATES, Mule",
     solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:44,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:12,half:15},igniter:"s"}},
-  {id:"kumtal-tow",client:"Kumtal Weather Service",title:"A long, gentle push",tier:1,stand:"s3",slot:null,
+  {id:"kumtal-tow",client:"Kumtal Weather Service",title:"A long, gentle push",tier:1,stand:"s3",slot:null,pay:1400,days:8,
     brief:"The weather station sends instruments up on small gliders that drift home. They want a gentle motor that pushes for ten seconds or more, without shaking the instruments.",
     spec:[{k:"tb",lo:10,hi:16},{k:"Fav",lo:5,hi:12}],
     start:{grain:{prop:"swift9",shape:"end",segs:1,segLen:60,coreD:0},case:{mat:"mild",id:35,wall:2.0,liner:"paper",linerThk:3.0,closure:"bolts",bolts:6},nozzle:{mat:"graphite",throatD:2.5,exitD:5,half:15},igniter:"xs"},
     solution:{grain:{prop:"tr2",shape:"end",segs:1,segLen:40,coreD:0},case:{mat:"mild",id:40,wall:2.0,liner:"paper",linerThk:5.5,closure:"bolts",bolts:6},nozzle:{mat:"graphite",throatD:2.0,exitD:4,half:15},igniter:"xs"}},
-  {id:"saryk-h",client:"Saryk Polytechnic rocket team",title:"Off the rail, fast",tier:1,stand:"s3",slot:null,
+  {id:"saryk-h",client:"Saryk Polytechnic rocket team",title:"Off the rail, fast",tier:1,stand:"s3",slot:null,pay:1500,days:8,
     brief:"The students' rocket is heavy and their launch rail is short. They need a hard push: 180 N or more on average, all of it inside 1.8 seconds.",
     spec:[{k:"Fav",lo:180,hi:280},{k:"I",lo:200,hi:400},{k:"tb",hi:1.8}],start:"38mm 3-seg BATES, Mule",
     solution:{grain:{prop:"swift9",shape:"bates",segs:3,segLen:48,coreD:16},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:9,exitD:20,half:15},igniter:"s"}},
-  {id:"burkit-light",client:"Bürkit Aerospace",title:"A light 38 mm I",tier:1,stand:"s3",slot:null,
+  {id:"burkit-light",client:"Bürkit Aerospace",title:"A light 38 mm I",tier:1,stand:"s3",slot:null,pay:1700,days:8,
     brief:"A small launch company is testing an upper stage on a tight budget. Every gram counts: an I motor that weighs 330 g or less, all up.",
     spec:[{k:"I",lo:340,hi:440},{k:"mass",hi:330}],start:"38mm 3-seg BATES, Mule",
     solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"phenolic",id:35,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:8,exitD:20,half:15},igniter:"s"}},
-  {id:"range-dawn",client:"Aqsor Range Authority",title:"Cold qualification",tier:1,stand:"s3",slot:"dawn",
+  {id:"range-dawn",client:"Aqsor Range Authority",title:"Cold qualification",tier:1,stand:"s3",slot:"dawn",pay:2000,days:8,
     brief:"Before the range signs off its new stands, R. Abenov wants to see a motor behave on a cold morning. Fired at dawn, whatever the weather: 120 to 160 N on average, and gentle on the case.",
     spec:[{k:"Fav",lo:120,hi:160},{k:"I",lo:320,hi:450},{k:"Pmax",hi:3.0}],start:"38mm 3-seg BATES, Mule",
-    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:7.5,exitD:18,half:15},igniter:"s"}}
+    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:7.5,exitD:18,half:15},igniter:"s"}},
+  /* ---- tier 2: Stand 2, tier 2 parts, curve shapes and conditioned firings ---- */
+  {id:"dala-j",client:"Dala Hobby Supply",title:"Catalogue J350",tier:2,stand:"s2",slot:null,pay:3500,days:8,repeat:{pay:0.6,every:4},
+    brief:"The shop's G sold out in a week. Now they want a J for the club's big rockets: about 350 N on average, and a full J's worth of impulse.",
+    spec:[{k:"Fav",lo:300,hi:400},{k:"I",lo:700,hi:1100}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:75,coreD:22},case:{mat:"mild",id:49,wall:4.5,liner:"rubber",linerThk:1.8,closure:"bolts",bolts:3},nozzle:{mat:"graphite",throatD:14.8,exitD:34,half:15},igniter:"m"}},
+  {id:"kumtal-sonde",client:"Kumtal Weather Service",title:"A steady sustainer",tier:2,stand:"s2",slot:null,pay:4200,days:10,
+    brief:"The weather station is moving up to sounding rockets. The instruments want a flat push, no surge at the start and none at the end: a neutral curve for three or four seconds.",
+    spec:[{k:"I",lo:800,hi:1200},{k:"tb",lo:2.5,hi:4.5},{k:"prog",lo:0.85,hi:1.15}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:77,coreD:21.5},case:{mat:"mild",id:51,wall:4.5,liner:"rubber",linerThk:1.7,closure:"bolts",bolts:3},nozzle:{mat:"steel",throatD:15,exitD:34,half:15},igniter:"m"}},
+  {id:"saryk-prog",client:"Saryk Polytechnic rocket team",title:"A climbing curve",tier:2,stand:"s2",slot:null,pay:4000,days:10,
+    brief:"The students' second stage lights high up, where the air is thin and the rocket is already fast. They want thrust that climbs as it burns: the last third at least 35% stronger than the first.",
+    spec:[{k:"prog",lo:1.35},{k:"I",lo:450,hi:800},{k:"tb",hi:3}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"swift9",shape:"tube",segs:4,segLen:85,coreD:24.5},case:{mat:"cromo",id:38,wall:2.7,liner:"paper",linerThk:1,closure:"bolts",bolts:7},nozzle:{mat:"graphite",throatD:14.8,exitD:32.5,half:15},igniter:"m"}},
+  {id:"qyran-regress",client:"Qyran Display Team",title:"Hard off the pad",tier:2,stand:"s2",slot:null,pay:4400,days:10,
+    brief:"An air-show team wants its rockets to leap off the pad and then ease off, so they arc slowly over the crowd. A falling curve: the last third no more than 80% of the first.",
+    spec:[{k:"prog",hi:0.8},{k:"I",lo:400,hi:900}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"swift9",shape:"bates",segs:3,segLen:56,coreD:23},case:{mat:"mild",id:48,wall:5.7,liner:"paper",linerThk:1.2,closure:"bolts",bolts:3},nozzle:{mat:"steel",throatD:12,exitD:28,half:15},igniter:"m"}},
+  {id:"burkit-noon",client:"Bürkit Aerospace",title:"Hot pad qualification",tier:2,stand:"s2",slot:"noon",pay:5000,days:10,
+    brief:"Bürkit's launch site bakes in summer. They want proof a motor stays inside its pressure limit with the grain hot from the afternoon sun. Fired at noon.",
+    spec:[{k:"Fav",lo:450,hi:650},{k:"I",lo:1000,hi:1500},{k:"Pmax",hi:6}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:81,coreD:24},case:{mat:"cromo",id:51,wall:2.7,liner:"paper",linerThk:1,closure:"bolts",bolts:12},nozzle:{mat:"steel",throatD:13.9,exitD:36,half:15},igniter:"m"}},
+  {id:"ozen-cold",client:"Ozen Survey Instruments",title:"Cold-soak burn",tier:2,stand:"s2",slot:"dawn",pay:4800,days:10,
+    brief:"A survey firm flies from the northern steppe in winter. They need a long, moderate burn that still behaves after a night in the frost. Fired at dawn, three and a half seconds or more.",
+    spec:[{k:"Fav",lo:200,hi:300},{k:"I",lo:900,hi:1300},{k:"tb",lo:3.5},{k:"Pmax",hi:5}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"clearsky",shape:"bates",segs:2,segLen:76,coreD:20},case:{mat:"cromo",id:57,wall:2.1,liner:"rubber",linerThk:1.2,closure:"bolts",bolts:13},nozzle:{mat:"steel",throatD:14,exitD:26,half:15},igniter:"m"}},
+  {id:"range-frac",client:"Aqsor Range Authority",title:"Lean and strong",tier:2,stand:"s2",slot:null,pay:5500,days:12,
+    brief:"The Range Authority is pitching Site 41 to launch firms and wants a showpiece: a K motor where propellant is most of the weight. 62% of the motor or more, and safe on the case.",
+    spec:[{k:"massFrac",lo:62},{k:"I",lo:1300,hi:2200},{k:"Pmax",hi:7}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:4,segLen:83,coreD:22},case:{mat:"phenolic",id:51,wall:2,liner:"paper",linerThk:1.5,closure:"bolts",bolts:14},nozzle:{mat:"graphite",throatD:15.6,exitD:26,half:15},igniter:"l"}}
 ];
 Object.assign(SIM,{GRADING,STANDS,CONTRACTS});

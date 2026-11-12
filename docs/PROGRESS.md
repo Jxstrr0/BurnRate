@@ -8,12 +8,34 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 1. Ballistics core | 0.2.0.0 | Done |
 | 2. Designer | 0.3.0.0 | Done |
 | 3. Static fire and incident report (first playable) | 0.4.0.0 | Done |
-| 4. Career and saves | 0.5.0.0 | Next |
-| 5. Advanced grains and effects | 0.6.0.0 | |
+| 4. Career and saves | 0.5.0.0 | Done |
+| 5. Advanced grains and effects | 0.6.0.0 | Next |
 | 6. Flight tests | 0.7.0.0 | |
 | 7. The test stand in 3D | 0.8.0.0 | |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.5.0.0 — Stage 4: career and saves
+
+- **Careers**: the title has Continue, New career (name your startup), Free design, and Saves and backups. A career
+  starts at Aqsor Range on Stand 3 with 2 500 cr and up to 1 500 cr of overdraft. Money is plain credits (cr), the
+  country is the Altyn Steppe Republic (decided, plan section 0).
+- **The work orders board**: up to six offers (new work at your tier first), up to three jobs in hand, each with pay and
+  a due day. Every firing is a day. Late delivery cuts the pay 10% a day, never below 40%. A pass pays the job × the
+  grade (A 1.2, B 1, C 0.8) and earns reputation; some clients come back with repeat orders at 60% pay.
+- **Costs**: every firing pays the stand's range fee and the motor's build cost (propellant, case, liner, nozzle,
+  igniter, machining), itemised on the slot sheet before you fire and on the report after. Go broke and the range
+  restarts you at the tier's starting money.
+- **Facilities**: blockhouse instruments (the full dice in the report, a finer data log) and the Stand 2 lease, which
+  opens tier 2: seven new work orders up to 10 kN, including curve shape (progressive / regressive) and mass fraction
+  specs, hot and cold slot qualifications.
+- **The logbook**: every firing, with its report regenerated from the stored design and seed (the sim is deterministic).
+- **Saves**: the game saves itself to `brn-save` as you go; three save slots (`brn-slot1..3`); Back up / Restore with a
+  `BRN1:` save code or a backup file, and a gentle reminder bar once there's progress to lose. Restore is all or
+  nothing. Settings stay on the phone.
+- Tests: 7 new sim checks in `tools/sim-tests/career.js` (prices, pay and the late floor, repeat orders, facilities,
+  going broke, curve shape, the load cell, and a bot that plays a whole career), and `check-savecode.js` (19 checks on
+  saves and codes), which CI now runs.
 
 ## 0.4.0.0 — Stage 3: static fire and incident report (first playable)
 

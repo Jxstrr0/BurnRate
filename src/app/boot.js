@@ -1,11 +1,10 @@
 /* ===================== app/boot.js: start-up and the title screen =====================
-   start() runs once the page has parsed: settings, the version line, then the loading splash goes. */
+   start() runs once the page has parsed: settings, the save, the title, then the loading splash goes. */
 function start(){
   loadSettings();
   document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
   $("verLbl").textContent="v"+VERSION;
-  $("tStart").addEventListener("click",openBoard);$("tFree").addEventListener("click",freeDesign);
-  $("bdBack").addEventListener("click",()=>showScreen("title"));
+  loadSave();renderTitle();initTitle();initBoard();
   initFiring();initReport();
   if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();

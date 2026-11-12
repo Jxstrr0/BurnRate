@@ -1,7 +1,7 @@
 </style>
 
 <div id="app">
-  <!-- TITLE: the studio credit, the version and the way in: the work orders, or a free design -->
+  <!-- TITLE (app/career.js renderTitle): the studio credit, the version and the way in: the career, a free design, saves -->
   <main id="title" class="concrete" aria-labelledby="t-name">
     <div class="stripe hazard" aria-hidden="true"></div>
     <div class="ghost" aria-hidden="true">ПОЛИГОН 41</div>
@@ -10,11 +10,7 @@
       <h1 id="t-name">Burn <span>Rate</span></h1>
       <p class="lede">Design a solid rocket motor. Predict its curve. Bolt it to the stand and find out why it didn't match.</p>
     </div>
-    <div class="actions">
-      <button type="button" class="btn pri big" id="tStart">Work orders</button>
-      <button type="button" class="btn big" id="tFree">Free design</button>
-      <p class="note" id="tNote">First playable: six work orders and Stand 3. Nothing is saved yet; careers and save slots arrive in a coming update.</p>
-    </div>
+    <div class="actions" id="tActions"></div>
     <footer class="studio">
       <a href="https://longlight.games/" rel="noopener" aria-label="Longlight Interactive, the studio site"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="150" height="48"></a>
       <div class="credit">© 2026 Kelbo / Longlight Interactive<br><span class="ver" id="verLbl"></span></div>
@@ -42,12 +38,18 @@
     <div class="dz-go" id="dzGo"></div>
   </main>
 
-  <!-- WORK ORDERS (app/game.js): the first playable's fixed contracts -->
+  <!-- WORK ORDERS (app/career.js): the startup's day, money and reputation, the jobs in hand, the board -->
   <main id="board" hidden aria-labelledby="bdTitle">
     <header class="sc-top"><button type="button" class="btn sm back" id="bdBack" aria-label="Back to the title">‹</button>
-      <div class="dz-name"><span class="site">Aqsor Range · Stand 3</span><b class="sign" id="bdTitle">Work orders</b></div></header>
-    <p class="hint bd-note">Pick a job, design the motor on the bench, then fire it on the stand. The predictor is the ideal; the real motor never quite matches.</p>
+      <div class="dz-name"><span class="site" id="bdSite">Aqsor Range · Stand 3</span><b class="sign" id="bdTitle">Work orders</b></div></header>
     <div class="bd-list" id="bdList"></div>
+  </main>
+
+  <!-- LOGBOOK (app/career.js): every firing, newest first; tap one to read its report again -->
+  <main id="logbook" hidden aria-labelledby="lgTitle">
+    <header class="sc-top"><button type="button" class="btn sm back" id="lgBack" aria-label="Back to the work orders">‹</button>
+      <div class="dz-name"><span class="site">Aqsor Range · blockhouse</span><b class="sign" id="lgTitle">Logbook</b></div></header>
+    <div class="lg-list" id="lgList"></div>
   </main>
 
   <!-- THE STAND (app/firing.js): countdown, the stand, the live strip chart -->

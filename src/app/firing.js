@@ -9,7 +9,7 @@ const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
 function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot];
   showScreen("fire");
-  $("frSite").textContent=`Stand 3 · ${sl.name} · ${degC(sl.tGrain)} grain`;$("frDes").textContent=f.pred.sum.designation;
+  $("frSite").textContent=`${L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(sl.tGrain)} grain`;$("frDes").textContent=f.pred.sum.designation;
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
   FR.fPk=Math.max(1,...f.plog.f);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;

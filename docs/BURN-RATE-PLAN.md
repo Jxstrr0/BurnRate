@@ -22,6 +22,9 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 12 Nov 2026 | Country | **Altyn Steppe Republic** ("altyn" = gold), the invented post-Soviet steppe country Aqsor Range is in |
+| 12 Nov 2026 | Money | **Plain credits**, shown as `cr` (e.g. `48 000 cr`). No flavour currency |
+| 12 Nov 2026 | Missed deadlines | **Late pay cut**: a contract can still be delivered after its deadline, but the payout drops for each range day late |
 | 12 Nov 2026 | Where it lives | `burnrate.longlight.games` (a `CNAME` file in the repo; Kelbo adds the DNS record) |
 | 12 Nov 2026 | Branches and merging | `main` starts from the scaffold. Every stage is a PR into `main`; Claude merges (squash is fine) once CI is green |
 | 12 Nov 2026 | Era | Modern, slightly in the future (the 2030s). Drop the 1959 to 1975 retro look |
@@ -98,7 +101,7 @@ startup renting the smallest stand and grows into a booster contractor.
 **Names:** check the catalogue's section 8 before naming anything. Avoid
 Kestrel, Kessel, Harbourline, Hollis, anything starting with V for a country,
 "Prairie", and Lombard and Ink's Mostograd names. The country and its money
-are still to name (stage 4, section 14). The player names their startup at
+are decided: the **Altyn Steppe Republic**, money in plain **credits** (`cr`). The player names their startup at
 career start.
 
 **Hard content rule: propellants are stat blocks, never recipes.** Every
@@ -582,7 +585,7 @@ nothing else in that repo.
 | Question | Default |
 | --- | --- |
 | Era and setting | **Decided:** 2030s, Aqsor Range (old Site 41), leased state range on a steppe salt flat |
-| Country and currency names | Invented post-Soviet steppe country; names and money picked in stage 4 (check catalogue section 8) |
+| Country and currency names | **Decided:** Altyn Steppe Republic; money in plain credits (`cr`) |
 | Tier 4 tone | Government booster tenders, reliability-focused, no weapons framing |
 | Look and fonts | **Decided:** "Faded state-range", Saira Semi Condensed + Saira Stencil One + Martian Mono |
 | How far to take the 3D stand | Stage 7 as written; 2D placeholder until then |

@@ -110,7 +110,7 @@ module.exports = ({ SIM, check, near }) => {
       if (!start || !SIM.motorFromDesign(start).ok) throw new Error(c.id + ": start design doesn't build");
       const k = Object.assign({}, c, { stand: SIM.STANDS[c.stand] }), m = SIM.motorFromDesign(c.solution);
       if (!m.ok) throw new Error(c.id + ": solution doesn't build");
-      const pf = SIM.preFire(k, c.solution, m);
+      const pf = SIM.preFire(k, c.solution, m, { tier: c.tier, sum: SIM.predict(c.solution, { tGrain: 20 }).sum });
       if (pf.length) throw new Error(c.id + ": " + pf[0].text);
       let best = 0, bestSlot = "";
       for (const slot of c.slot ? [c.slot] : Object.keys(SIM.SLOTS)) {

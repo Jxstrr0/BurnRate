@@ -11,7 +11,7 @@
    Returns {ok, motor, cond, seed, draws, events, pred:{run,sum} (predicted at this temperature), pred20 (at 20 °C, what
    the designer showed), meas:{run,sum}, log:{t,p,f}, plog:{t,p,f}, failure:{key,t,i,text,fix,destructive} | null,
    notes:[{key,text,fix}], factors:[{key,text,pct}] (ranked), yielded}. Pure and deterministic: same design, cond
-   and seed, same firing. */
+   and seed, same firing. cond: {tGrain (°C), pAmb, logRate (the data logger's Hz; the blockhouse level sets it)}. */
 function riseRate(run,tUntil){let r=0;for(let i=1;i<run.t.length&&run.t[i]<=tUntil;i++){const dt=run.t[i]-run.t[i-1];if(dt>0)r=Math.max(r,(run.p[i]-run.p[i-1])/dt);}return r/1e6;}
 function peak(a){let m=0;for(const v of a)if(v>m)m=v;return m;}
 const lerpR=(r,u)=>r[0]+(r[1]-r[0])*u;
@@ -51,8 +51,8 @@ function cutAndVent(run,i,tau,thrustNow){
     o.t.push(t0+dt);o.p.push(Pa+(p0-Pa)*e);o.f.push(f0*e);o.kn.push(o.kn[i]);o.x.push(o.x[i]);o.mdot.push(o.mdot[i]*e);o.at.push(o.at[i]);o.cf.push(o.cf[i]);}
   return o;}
 /* the data logger: resample to a steady rate, add sensor noise. A chuffing burn is drawn pulsing where it sat under pMin. */
-function logTrace(run,seed,noise,chuff){
-  const V=VARIANCE,n=run.t.length,tEnd=run.t[n-1],dt=Math.max(1/V.logRate,tEnd/V.logMax),out={t:[],p:[],f:[]};
+function logTrace(run,seed,noise,chuff,rate){
+  const V=VARIANCE,n=run.t.length,tEnd=run.t[n-1],dt=Math.max(1/(rate||V.logRate),tEnd/V.logMax),out={t:[],p:[],f:[]};
   const rn=noise?rngStreams(seed).get("sensor"):null,pPk=peak(run.p),fPk=peak(run.f);
   let j=0;
   for(let t=0;t<=tEnd+1e-9;t+=dt){
@@ -144,7 +144,7 @@ function fire(design,cond,seed){
   if(events.length&&!(failure&&failure.destructive))notes.push({key:events[0].key,text:evText,fix:[]});
   const chuffInfo=failure&&failure.key==="chuff"?{pMin:m.prop.pMin*1e6,t0:Math.max(m.igniter.burn,run.ign.delay+run.ign.spread)+0.02}:null;
   return{ok:true,motor:m,cond,seed,draws:d,events,pred:{run:pred,sum:predSum},pred20,meas:{run,sum},
-    log:logTrace(run,seed,true,chuffInfo),plog:logTrace(pred,seed,false,null),
+    log:logTrace(run,seed,true,chuffInfo,cond.logRate),plog:logTrace(pred,seed,false,null,cond.logRate),
     failure,notes,factors,yielded,limits:{pBurst,pYield,ret,linerT}};
 }
 Object.assign(SIM,{riseRate,drawVariance,fire});

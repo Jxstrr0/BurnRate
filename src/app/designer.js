@@ -5,8 +5,8 @@
    While a slider moves, the sim runs with fewer steps (DRAG_STEPS) once per frame; on release it runs in full.
    A warning flag opens its explanation with a button that jumps to the control to change.
    The bottom bar (app/game.js) checks the contract's spec against the prediction and leads to the stand. The predictor runs
-   at DZ.tGrain (20 °C, or a firing slot's temperature). The design lives in memory only for now; saving designs arrives
-   with careers in stage 4 (brn-save). */
+   at DZ.tGrain (20 °C, or a firing slot's temperature). DZ.d is the saved design object itself (S.career.designs[job] or
+   S.free, app/save.js), so every change calls save(). In a career, parts from a tier not yet open show as locked. */
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
@@ -67,7 +67,7 @@ function clampDesign(d){
 function ctlHtml(c,d){
   const v=getF(d,c.f),lab=`<button type="button" class="gl" data-g="${c.g}">${esc(c.label)}</button>`;
   if(c.type==="pick")return`<fieldset class="ctl pick" data-field="${c.f}"><legend>${lab}</legend>${Object.entries(c.items).map(([id,it])=>
-    `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${it.tier>1?`<span class="tag">Tier ${it.tier}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
+    `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${it.tier>1?`<span class="tag${inCareer()&&it.tier>S.career.tier?" lock":""}">Tier ${it.tier}${inCareer()&&it.tier>S.career.tier?" · locked":""}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
   if(c.type==="seg")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}</div><div class="segbar" role="group">${c.opts.map(([id,n])=>
     `<button type="button" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}" class="${id===v?"on":""}">${esc(n)}</button>`).join("")}</div></div>`;
   if(c.type==="step")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}<span class="val mono">${v}</span></div><div class="stepper">
@@ -102,7 +102,7 @@ function schedule(fast){
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
     DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
 function change(f,v,fast){
-  setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);}
+  setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);if(!fast)save();}
 
 /* ---- the top: designation, live view, numbers, flags ---- */
 function drawAll(){
@@ -200,7 +200,7 @@ function initDesigner(){
     if(b.dataset.fix)goToField(b.dataset.fix);
     else if(b.dataset.ref!=null){setDesign(clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]));closeSheet();renderPanel();schedule(false);toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);}});
   $("dzSheet").addEventListener("click",dataSheet);
-  $("dzBack").addEventListener("click",()=>{if(GAME.contract)openBoard();else showScreen("title");});
+  $("dzBack").addEventListener("click",()=>{if(inCareer())openBoard();else{renderTitle();showScreen("title");}});
   addEventListener("resize",()=>{if(!$("design").hidden&&DZ.res)drawView();});
 }
 function openDesigner(){
@@ -211,19 +211,21 @@ function openDesigner(){
   DZ.res=null;schedule(false);
 }
 /* screens: one <main> shows at a time. One history entry stands for "inside the game"; the phone's Back button walks
-   up a level (report -> bench -> work orders -> title) and pushes the entry again until the title. The firing screen
-   ignores Back while the motor burns. */
-const SCREENS=["title","board","design","fire","report"];
+   up a level (report -> bench -> work orders -> title; a logbook report -> logbook -> work orders) and pushes the entry
+   again until the title. The firing screen ignores Back while the motor burns. */
+const SCREENS=["title","board","design","fire","report","logbook"];
 const curScreen=()=>SCREENS.find(s=>!$(s).hidden)||"title";
-function parentScreen(id){return id==="board"?"title":id==="design"?(GAME.contract?"board":"title"):id==="report"?"design":id==="fire"?"fire":"title";}
+function parentScreen(id){return id==="board"?"title":id==="logbook"?"board":id==="design"?(inCareer()?"board":"title"):
+  id==="report"?(GAME.last&&GAME.last.replay?"logbook":"design"):id==="fire"?"fire":"title";}
 function showScreen(id){
   for(const s of SCREENS)$(s).hidden=s!==id;
   document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);
   if(id!=="title"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:1},"");}catch(e){}}
   if(id==="board")renderBoard();
+  if(id==="title")renderTitle();
 }
 window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.brnScreen)return;
   const cur=curScreen();if(cur==="title")return;
   const p=parentScreen(cur);if(p==="fire"){try{history.pushState({brnScreen:1},"");}catch(err){}return;}
-  showScreen(p);if(p==="design"&&DZ.res)drawAll();});
+  if(p==="logbook")openLogbook();else showScreen(p);if(p==="design"&&DZ.res)drawAll();});

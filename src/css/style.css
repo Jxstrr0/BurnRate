@@ -181,7 +181,7 @@ p{margin:0 0 .7em}
 .tag.crit{color:var(--crit)}
 
 /* ---- shared screen header, the work orders (app/game.js) ---- */
-#board,#fire,#report{max-width:720px;margin:0 auto;min-height:100vh;min-height:100dvh;padding:calc(10px + var(--safeT)) 12px calc(24px + var(--safeB))}
+#board,#fire,#report,#logbook{max-width:720px;margin:0 auto;min-height:100vh;min-height:100dvh;padding:calc(10px + var(--safeT)) 12px calc(24px + var(--safeB))}
 .sc-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .sc-top .back{width:44px;padding:0;font-size:1.4rem}
 .bd-note{margin:0 2px 12px}
@@ -252,3 +252,36 @@ p{margin:0 0 .7em}
 .pwalater{background:none;border:0;color:var(--muted);font:inherit;min-height:44px;padding:0 8px}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important;animation-duration:0s!important}}
+
+/* ---- stage 4: the title's buttons, the career board, the logbook, saves ---- */
+#title .actions .btn small{display:block;font:400 .78rem/1.3 var(--mono);opacity:.85;margin-top:2px}
+.bd-status{display:grid;gap:10px}
+.bd-who{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.bd-who b{font-size:1.15rem}
+.bd-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0}
+.bd-nums div{background:var(--ground);border-radius:8px;padding:6px 8px}.bd-nums dt{font-size:.75rem;color:var(--muted)}.bd-nums dd{margin:2px 0 0;font-size:1.05rem;font-weight:600}
+.bd-nums dd.crit,.rp-bill td.crit{color:var(--crit)}.rp-bill td.good{color:var(--good)}
+.bd-h{margin:8px 2px 0;font-size:1rem;display:flex;justify-content:space-between;align-items:baseline}
+.wo.job{border-left:4px solid var(--accent)}
+.wo p.hint.mono,.bill p.mono{font-size:.8rem}
+#logbook .sc-top{margin-bottom:12px}
+.broke{border-left:4px solid var(--crit)}.broke h3{color:var(--crit);margin:0 0 6px}
+.tag.lock{color:var(--crit)}
+.fac{margin:0 0 10px}.fac h3{margin:0 0 4px}
+.bill{margin:10px 0}.bill p{margin:4px 0}
+.rp-bill h3{margin:0 0 6px}.rp-bill details summary{cursor:pointer}.rp-bill details ul{margin:6px 0 0;padding-left:18px;font-size:.8rem;text-align:left}
+.lg-list{display:grid;gap:8px}
+.lg-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;text-align:left;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;min-height:56px}
+.lg-no{font-size:.78rem;color:var(--muted)}.lg-mid b{display:block;font-weight:600}.lg-mid small,.lg-end small{display:block;font-size:.78rem;color:var(--muted)}
+.lg-end{text-align:right;display:grid;gap:4px;justify-items:end}.lg-end .stamp{font-size:.78rem;padding:3px 6px 2px;transform:none}
+.slots{list-style:none;padding:0;margin:0 0 8px;display:grid;gap:8px}
+.slot{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card)}
+.slot small{display:block;font-size:.8rem;color:var(--muted)}
+.row.wrap .btn{flex:1 1 45%}
+.fld{display:grid;gap:4px;margin:10px 0}.fld span{font-weight:600}
+.fld input{font:inherit;font-size:1rem;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);min-height:44px}
+textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);word-break:break-all;resize:vertical}
+.buerr{color:var(--crit);min-height:1.2em}
+#bkBar{position:fixed;left:12px;right:12px;bottom:calc(12px + var(--safeB));display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:8px 8px 8px 14px;box-shadow:var(--shadow);z-index:60;transform:translateY(160%);transition:transform .25s;max-width:520px;margin:0 auto}
+#bkBar.on{transform:none}#bkBar span{flex:1;font-size:.9rem}
+@media (prefers-reduced-motion:reduce){#bkBar{transition:none}}

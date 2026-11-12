@@ -1,9 +1,9 @@
 <script>
 /* ===================== app/state.js: version, settings, small helpers, the sheet =====================
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
-   Storage (plan section 11.3): every key starts "brn-" (brn-settings now; brn-save and brn-slot1..3 arrive with careers in
-   stage 4). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.4.0.0";
+   Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
+   app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
+const VERSION="0.5.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */

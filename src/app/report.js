@@ -3,7 +3,10 @@
    failed, the same form becomes the incident report: the failure moment marked on the chart, the root cause in one
    sentence with the number that crossed the line, the contributing factors ranked, and "where to fix it" buttons that
    jump back to the bench and ring the control (the Escapement CERT_FIX / goFix pattern). Ruslan Abenov signs it.
-   The blockhouse data (the real motor's deviations from the grade's and the materials' ratings) sit in a fold-out. */
+   The blockhouse data (the real motor's deviations from the grade's and the materials' ratings) sit in a fold-out; with
+   the basic instruments only the batch and the case show (the Blockhouse instruments facility shows the rest).
+   In a career the bill follows: the stand's fee, the motor's materials, the client's pay (grade and lateness) and the
+   money left. A logbook entry's report (GAME.last.replay) is read-only. */
 const STAMP={cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
 const RSO_LINES={
   A:["Clean curve. Write it up and go home early.","It did what you said it would. Rare. Signed.","Textbook. I'll pin the trace on the blockhouse wall."],
@@ -41,31 +44,45 @@ function renderReport(){
     for(const k of miss)fixes=fixes.concat(k.info.fix);}
   for(const n of f.notes)fixes=fixes.concat(n.fix||[]);
   if(c&&!g.pass&&g.why==="yield")cause=f.notes.find(n=>n.key==="yield").text;
-  fixes=[...new Set(fixes)].filter(fd=>ctlSpec(fd));
+  fixes=L.replay?[]:[...new Set(fixes)].filter(fd=>ctlSpec(fd));
   const factors=fl?f.factors.slice(0,4):[];
   const maxF=Math.max(0.05,...factors.map(x=>Math.abs(x.pct)));
-  const d=f.draws;
-  const blockhouse=[`Propellant batch: ${pctS(d.aMul-1)} burn rate`,`Case tube: ${pctS(d.caseMul-1)} strength`,`Closures: ${pctS(d.retMul-1)} retention`,
+  const d=f.draws,full=L.bunker>=1;
+  const blockhouse=[`Propellant batch: ${pctS(d.aMul-1)} burn rate`,`Case tube: ${pctS(d.caseMul-1)} strength`].concat(full?[`Closures: ${pctS(d.retMul-1)} retention`,
     `Liner: ${pctS(d.linerMul-1)} protection`,`Igniter: ${pctS(d.ignMul-1)} gas`,`Throat wear: ×${d.eroMul.toFixed(2)}`,
     `Casting void: ${d.void?"yes, "+Math.round(d.void.frac*100)+"% extra area":"none"} (chance ${(d.voidChance*100).toFixed(1)}%)`,
-    `Grain crack: ${d.crack?"yes, "+Math.round(d.crack.frac*100)+"% extra area":"none"} (chance ${(d.crackChance*100).toFixed(1)}%)`];
+    `Grain crack: ${d.crack?"yes, "+Math.round(d.crack.frac*100)+"% extra area":"none"} (chance ${(d.crackChance*100).toFixed(1)}%)`]:[]);
+  /* the bill (career): live after a firing, or the logbook's short version */
+  let bill="";
+  if(L.out){const b=L.bill,o=L.out,car=S.career;
+    bill=`<section class="card rp-bill"><h3>The bill</h3><table class="dtab mono">
+      <tr><th>${esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
+      <tr><th><details><summary>Motor materials</summary><ul>${b.build.items.filter(x=>x.cr>0).map(x=>`<li>${esc(x.label)}: ${fmtCr(x.cr)}</li>`).join("")}</ul></details></th><td>−${fmtCr(b.build.total)}</td></tr>
+      ${o.paid?`<tr><th>${esc(c.client)} pays (grade ${g.letter} ×${o.gradeMul}${o.late?`, ${o.late} day${o.late>1?"s":""} late ×${o.lateMul.toFixed(1)}`:""})</th><td class="good">+${fmtCr(o.paid)}</td></tr>`:""}
+      <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>
+      ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
+  else if(L.replay&&L.entry){const e=L.entry;bill=`<p class="rp-note mono">Day ${e.day} · cost ${fmtCr(e.cost)}${e.paid?` · paid ${fmtCr(e.paid)}`:""}${e.late?` · ${e.late} day${e.late>1?"s":""} late`:""}</p>`;}
+  const broke=L.out&&S.career&&BURN_SIM.isBroke(S.career)?`<section class="card broke"><h3 class="sign">Out of money</h3><p>The bank won't pay for another motor. The work orders offer a restart of the tier.</p></section>`:"";
+  const act=L.replay?`<button type="button" class="btn pri" id="rpLog">Back to the logbook</button>`
+    :L.out&&L.out.done?`<button type="button" class="btn pri" id="rpBoard">Work orders</button><button type="button" class="btn" id="rpBench">Back to the bench</button>`
+    :`<button type="button" class="btn pri" id="rpBench">Back to the bench</button>${!c||S.career&&S.career.jobs[c.id]?`<button type="button" class="btn" id="rpAgain">Fire another</button>`:""}${c?`<button type="button" class="btn" id="rpBoard">Work orders</button>`:""}`;
   $("rpBody").innerHTML=`
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
-      <span class="site">Aqsor Range · Site 41 · Stand 3</span>
+      <span class="site">Aqsor Range · Site 41 · ${esc(c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
       <h2 class="sign">${fl&&fl.destructive?"Incident report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
       <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(sl.tGrain)} grain · motor ${L.n}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
-    <section class="card rp-chart"><canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
+    ${broke}<section class="card rp-chart"><canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(sl.tGrain)}<span class="k-me"></span>Measured</p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
       ${fixes.length?`<h3>Where to fix it</h3><div class="row">${fixes.map(fd=>`<button type="button" class="btn" data-goto="${fd}">${esc(ctlSpec(fd).label)} ›</button>`).join("")}</div>`:""}</section>`:""}
     ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
     <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
-    <details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-      <p class="hint">Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.</p></details>
+    ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+      <p class="hint">${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
-    <div class="rp-act"><button type="button" class="btn pri" id="rpBench">Back to the bench</button><button type="button" class="btn" id="rpAgain">Fire another</button>${c?`<button type="button" class="btn" id="rpBoard">Work orders</button>`:""}</div>`;
+    <div class="rp-act">${act}</div>`;
   drawReportChart();}
 function drawReportChart(){
   const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.f,fl=f.failure;
@@ -73,8 +90,9 @@ function drawReportChart(){
     events:f.events.map(e=>({t:e.t,label:e.key}))});}
 function initReport(){
   $("rpBody").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-    if(b.dataset.goto){showScreen("design");drawAll();goToField(b.dataset.goto);}
+    if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);}
     else if(b.id==="rpBench"){showScreen("design");drawAll();}
     else if(b.id==="rpAgain"){showScreen("design");drawAll();toStand();}
-    else if(b.id==="rpBoard")openBoard();});
+    else if(b.id==="rpBoard")openBoard();
+    else if(b.id==="rpLog")openLogbook();});
   addEventListener("resize",()=>{if(!$("report").hidden)drawReportChart();});}

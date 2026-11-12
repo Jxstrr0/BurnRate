@@ -23,10 +23,15 @@ function summarize(m,r){
   if(!isFinite(knMin)){knMin=knMax=0;pLow=0;}
   /* a start spike: the peak comes while the igniter is still burning and stands well over the steady burn */
   const spike=pHigh>0&&r.t[iP]<tSteady&&Pmax>T.spikeWarn*pHigh;
+  /* curve shape: mean thrust over the last third of the burn over the first third. 1 is neutral, over 1 progressive
+     (thrust climbs), under 1 regressive (thrust falls). A tier 2 spec criterion ("prog"). */
+  let prog=1;if(tb>0){const a=r.t[i0],b=r.t[i1],th=tb/3;let s1=0,n1=0,s3=0,n3=0;
+    for(let i=i0;i<=i1;i++){const t=r.t[i],dt=(r.t[Math.min(i+1,n-1)]-r.t[Math.max(i-1,0)])/2;if(t<a+th){s1+=r.f[i]*dt;n1+=dt;}else if(t>b-th){s3+=r.f[i]*dt;n3+=dt;}}
+    if(n1>0&&n3>0&&s1>0)prog=(s3/n3)/(s1/n1);}
   const mp=m.mass.prop,Isp=mp>0?I/(mp*T.g0):0,cls=impulseClass(I);
   const hoop=Pmax*(m.id/2)/m.wall,closureLoad=Pmax*PI*(m.id/2)*(m.id/2);
   const s={I,Fmax,tFmax:r.t[iF],Pmax,tPmax:r.t[iP],tb,tStart:r.t[i0],tEnd:r.t[i1],Fav,Pav,Isp,cls,
-    designation:cls.letter+Math.round(Fav),knMin,knMax,pHigh,spike,kn0:m.grain.A(0)/m.At0,pLow,gMax,
+    designation:cls.letter+Math.round(Fav),prog,knMin,knMax,pHigh,spike,kn0:m.grain.A(0)/m.At0,pLow,gMax,
     pt0:m.grain.minPort(0)/m.At0,massFrac:mp/m.mass.total,mass:m.mass,
     hoop,sf:m.caseMat.yield*1e6/hoop,sfUlt:m.caseMat.ult*1e6/hoop,closureLoad,closureSf:m.retention/closureLoad,
     linerRating:m.linerRating,burnAll:r.t[n-1],sep:r.sepAny,chuff:r.chuffAny,ign:r.ign,rtEnd:r.rtEnd,

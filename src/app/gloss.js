@@ -45,7 +45,14 @@ const GLOSS={
   burnThrough:{t:"Burn-through",d:"Hot gas reached the case wall after the liner's protection ran out, and cut a hole in it. A thicker liner, a better liner material or a shorter burn fixes it."},
   nozzleEject:{t:"Nozzle ejection",d:"The force of the chamber pressure on the closures beat what holds them in. The nozzle leaves, the pressure drops at once and thrust is gone. More bolts or less pressure."},
   gradeLetter:{t:"Contract grade",d:"A pass is graded A, B or C by how close the measured motor sat to the middle of each band in the spec. A: inside the middle half of every band. A case that stretched past its yield costs one letter."},
-  cf:{t:"Thrust coefficient (C_F)",d:"Thrust divided by chamber pressure x throat area. It rises with a well matched expansion ratio and with chamber pressure."}
+  cf:{t:"Thrust coefficient (C_F)",d:"Thrust divided by chamber pressure x throat area. It rises with a well matched expansion ratio and with chamber pressure."},
+  curveShape:{t:"Curve shape",d:"How the thrust changes over the burn: the average thrust in the last third divided by the first third. About 1 is neutral (flat). Over 1 is progressive: the burning area grows, as in a long tube grain. Under 1 is regressive: the area shrinks, as in fat, short BATES segments whose ends burn away. Pick the grain shape and its proportions to get the curve the client asks for."},
+  reputation:{t:"Reputation",d:"How far the range and its clients trust you. A first delivery earns 3 for an A, 2 for a B, 1 for a C; repeat orders earn half. The range wants enough of it before it leases you bigger stands and better kit."},
+  rangeFee:{t:"Range fee",d:"What the Range Authority charges for a day on a stand: the pad, the blockhouse, the crew and Ruslan Abenov's signature. Bigger stands cost more. Every firing pays it, pass or fail."},
+  buildCost:{t:"Build cost",d:"The motor's materials, priced by weight from each part's stock price, plus machining the case and closures. Bigger, heavier motors and premium parts cost more. A failed motor is still paid for."},
+  deadline:{t:"Deadline",d:"Each job gives you a number of range days to deliver. Every firing uses a day. Late deliveries are still paid, but each day late takes 10% off, down to 40% at worst."},
+  loadCell:{t:"Load cell",d:"The sensor between the motor and the stand that measures thrust. Each stand's is rated for a peak force; the range won't fire a motor predicted to go past it."},
+  blockhouse:{t:"Blockhouse instruments",d:"The data logger in the concrete bunker by the stand. The basic one samples 120 times a second and reads only the batch and the case. The upgrade samples 400 times a second and reads every deviation the motor rolled, so the incident report can say more."}
 };
 function glossSheet(key){const e=GLOSS[key];if(!e)return;openSheet(e.t,`<p>${esc(e.d)}</p>`);}
 document.addEventListener("click",e=>{const el=e.target.closest("[data-g]");if(!el||el.closest("#sheet"))return;e.preventDefault();glossSheet(el.dataset.g);});

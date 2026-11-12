@@ -1,0 +1,26 @@
+</style>
+
+<div id="app">
+  <!-- TITLE: the studio credit, the version and the way in (stage 0: the way in is still being built) -->
+  <main id="title" class="concrete" aria-labelledby="t-name">
+    <div class="stripe hazard" aria-hidden="true"></div>
+    <div class="ghost" aria-hidden="true">ПОЛИГОН 41</div>
+    <div class="head">
+      <div class="site">Aqsor Range · Site 41 · Stands for lease</div>
+      <h1 id="t-name">Burn <span>Rate</span></h1>
+      <p class="lede">Design a solid rocket motor. Predict its curve. Bolt it to the stand and find out why it didn't match.</p>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn pri big" id="tStart" disabled>Open the range</button>
+      <p class="note" id="tNote">The range opens in a coming update. This build sets up the site.</p>
+    </div>
+    <footer class="studio">
+      <a href="https://longlight.games/" rel="noopener" aria-label="Longlight Interactive, the studio site"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="150" height="48"></a>
+      <div class="credit">© 2026 Kelbo / Longlight Interactive<br><span class="ver" id="verLbl"></span></div>
+    </footer>
+  </main>
+</div>
+
+<div id="scrim"></div>
+<section id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><header><h2 id="sheetTitle"></h2><button type="button" class="btn sm" id="sheetClose">Close</button></header><div id="sheetBody"></div></section>
+<div id="toast" role="status" aria-live="polite"></div>

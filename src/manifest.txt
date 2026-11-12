@@ -1,0 +1,14 @@
+# build order for index.html: one src/ path per line (node build.js concatenates them, byte for byte)
+html/head.html
+css/style.css
+html/body.html
+# --- the sim block (BURN_SIM): pure, no DOM; tools/sim-test.js loads it in node ---
+sim/open.js
+sim/rng.js
+sim/close.js
+html/ld-sim.html
+# --- the app block: the page glue ---
+app/state.js
+app/pwa.js
+app/boot.js
+html/tail.html

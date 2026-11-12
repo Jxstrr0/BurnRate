@@ -1,0 +1,289 @@
+<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#E6E3DC"><meta name="description" content="Burn Rate: design solid rocket motors at a leased Cold War test range, predict the curve, then fire it for real and find out why it didn't match. A Longlight Interactive game."><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Burn Rate"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Burn Rate</title>
+<link rel="preload" as="font" type="font/woff2" crossorigin href="fonts/saira-semi-condensed-latin-400-normal.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="fonts/martian-mono-latin-400-normal.woff2">
+<style>
+/* fonts: all self-hosted (fonts/, SIL OFL; licences beside them). No font CDN. */
+@font-face{font-family:"Saira SC";src:url(fonts/saira-semi-condensed-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Saira SC";src:url(fonts/saira-semi-condensed-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Saira SC";src:url(fonts/saira-semi-condensed-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Saira Stencil";src:url(fonts/saira-stencil-one-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Martian Mono";src:url(fonts/martian-mono-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Martian Mono";src:url(fonts/martian-mono-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Martian Mono";src:url(fonts/martian-mono-cyrillic-400-normal.woff2) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+:root{box-sizing:border-box}*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:#E6E3DC;color:#23262A;font:16px/1.4 "Saira SC",system-ui,sans-serif}
+[hidden]{display:none!important}
+/* the loading splash (pattern from PEW / Scrapline): the studio logo and a bar, removed once start() has run */
+#boot{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:#FAF9F5;transition:opacity .35s ease}
+#boot.done{opacity:0;pointer-events:none}#boot .bx{width:min(300px,100%);text-align:center}#boot img{width:100%;height:auto;display:block}
+#boot .bar{margin-top:22px;height:4px;border-radius:2px;background:rgba(20,20,19,.1);overflow:hidden}
+#boot .bar i{display:block;height:100%;background:#D97757;transform-origin:0 50%;transform:scaleX(.05);transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+#boot .msg{margin:12px 0 0;font-size:12px;letter-spacing:.06em;color:#6b6a65}#boot.err .bar i{background:#B3261E}
+#boot button{margin-top:14px;min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #c9c6bd;background:#fff;font:inherit}
+@media (prefers-reduced-motion:reduce){#boot,#boot .bar i{transition:none}}
+</style>
+</head><body>
+<div id="boot" role="status" aria-live="polite"><div class="bx"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="300" height="97"><div class="bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5"><i></i></div><p class="msg">Loading…</p><button type="button" hidden>Reload</button></div></div>
+<script>/* loading bar: __ld(fraction, message) between the big script blocks, __ldDone() at the end of start() */
+(function(){var b=document.getElementById("boot"),bar=b.querySelector(".bar"),f=bar.querySelector("i"),m=b.querySelector(".msg"),rl=b.querySelector("button"),fin=0,bad=0;
+window.__ld=function(p,s){if(fin)return;f.style.transform="scaleX("+p+")";bar.setAttribute("aria-valuenow",Math.round(p*100));if(s&&!bad)m.textContent=s;};
+window.__ldDone=function(){if(fin)return;fin=1;f.style.transform="scaleX(1)";bar.setAttribute("aria-valuenow",100);setTimeout(function(){b.className="done";setTimeout(function(){b.remove();},400);},350);};
+function fail(s){if(bad)return;bad=1;b.classList.add("err");m.textContent=s;rl.hidden=false;}
+rl.onclick=function(){location.reload();};
+window.addEventListener("error",function(e){if(fin)return;var t=e.target;if(t&&t.tagName==="SCRIPT")fail("Couldn't load a game file. Check your connection and reload.");else if(e.message)fail("Something went wrong while loading. Reload to try again.");},true);
+setTimeout(function(){if(!fin&&!bad)m.textContent="Still loading… slow connection?";},9000);
+})();</script>
+<style>
+/* ===================== css/style.css: the "Faded state-range" look (plan section 9.1, Kelbo 12 November 2026) =====================
+   Light-first. The old state range shows through (sun-bleached concrete, faded state green, stencil red, hazard stripes,
+   Cyrillic stencils); the startup's own gear sits on top in clean graphite and cobalt. Every colour is a token here; the
+   "night shift" dark theme will redefine them under :root[data-theme=dark]. Text colours are at least 4.5:1 on their ground.
+   Fonts (self-hosted, see head.html): Saira SC for UI, Saira Stencil for range signage, Martian Mono for readouts. */
+:root{
+  --ground:#E6E3DC;        /* sun-bleached concrete */
+  --ground2:#DCD8CF;       /* the same concrete in shade */
+  --panel:#F2F0EB;
+  --card:#FBFAF7;
+  --line:#C9C4B8;
+  --line2:#ADA797;
+  --ink:#23262A;           /* graphite */
+  --muted:#5A5D5B;         /* 6.0:1 on --ground */
+  --state:#5E7F6E;         /* faded state green (old range paint) */
+  --stateD:#3E5C4D;        /* the same, dark enough for text (6.6:1) */
+  --stencil:#A8322A;       /* old range stencil red (5.6:1) */
+  --hazard:#E0A526;        /* hazard amber (fills and stripes only, never text on light) */
+  --hazardD:#7A5508;       /* amber dark enough for text */
+  --meas:#C8341E;          /* measured trace */
+  --pred:#1F5FA8;          /* predicted trace */
+  --accent:#2A55C9;        /* startup cobalt: the player's controls */
+  --accentD:#1E3F99;
+  --onAccent:#FFFFFF;
+  --good:#2F7A4B;--warn:#8A5A00;--crit:#B3261E;
+  --shadow:0 1px 0 rgba(35,38,42,.06),0 6px 18px -10px rgba(35,38,42,.35);
+  --r:10px;
+  --ui:"Saira SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sign:"Saira Stencil","Saira SC",system-ui,sans-serif;
+  --mono:"Martian Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --safeB:env(safe-area-inset-bottom,0px);--safeT:env(safe-area-inset-top,0px);
+  color-scheme:light;
+}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:var(--ui);background:var(--ground);color:var(--ink);min-height:100vh;min-height:100dvh;overscroll-behavior-y:none}
+a{color:var(--accentD)}
+h1,h2,h3{font-weight:700;line-height:1.1;margin:0 0 .4em}
+h2{font-size:1.35rem}h3{font-size:1.05rem}
+p{margin:0 0 .7em}
+.mono{font-family:var(--mono);font-size:.82em;letter-spacing:-.01em}
+.sign{font-family:var(--sign);letter-spacing:.04em}
+.muted{color:var(--muted)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* concrete: two soft noise-free gradients and faint shuttering lines, cheap on any phone */
+.concrete{background:
+  repeating-linear-gradient(0deg,transparent 0 119px,rgba(35,38,42,.05) 119px 120px),
+  radial-gradient(120% 80% at 20% 0%,rgba(255,255,255,.55),transparent 60%),
+  radial-gradient(90% 70% at 100% 100%,rgba(120,110,90,.12),transparent 70%),var(--ground)}
+.hazard{background:repeating-linear-gradient(-45deg,var(--hazard) 0 14px,var(--ink) 14px 28px)}
+
+/* ---- buttons ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4em;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);
+  background:var(--card);color:var(--ink);font:600 1rem/1 var(--ui);letter-spacing:.01em;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:transform .08s ease,background .15s ease}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.pri{background:var(--accent);border-color:var(--accentD);color:var(--onAccent)}
+.btn.big{min-height:54px;font-size:1.15rem;padding:0 22px}
+.btn.sm{min-height:36px;padding:0 12px;font-size:.9rem}
+.btn[disabled]{opacity:.55;cursor:default;transform:none}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ---- cards and panels ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
+.tag{display:inline-block;font:600 .72rem/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:4px 7px;border-radius:4px;border:1px solid currentColor}
+.hint{font-size:.88rem;color:var(--muted)}
+
+/* ---- the title screen ---- */
+#title{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding:calc(18px + var(--safeT)) 18px calc(18px + var(--safeB));overflow:hidden}
+#title .stripe{position:absolute;left:0;right:0;top:0;height:10px;opacity:.9}
+#title .ghost{position:absolute;right:-6px;top:56px;font:400 clamp(44px,15vw,92px)/.9 var(--mono);color:rgba(94,127,110,.16);letter-spacing:-.02em;
+  writing-mode:vertical-rl;user-select:none;pointer-events:none;white-space:nowrap}
+#title .head{margin-top:9vh;position:relative}
+#title .site{font:600 .78rem/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--stateD)}
+#title h1{font:400 clamp(56px,19vw,104px)/.86 var(--sign);letter-spacing:.01em;margin:10px 0 12px;color:var(--ink)}
+#title h1 span{display:block;color:var(--stencil)}
+#title .lede{max-width:30ch;font-size:1.05rem;color:var(--muted)}
+#title .actions{margin-top:auto;display:grid;gap:10px;max-width:420px;width:100%}
+#title .note{font-size:.85rem;color:var(--muted);margin:2px 0 0}
+#title .studio{margin-top:26px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#title .studio a{display:block;width:150px}#title .studio img{width:100%;height:auto;display:block}
+#title .credit{font-size:.78rem;color:var(--muted);text-align:right}
+#title .ver{font-family:var(--mono);font-size:.72rem}
+
+/* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
+#scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+#scrim.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;max-height:88dvh;background:var(--panel);border-radius:16px 16px 0 0;box-shadow:0 -10px 30px -12px rgba(0,0,0,.4);
+  transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:60;display:flex;flex-direction:column;max-width:720px;margin:0 auto}
+#sheet.on{transform:none}
+#sheet header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 6px;border-bottom:1px solid var(--line)}
+#sheet header h2{margin:0;font-size:1.15rem}
+#sheetBody{overflow:auto;padding:14px 16px calc(18px + var(--safeB));-webkit-overflow-scrolling:touch}
+#toast{position:fixed;left:50%;bottom:calc(18px + var(--safeB));transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:.92rem;
+  opacity:0;transition:opacity .2s,transform .2s;z-index:80;max-width:min(92vw,460px);pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#pwaBar{position:fixed;left:12px;right:12px;bottom:calc(12px + var(--safeB));display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:8px 10px 8px 14px;box-shadow:var(--shadow);transform:translateY(160%);transition:transform .25s;z-index:70;max-width:520px;margin:0 auto}
+#pwaBar.on{transform:none}#pwaBar span{flex:1;font-weight:600}
+.pwalater{background:none;border:0;color:var(--muted);font:inherit;min-height:44px;padding:0 8px}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important;animation-duration:0s!important}}
+</style>
+
+<div id="app">
+  <!-- TITLE: the studio credit, the version and the way in (stage 0: the way in is still being built) -->
+  <main id="title" class="concrete" aria-labelledby="t-name">
+    <div class="stripe hazard" aria-hidden="true"></div>
+    <div class="ghost" aria-hidden="true">ПОЛИГОН 41</div>
+    <div class="head">
+      <div class="site">Aqsor Range · Site 41 · Stands for lease</div>
+      <h1 id="t-name">Burn <span>Rate</span></h1>
+      <p class="lede">Design a solid rocket motor. Predict its curve. Bolt it to the stand and find out why it didn't match.</p>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn pri big" id="tStart" disabled>Open the range</button>
+      <p class="note" id="tNote">The range opens in a coming update. This build sets up the site.</p>
+    </div>
+    <footer class="studio">
+      <a href="https://longlight.games/" rel="noopener" aria-label="Longlight Interactive, the studio site"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="150" height="48"></a>
+      <div class="credit">© 2026 Kelbo / Longlight Interactive<br><span class="ver" id="verLbl"></span></div>
+    </footer>
+  </main>
+</div>
+
+<div id="scrim"></div>
+<section id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><header><h2 id="sheetTitle"></h2><button type="button" class="btn sm" id="sheetClose">Close</button></header><div id="sheetBody"></div></section>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/* ===================== Burn Rate: motor sim core =====================
+   BURN_SIM is pure maths: internal ballistics, the variance model, the career rules. It never touches the DOM or three.js
+   and never calls Math.random, Date.now or performance.now (tools/sim-test.js fails the build if it does). Every random
+   draw comes from a seeded stream (sim/rng.js) passed in as an argument, so a save and a design always fire the same way.
+   Units inside the sim are SI: m, kg, s, Pa, N, K-offsets in °C. The data tables (src/data/) hold the tuning numbers.
+   It runs in plain node: tools/sim-test.js cuts this <script> block out of index.html and loads it with vm.
+   Files in this block (src/manifest.txt order): sim/open.js, sim/rng.js, data/*.js, sim/*.js, sim/close.js. Each file ends
+   by adding what it exports to SIM. */
+const BURN_SIM=(()=>{"use strict";
+const SIM={};
+/* ===================== sim/rng.js: the seeded random numbers =====================
+   Adapted from The-Whip src/sim/rng.js (12 November 2026): sfc32 seeded by cyrb128, made a classic function, plus named
+   streams (the Frontier Lab pattern): rngStreams(seed).get("variance") always gives the same sequence for that seed and
+   name, so adding draws in one system (say, igniters) never reshuffles another (say, casting voids). State is four
+   32-bit words and can be saved with getState() and restored with makeRng(state). */
+function cyrb128(str){
+  let h1=1779033703,h2=3144134277,h3=1013904242,h4=2773480762;
+  for(let i=0;i<str.length;i++){const k=str.charCodeAt(i);
+    h1=h2^Math.imul(h1^k,597399067);h2=h3^Math.imul(h2^k,2869860233);h3=h4^Math.imul(h3^k,951274213);h4=h1^Math.imul(h4^k,2716044179);}
+  h1=Math.imul(h3^(h1>>>18),597399067);h2=Math.imul(h4^(h2>>>22),2869860233);h3=Math.imul(h1^(h3>>>17),951274213);h4=Math.imul(h2^(h4>>>19),2716044179);
+  h1^=h2^h3^h4;h2^=h1;h3^=h1;h4^=h1;
+  return[h1>>>0,h2>>>0,h3>>>0,h4>>>0];}
+/* a short stable hash of a string (8 hex characters), for daily seeds and test fingerprints */
+function hashStr(str){return cyrb128(String(str))[0].toString(16).padStart(8,"0");}
+/* makeRng(seed string | saved [a,b,c,d]) */
+function makeRng(seedOrState){
+  let[a,b,c,d]=Array.isArray(seedOrState)?seedOrState:cyrb128(String(seedOrState));
+  function next(){a>>>=0;b>>>=0;c>>>=0;d>>>=0;let t=(a+b)|0;a=b^(b>>>9);b=(c+(c<<3))|0;c=(c<<21)|(c>>>11);d=(d+1)|0;t=(t+d)|0;c=(c+t)|0;return(t>>>0)/4294967296;}
+  if(!Array.isArray(seedOrState))for(let i=0;i<15;i++)next();   // warm up so similar seeds diverge at once
+  const r={next,
+    float:(lo=0,hi=1)=>lo+(hi-lo)*next(),
+    int:(lo,hi)=>lo+Math.floor(next()*(hi-lo+1)),
+    chance:p=>next()<p,
+    pick:arr=>arr[Math.floor(next()*arr.length)],
+    /* a normal draw (Box-Muller), clipped to +-4 sd so one freak draw can't produce a nonsense motor */
+    normal(mean=0,sd=1){const u=1-next(),v=next();const z=Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);return mean+sd*Math.max(-4,Math.min(4,z));},
+    fork:label=>makeRng(String(next())+":"+label),
+    getState:()=>[a>>>0,b>>>0,c>>>0,d>>>0]};
+  return r;}
+/* named streams from one seed: each name gets its own independent generator */
+function rngStreams(seed){const made={};return{seed:String(seed),get:name=>made[name]||(made[name]=makeRng(String(seed)+"/"+name))};}
+Object.assign(SIM,{cyrb128,hashStr,makeRng,rngStreams});
+return SIM;
+})();
+if(typeof module!=="undefined")module.exports=BURN_SIM;
+</script>
+<script>__ld(.55,"Motor maths loaded")</script>
+<script>
+/* ===================== app/state.js: version, settings, small helpers, the sheet =====================
+   The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
+   Storage (plan section 11.3): every key starts "brn-" (brn-settings now; brn-save and brn-slot1..3 arrive with careers in
+   stage 4). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
+const VERSION="0.1.0.0";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---- settings (this phone only): brn-settings ---- */
+const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true};
+let SETTINGS=Object.assign({},SET_DEF);
+function loadSettings(){try{const o=JSON.parse(localStorage.getItem(SET_KEY)||"null");if(o&&typeof o==="object"&&!Array.isArray(o))SETTINGS=Object.assign({},SET_DEF,o);}catch(e){}}
+function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS));}catch(e){}}
+
+/* ---- toast ---- */
+function toast(msg,ms){const t=$("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),ms||2600);}
+
+/* ---- the sheet: a bottom drawer. Adapted from Escapement openSheet / sheetHist in src/app/state.js (12 November 2026):
+   the phone's Back button closes an open sheet instead of leaving the game. One history entry is pushed when a sheet opens
+   and left in place when it closes; the next sheet reuses it. ---- */
+let sheetBack=null,sheetPushed=false;
+const sheetOn=()=>$("sheet").classList.contains("on");
+function openSheet(title,html){sheetBack=sheetOn()?sheetBack:document.activeElement;$("sheetTitle").textContent=title;
+  const ob=$("sheetBody"),nb=ob.cloneNode(false);ob.replaceWith(nb);nb.innerHTML=html;sheetHist();
+  $("sheet").classList.add("on");$("scrim").classList.add("on");$("sheetBody").scrollTop=0;$("sheetClose").focus({preventScroll:true});}
+function closeSheet(){$("sheet").classList.remove("on");$("scrim").classList.remove("on");if(sheetBack&&sheetBack.focus)sheetBack.focus({preventScroll:true});sheetBack=null;}
+function sheetHist(){if(sheetPushed)return;try{history.pushState({brnSheet:1},"");sheetPushed=true;}catch(e){}}
+window.addEventListener("popstate",()=>{if(!sheetPushed)return;sheetPushed=false;if(sheetOn())closeSheet();});
+$("sheetClose").addEventListener("click",closeSheet);$("scrim").addEventListener("click",closeSheet);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sheetOn())closeSheet();});
+/* ===================== app/pwa.js: service worker, "New version ready" bar, Install app =====================
+   Adapted from Scrapline src/app/pwa.js (12 November 2026), the same as PEW's. Registers sw.js (generated by build.js) on a real host, or anywhere over http(s) with ?sw=1, never on
+   localhost or file://, so local testing is never cached. When a new worker is installed and waiting, the bar offers
+   Reload; tapping it sends SKIP_WAITING and the page reloads once the new worker has taken over.
+   PWA.canInstall() / PWA.install() / PWA.iosTip() are for an App row in Settings (later). */
+const PWA=(()=>{
+  const bar=document.createElement("div");bar.id="pwaBar";bar.setAttribute("role","status");
+  bar.innerHTML='<span>New version ready</span><button type="button" class="btn sm pri" id="pwaReload">Reload</button><button type="button" class="pwalater" id="pwaLater" aria-label="Dismiss until next visit">Later</button>';
+  ($("app")||document.body).appendChild(bar);
+  let waiting=null,reloading=false,deferred=null;
+  const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+  const ios=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;});
+  window.addEventListener("appinstalled",()=>{deferred=null;});
+  function offer(w){waiting=w;bar.classList.add("on");}
+  $("pwaLater").addEventListener("click",()=>bar.classList.remove("on"));
+  $("pwaReload").addEventListener("click",()=>{if(waiting)waiting.postMessage({type:"SKIP_WAITING"});else location.reload();});
+  const api={canInstall:()=>!!deferred&&!standalone(),iosTip:()=>ios()&&!standalone(),
+    async install(){if(!deferred)return;const p=deferred;deferred=null;try{p.prompt();const r=await p.userChoice;if(r&&r.outcome==="accepted")toast("Installed");}catch(_){}}};
+  const host=location.hostname,web=/^https?:$/.test(location.protocol),local=/^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0)$/.test(host);
+  if(!("serviceWorker" in navigator)||!web||(local&&!/[?&]sw=1(&|$)/.test(location.search)))return api;
+  const sw=navigator.serviceWorker;
+  sw.addEventListener("controllerchange",()=>{if(reloading||!waiting)return;reloading=true;location.reload();});
+  sw.register("sw.js").then(reg=>{
+    const watch=w=>w&&w.addEventListener("statechange",()=>{if(w.state==="installed"&&sw.controller)offer(w);});
+    if(reg.waiting&&sw.controller)offer(reg.waiting);
+    watch(reg.installing);reg.addEventListener("updatefound",()=>watch(reg.installing));
+    /* an installed app can stay open for days: look for a new version when it comes back to the front and every few hours */
+    const chk=()=>{try{reg.update().catch(()=>{});}catch(_){}};
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk();});setInterval(chk,4*3600*1000);
+  }).catch(()=>{});
+  return api;
+})();
+/* ===================== app/boot.js: start-up and the title screen =====================
+   start() runs once the page has parsed: settings, the version line, then the loading splash goes. */
+function start(){
+  loadSettings();
+  document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
+  $("verLbl").textContent="v"+VERSION;
+  if(typeof __ldDone==="function")__ldDone();
+}
+start();
+</script>
+</body></html>

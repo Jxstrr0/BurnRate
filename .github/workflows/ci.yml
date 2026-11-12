@@ -1,0 +1,26 @@
+# Checks on every pull request and every push to main (plan section 11.4).
+# Free, no keys. If a check fails, the PR shows a red cross; fix it on the branch.
+name: Checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: index.html and sw.js match src/ (and every script block compiles)
+        run: node build.js --check
+      - name: Sim tests (physics invariants, determinism, no banned calls)
+        run: node tools/sim-test.js --brief
+      - name: Save-code checks
+        run: if [ -f check-savecode.js ]; then node check-savecode.js; else echo "no save codes yet (stage 4)"; fi

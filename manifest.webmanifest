@@ -1,0 +1,19 @@
+{
+  "name": "Burn Rate",
+  "short_name": "Burn Rate",
+  "description": "Design solid rocket motors at a leased Cold War test range, predict the curve, then fire it for real.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#E6E3DC",
+  "theme_color": "#E6E3DC",
+  "categories": ["games", "simulation", "education"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,36 @@
+<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#E6E3DC"><meta name="description" content="Burn Rate: design solid rocket motors at a leased Cold War test range, predict the curve, then fire it for real and find out why it didn't match. A Longlight Interactive game."><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Burn Rate"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Burn Rate</title>
+<link rel="preload" as="font" type="font/woff2" crossorigin href="fonts/saira-semi-condensed-latin-400-normal.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="fonts/martian-mono-latin-400-normal.woff2">
+<style>
+/* fonts: all self-hosted (fonts/, SIL OFL; licences beside them). No font CDN. */
+@font-face{font-family:"Saira SC";src:url(fonts/saira-semi-condensed-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Saira SC";src:url(fonts/saira-semi-condensed-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Saira SC";src:url(fonts/saira-semi-condensed-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Saira Stencil";src:url(fonts/saira-stencil-one-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Martian Mono";src:url(fonts/martian-mono-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Martian Mono";src:url(fonts/martian-mono-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Martian Mono";src:url(fonts/martian-mono-cyrillic-400-normal.woff2) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+:root{box-sizing:border-box}*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:#E6E3DC;color:#23262A;font:16px/1.4 "Saira SC",system-ui,sans-serif}
+[hidden]{display:none!important}
+/* the loading splash (pattern from PEW / Scrapline): the studio logo and a bar, removed once start() has run */
+#boot{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:#FAF9F5;transition:opacity .35s ease}
+#boot.done{opacity:0;pointer-events:none}#boot .bx{width:min(300px,100%);text-align:center}#boot img{width:100%;height:auto;display:block}
+#boot .bar{margin-top:22px;height:4px;border-radius:2px;background:rgba(20,20,19,.1);overflow:hidden}
+#boot .bar i{display:block;height:100%;background:#D97757;transform-origin:0 50%;transform:scaleX(.05);transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+#boot .msg{margin:12px 0 0;font-size:12px;letter-spacing:.06em;color:#6b6a65}#boot.err .bar i{background:#B3261E}
+#boot button{margin-top:14px;min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #c9c6bd;background:#fff;font:inherit}
+@media (prefers-reduced-motion:reduce){#boot,#boot .bar i{transition:none}}
+</style>
+</head><body>
+<div id="boot" role="status" aria-live="polite"><div class="bx"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="300" height="97"><div class="bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5"><i></i></div><p class="msg">Loading…</p><button type="button" hidden>Reload</button></div></div>
+<script>/* loading bar: __ld(fraction, message) between the big script blocks, __ldDone() at the end of start() */
+(function(){var b=document.getElementById("boot"),bar=b.querySelector(".bar"),f=bar.querySelector("i"),m=b.querySelector(".msg"),rl=b.querySelector("button"),fin=0,bad=0;
+window.__ld=function(p,s){if(fin)return;f.style.transform="scaleX("+p+")";bar.setAttribute("aria-valuenow",Math.round(p*100));if(s&&!bad)m.textContent=s;};
+window.__ldDone=function(){if(fin)return;fin=1;f.style.transform="scaleX(1)";bar.setAttribute("aria-valuenow",100);setTimeout(function(){b.className="done";setTimeout(function(){b.remove();},400);},350);};
+function fail(s){if(bad)return;bad=1;b.classList.add("err");m.textContent=s;rl.hidden=false;}
+rl.onclick=function(){location.reload();};
+window.addEventListener("error",function(e){if(fin)return;var t=e.target;if(t&&t.tagName==="SCRIPT")fail("Couldn't load a game file. Check your connection and reload.");else if(e.message)fail("Something went wrong while loading. Reload to try again.");},true);
+setTimeout(function(){if(!fin&&!bad)m.textContent="Still loading… slow connection?";},9000);
+})();</script>
+<style>

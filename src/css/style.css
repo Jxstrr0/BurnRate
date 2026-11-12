@@ -1,0 +1,103 @@
+/* ===================== css/style.css: the "Faded state-range" look (plan section 9.1, Kelbo 12 November 2026) =====================
+   Light-first. The old state range shows through (sun-bleached concrete, faded state green, stencil red, hazard stripes,
+   Cyrillic stencils); the startup's own gear sits on top in clean graphite and cobalt. Every colour is a token here; the
+   "night shift" dark theme will redefine them under :root[data-theme=dark]. Text colours are at least 4.5:1 on their ground.
+   Fonts (self-hosted, see head.html): Saira SC for UI, Saira Stencil for range signage, Martian Mono for readouts. */
+:root{
+  --ground:#E6E3DC;        /* sun-bleached concrete */
+  --ground2:#DCD8CF;       /* the same concrete in shade */
+  --panel:#F2F0EB;
+  --card:#FBFAF7;
+  --line:#C9C4B8;
+  --line2:#ADA797;
+  --ink:#23262A;           /* graphite */
+  --muted:#5A5D5B;         /* 6.0:1 on --ground */
+  --state:#5E7F6E;         /* faded state green (old range paint) */
+  --stateD:#3E5C4D;        /* the same, dark enough for text (6.6:1) */
+  --stencil:#A8322A;       /* old range stencil red (5.6:1) */
+  --hazard:#E0A526;        /* hazard amber (fills and stripes only, never text on light) */
+  --hazardD:#7A5508;       /* amber dark enough for text */
+  --meas:#C8341E;          /* measured trace */
+  --pred:#1F5FA8;          /* predicted trace */
+  --accent:#2A55C9;        /* startup cobalt: the player's controls */
+  --accentD:#1E3F99;
+  --onAccent:#FFFFFF;
+  --good:#2F7A4B;--warn:#8A5A00;--crit:#B3261E;
+  --shadow:0 1px 0 rgba(35,38,42,.06),0 6px 18px -10px rgba(35,38,42,.35);
+  --r:10px;
+  --ui:"Saira SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sign:"Saira Stencil","Saira SC",system-ui,sans-serif;
+  --mono:"Martian Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --safeB:env(safe-area-inset-bottom,0px);--safeT:env(safe-area-inset-top,0px);
+  color-scheme:light;
+}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:var(--ui);background:var(--ground);color:var(--ink);min-height:100vh;min-height:100dvh;overscroll-behavior-y:none}
+a{color:var(--accentD)}
+h1,h2,h3{font-weight:700;line-height:1.1;margin:0 0 .4em}
+h2{font-size:1.35rem}h3{font-size:1.05rem}
+p{margin:0 0 .7em}
+.mono{font-family:var(--mono);font-size:.82em;letter-spacing:-.01em}
+.sign{font-family:var(--sign);letter-spacing:.04em}
+.muted{color:var(--muted)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* concrete: two soft noise-free gradients and faint shuttering lines, cheap on any phone */
+.concrete{background:
+  repeating-linear-gradient(0deg,transparent 0 119px,rgba(35,38,42,.05) 119px 120px),
+  radial-gradient(120% 80% at 20% 0%,rgba(255,255,255,.55),transparent 60%),
+  radial-gradient(90% 70% at 100% 100%,rgba(120,110,90,.12),transparent 70%),var(--ground)}
+.hazard{background:repeating-linear-gradient(-45deg,var(--hazard) 0 14px,var(--ink) 14px 28px)}
+
+/* ---- buttons ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4em;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);
+  background:var(--card);color:var(--ink);font:600 1rem/1 var(--ui);letter-spacing:.01em;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:transform .08s ease,background .15s ease}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.pri{background:var(--accent);border-color:var(--accentD);color:var(--onAccent)}
+.btn.big{min-height:54px;font-size:1.15rem;padding:0 22px}
+.btn.sm{min-height:36px;padding:0 12px;font-size:.9rem}
+.btn[disabled]{opacity:.55;cursor:default;transform:none}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ---- cards and panels ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
+.tag{display:inline-block;font:600 .72rem/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:4px 7px;border-radius:4px;border:1px solid currentColor}
+.hint{font-size:.88rem;color:var(--muted)}
+
+/* ---- the title screen ---- */
+#title{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding:calc(18px + var(--safeT)) 18px calc(18px + var(--safeB));overflow:hidden}
+#title .stripe{position:absolute;left:0;right:0;top:0;height:10px;opacity:.9}
+#title .ghost{position:absolute;right:-6px;top:56px;font:400 clamp(44px,15vw,92px)/.9 var(--mono);color:rgba(94,127,110,.16);letter-spacing:-.02em;
+  writing-mode:vertical-rl;user-select:none;pointer-events:none;white-space:nowrap}
+#title .head{margin-top:9vh;position:relative}
+#title .site{font:600 .78rem/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--stateD)}
+#title h1{font:400 clamp(56px,19vw,104px)/.86 var(--sign);letter-spacing:.01em;margin:10px 0 12px;color:var(--ink)}
+#title h1 span{display:block;color:var(--stencil)}
+#title .lede{max-width:30ch;font-size:1.05rem;color:var(--muted)}
+#title .actions{margin-top:auto;display:grid;gap:10px;max-width:420px;width:100%}
+#title .note{font-size:.85rem;color:var(--muted);margin:2px 0 0}
+#title .studio{margin-top:26px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#title .studio a{display:block;width:150px}#title .studio img{width:100%;height:auto;display:block}
+#title .credit{font-size:.78rem;color:var(--muted);text-align:right}
+#title .ver{font-family:var(--mono);font-size:.72rem}
+
+/* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
+#scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+#scrim.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;max-height:88dvh;background:var(--panel);border-radius:16px 16px 0 0;box-shadow:0 -10px 30px -12px rgba(0,0,0,.4);
+  transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:60;display:flex;flex-direction:column;max-width:720px;margin:0 auto}
+#sheet.on{transform:none}
+#sheet header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 6px;border-bottom:1px solid var(--line)}
+#sheet header h2{margin:0;font-size:1.15rem}
+#sheetBody{overflow:auto;padding:14px 16px calc(18px + var(--safeB));-webkit-overflow-scrolling:touch}
+#toast{position:fixed;left:50%;bottom:calc(18px + var(--safeB));transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:.92rem;
+  opacity:0;transition:opacity .2s,transform .2s;z-index:80;max-width:min(92vw,460px);pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#pwaBar{position:fixed;left:12px;right:12px;bottom:calc(12px + var(--safeB));display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:8px 10px 8px 14px;box-shadow:var(--shadow);transform:translateY(160%);transition:transform .25s;z-index:70;max-width:520px;margin:0 auto}
+#pwaBar.on{transform:none}#pwaBar span{flex:1;font-weight:600}
+.pwalater{background:none;border:0;color:var(--muted);font:inherit;min-height:44px;padding:0 8px}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important;animation-duration:0s!important}}

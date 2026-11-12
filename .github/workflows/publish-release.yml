@@ -1,0 +1,49 @@
+# Adapted from Scrapline .github/workflows/publish-release.yml (12 November 2026).
+# Publishes a GitHub Release for each new version of the game.
+#
+# Why: the Longlight site (longlight.games) reads each game's newest
+# release to show its version number and "what's new" line. Without a
+# release the site keeps showing an old number.
+#
+# How: on every push to main it reads VERSION from src/app/state.js. If
+# there is no release called v<VERSION> yet, it makes one, titled from the
+# "x.y.z.w: summary" merge commit. A push that doesn't change the version
+# does nothing.
+#
+# Free, and it uses no keys (only GitHub's own built-in token). It does not
+# touch the game or its deploy: GitHub Pages still serves main as before.
+# Safe to delete; the site's number for this game would just stop updating.
+name: Publish release
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write # to create the release and its tag
+concurrency:
+  group: publish-release
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50 # enough history to find this version's merge commit
+          persist-credentials: false # gh uses GH_TOKEN below; the checkout keeps no token
+      - name: Publish a release if this version has none
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(sed -n 's/.*const VERSION="\([0-9.]*\)".*/\1/p' src/app/state.js | head -1)
+          if [ -z "$V" ]; then echo "No VERSION found in src/app/state.js"; exit 1; fi
+          if gh release view "v$V" >/dev/null 2>&1; then
+            echo "Release v$V already exists. Nothing to do."
+            exit 0
+          fi
+          # The oldest recent commit titled "<version>: summary" is the merge
+          # that shipped this version; its summary becomes the release title.
+          SUMMARY=$(git log -50 --format=%s | awk -v p="$V: " 'index($0, p) == 1 { s = substr($0, length(p) + 1) } END { print s }')
+          gh release create "v$V" --target "$GITHUB_SHA" \
+            --title "v$V - ${SUMMARY:-update}" \
+            --notes "${SUMMARY:-Update}."
+          echo "Published v$V."

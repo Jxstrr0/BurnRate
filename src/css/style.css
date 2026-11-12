@@ -83,6 +83,21 @@ p{margin:0 0 .7em}
 #title .credit{font-size:.78rem;color:var(--muted);text-align:right}
 #title .ver{font-family:var(--mono);font-size:.72rem}
 
+/* ---- the ?debug=1 bench (app/debug.js) ---- */
+#debug{position:relative;min-height:100vh;min-height:100dvh;padding:calc(22px + var(--safeT)) 16px calc(24px + var(--safeB));max-width:720px;margin:0 auto;display:grid;gap:12px;align-content:start}
+#debug .stripe{position:absolute;left:0;right:0;top:0;height:8px}
+#debug .site{font:600 .78rem/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--stateD);margin:0}
+.dbg-l{display:grid;gap:6px;font-weight:600}
+.dbg-l select{min-height:44px;font:inherit;font-weight:400;border:1px solid var(--line2);border-radius:8px;background:var(--card);color:var(--ink);padding:0 10px}
+.dbg-l input[type=range]{width:100%;min-height:32px;accent-color:var(--accent)}
+.dbg-chart canvas{display:block;width:100%}
+.dbg-key{font-size:.85rem;color:var(--muted);margin:8px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dbg-key span{display:inline-block;width:18px;height:3px;border-radius:2px}.dbg-key .k-p{background:var(--pred)}.dbg-key .k-f{background:var(--ink);margin-left:10px}
+.dbg-t{width:100%;border-collapse:collapse}.dbg-t th{text-align:left;font-weight:400;color:var(--muted);padding:4px 8px 4px 0}.dbg-t td{text-align:right;padding:4px 0}
+.dbg-t tr+tr{border-top:1px solid var(--line)}
+.dbg-w{margin:0 0 6px;padding:8px 12px;border-radius:8px;border-left:4px solid var(--warn);background:var(--card)}.dbg-w b{color:var(--warn)}
+.dbg-w.crit{border-left-color:var(--crit)}.dbg-w.crit b{color:var(--crit)}
+
 /* ---- the sheet (bottom drawer the phone's Back button closes) and toasts ---- */
 #scrim{position:fixed;inset:0;background:rgba(35,38,42,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #scrim.on{opacity:1;pointer-events:auto}

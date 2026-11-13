@@ -121,7 +121,7 @@ function schedule(fast){
   DZ.fast=DZ.fast===null?fast:(DZ.fast&&fast);
   if(DZ.raf)return;
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
-    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);
+    DZ.res=BURN_SIM.predict(DZ.d,BURN_SIM.standCond(GAME.contract,{tGrain:DZ.tGrain}),f?{steps:DRAG_STEPS}:undefined);
     DZ.fl=isFlight()&&DZ.res.ok?BURN_SIM.predictFlight(DZ.d,DZ.res.motor,DZ.res.run,payloadKg()):null;drawAll();});}
 /* the bench's numbers for the spec: a flight job's apogee is the predicted flight's */
 function benchSum(){const r=DZ.res;return r&&r.ok?isFlight()?Object.assign({},r.sum,{apogee:DZ.fl?DZ.fl.apogee:NaN}):r.sum:null;}

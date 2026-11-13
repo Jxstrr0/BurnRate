@@ -37,7 +37,7 @@ const BOT = { rounds: 36, restartAt: 18, steps: 110, firings: 3, need: 2, warnW:
 
 /* how far a design is from a clean delivery, by the predictor alone: 0 is in the middle of the spec with no flags */
 function score(c, d, tGrain, steps) {
-  let p; try { p = S.predict(d, { tGrain }, steps ? { steps } : undefined); } catch (e) { return { s: 1e9 }; }
+  let p; try { p = S.predict(d, S.standCond(c, { tGrain }), steps ? { steps } : undefined); } catch (e) { return { s: 1e9 }; }
   if (!p.ok) return { s: 1e9 };
   const q = p.sum, m = p.motor, T = S.TUNING;
   /* how far over its line each flag is, so a step towards the line counts as progress */
@@ -117,7 +117,7 @@ function solveAt(c, slot) {
   }
   if (cur.s > 0) for (const ig of Object.keys(S.IGNITERS)) { const t = clone(d); t.igniter = ig; const r = score(c, t, tGrain, BOT.steps); evals++; if (r.s < cur.s) { d = t; cur = r; } }
   const full = score(c, d, tGrain);
-  const cond = { tGrain };
+  const cond = S.standCond(c, { tGrain });
   let pass = 0, marks = "";
   for (let k = 1; k <= BOT.firings; k++) {
     const seed = "bot/" + c.id + "/" + slot + "/" + k;

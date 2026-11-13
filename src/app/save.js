@@ -23,6 +23,7 @@ function careerOk(c){
   if(!Array.isArray(c.log)||typeof c.seed!=="string"||typeof c.name!=="string")return false;
   if("designs"in c&&!isObj(c.designs))return false;
   if("retender"in c&&!isObj(c.retender))return false;
+  if("won"in c&&!isNum(c.won))return false;
   for(const id in c.jobs){const j=c.jobs[id];if(!isObj(j)||!isNum(j.due)||!isNum(j.pay)||!isNum(j.n))return false;}
   return true;}
 /* the Daily Spec's state (app/daily.js): today's run and the last 60 days' best grades */

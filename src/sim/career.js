@@ -3,7 +3,8 @@
    is the contract list in order, filtered by tier and what's done; each firing's dice come from fire()'s seed.
      car = {seed, name, day, money, tier, rep, stands:{s3:true}, bunker, jobs:{id:job}, done:{id:{letter,day,paid,times,again}},
             log:[entry], no (report counter), broke (tier restarts), hut (conditioning hut owned: 1),
-            retender:{id:day} (lost tenders, back on the board from that day)}
+            retender:{id:day} (lost tenders, back on the board from that day),
+            won (the day the capstone was first won), wonSeen (1 once its card has been read)}
      job = {taken, due, pay, n (motors fired)}
    A tier 4 tender (contract.lot) is delivered by a lot: fireLot fires CAREER.lot.n motors of one design, gradeLot judges
    them (four of five to pass; one failure cuts the pay; the lot's grade is its worst passing motor's), and settle with
@@ -44,21 +45,28 @@ function gradeLot(c,fires){const L=CAREER.lot,grades=fires.map(f=>grade(c,f)),ok
 const contractById=id=>CONTRACTS.find(c=>c.id===id)||null;
 function basePay(car,c){const d=car.done[c.id];return CR(d&&c.repeat?c.pay*c.repeat.pay:c.pay);}
 /* the work orders on offer, minus jobs in hand and finished ones (a repeat order comes back once its days have passed).
-   New work at your own tier comes first, then older tiers' leftovers, then repeat orders; each group in list order. */
+   New work at your own tier comes first, then older tiers' leftovers, each in list order; then repeat orders, the best
+   paid first (late in a career, the big clients' repeats come before the club's). */
+/* the capstone (contract.final) only comes on the board once every other tender has been won */
+const finalOpen=car=>CONTRACTS.every(c=>!c.lot||c.final||car.done[c.id]);
+const offered=(car,c)=>(c.tier||1)<=car.tier&&!car.jobs[c.id]&&(!c.final||finalOpen(car));
 function board(car){
   const rank=c=>car.done[c.id]?2:(c.tier||1)===car.tier?0:1;
-  return CONTRACTS.filter(c=>{if((c.tier||1)>car.tier||car.jobs[c.id])return false;const d=car.done[c.id];
+  return CONTRACTS.filter(c=>{if(!offered(car,c))return false;const d=car.done[c.id];
     if(car.retender&&car.retender[c.id]>car.day)return false;
-    return!d||(c.repeat&&car.day>=d.again);}).map((c,i)=>[rank(c),i,c]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]).map(x=>x[2]).slice(0,CAREER.boardMax);}
+    return!d||(c.repeat&&car.day>=d.again);}).map((c,i)=>[rank(c),i,c]).sort((a,b)=>a[0]-b[0]||(a[0]===2?b[2].pay-a[2].pay:0)||a[1]-b[1]).map(x=>x[2]).slice(0,CAREER.boardMax);}
 /* the next day something comes back on the board (a repeat order or a lost tender), or null if nothing ever will.
    An empty board offers to wait until then, free, so a player short of money for the next lease is never stuck. */
 function nextWork(car){let best=null;
-  for(const c of CONTRACTS){if((c.tier||1)>car.tier||car.jobs[c.id])continue;const d=car.done[c.id];
+  for(const c of CONTRACTS){if(!offered(car,c))continue;const d=car.done[c.id];
     if(d&&!c.repeat)continue;
     const ready=Math.max(d?d.again:car.day,(car.retender&&car.retender[c.id])||0);
     if(ready>car.day&&(best===null||ready<best))best=ready;}
   return best;}
 function waitForWork(car){const d=nextWork(car);if(d===null)return 0;const n=d-car.day;car.day=d;return n;}
+/* the firing conditions for a job: the stand's back-pressure (the altitude chamber's near-vacuum) on top of cond.
+   Every predict and fire for a job goes through this, so the bench predicts what the stand will measure. */
+function standCond(c,cond){const st=c&&(typeof c.stand==="string"?STANDS[c.stand]:c.stand);return st&&st.pAmb!=null?Object.assign({},cond,{pAmb:st.pAmb}):cond;}
 function canTake(car,id){
   const c=contractById(id);if(!c)return"No such work order.";
   if(car.jobs[id])return"You already have this job.";
@@ -94,6 +102,8 @@ function settle(car,c,g,cost,o){
         out.rep=prev?Math.floor(CAREER.rep[g.letter]/2):CAREER.rep[g.letter];car.rep+=out.rep;
         car.done[c.id]={letter:prev&&"ABC".indexOf(prev.letter)<"ABC".indexOf(g.letter)?prev.letter:g.letter,day,paid:out.paid,
           times:(prev?prev.times:0)+1,again:c.repeat?day+c.repeat.every:null};
+        /* the capstone, won for the first time: the story's end (the board shows "The range is yours" until seen) */
+        if(c.final&&!car.won){car.won=day;out.won=true;}
         delete car.jobs[c.id];out.done=true;}}}
   car.day++;
   return out;}
@@ -110,5 +120,5 @@ function buy(car,id){const e=canBuy(car,id);if(e)return e;const f=FACILITIES[id]
 /* the logbook keeps what's needed to fire the same motor again for its report: the dice come from the seed */
 function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length>CAREER.logMax)car.log.splice(0,car.log.length-CAREER.logMax);return e;}
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}
-Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,fireLot,gradeLot,contractById,basePay,board,nextWork,waitForWork,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
+Object.assign(SIM,{finalOpen,standCond,newCareer,slotTemp,buildCost,firingCost,fireLot,gradeLot,contractById,basePay,board,nextWork,waitForWork,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
   restartTier,settle,canBuy,owns,buy,logFiring,fireSeed});

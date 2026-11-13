@@ -92,6 +92,26 @@ module.exports = ({ SIM, check, near, brief }) => {
     if (!(tbSmall < tb0)) throw new Error("higher pressure did not shorten the burn");
   });
 
+  check("back-pressure: in the altitude chamber the chamber pressure is unchanged, thrust gains eta · Δp_amb · A_e, a vacuum bell stops separating", () => {
+    const d = SIM.REF_DESIGNS["98mm 5-seg BATES, Ox, composite"], pv = SIM.STANDS.s0.pAmb, pg = SIM.TUNING.pAmb;
+    const g = SIM.predict(d, { tGrain: 20 }), v = SIM.predict(d, { tGrain: 20, pAmb: pv });
+    if (g.run.pAmb !== pg || v.run.pAmb !== pv) throw new Error("the run didn't use the back-pressure it was given");
+    /* a choked nozzle: the chamber never feels the outside, so in the steady burn only the pressure-thrust term moves */
+    const i = Math.floor(g.run.t.length / 2);
+    near(v.run.p[i] / g.run.p[i], 1, 1e-6, "chamber pressure ratio mid-burn");
+    near((v.run.f[i] - g.run.f[i]) / (g.motor.eta * (pg - pv) * g.motor.Ae), 1, 1e-4, "thrust gain / eta·Δp·Ae mid-burn");
+    if (!(v.sum.Isp > g.sum.Isp)) throw new Error("vacuum didn't raise Isp");
+    /* the bigger the exit, the more the thin air pays: Isp gain grows with the expansion ratio */
+    const wide = clone(d); wide.nozzle.exitD = 100;
+    const gain = x => SIM.predict(x, { tGrain: 20, pAmb: pv }).sum.Isp - SIM.predict(x, { tGrain: 20 }).sum.Isp;
+    if (!(gain(wide) > gain(d))) throw new Error("a wider exit didn't gain more in vacuum");
+    /* the kick stage's bell separates on the open stand, not in the chamber, and the job's conditions are the chamber's */
+    const c = SIM.contractById("kokjal-kick"), cg = SIM.predict(c.solution, { tGrain: 20 }), cv = SIM.predict(c.solution, SIM.standCond(c, { tGrain: 20 }));
+    if (!cg.sum.warnings.some(w => w.key === "sep") || cv.sum.warnings.some(w => w.key === "sep")) throw new Error("the vacuum bell's separation is wrong way round");
+    if (SIM.standCond(SIM.contractById("range-lot"), { tGrain: 5 }).pAmb !== undefined) throw new Error("an open stand changed the back-pressure");
+    return `98 mm Isp ${g.sum.Isp.toFixed(1)} s ground, ${v.sum.Isp.toFixed(1)} s chamber; kick stage ${cg.sum.Isp.toFixed(1)} -> ${cv.sum.Isp.toFixed(1)} s`;
+  });
+
   check("exponent: a higher n moves pressure further from the reference pressure", () => {
     const d = clone(SIM.REF_DESIGNS["38mm 3-seg BATES, Mule"]), m = SIM.motorFromDesign(d), base = m.prop;
     const pAt = n => { m.prop = Object.assign({}, base, { n }); return SIM.summarize(m, SIM.simulate(m)).Pmax; };

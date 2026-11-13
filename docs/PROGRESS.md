@@ -14,7 +14,31 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 7. The test stand in 3D | 0.8.0.0 | Done |
 | 8. Polish and modes | 0.9.0.0 | Done |
 | 9. Release and studio listing | 1.0.0.0 | Done |
-| After 1.0: night shift, voice, tier 3+ clients | 1.1.0.0 | In progress |
+| After 1.0: night shift, voice, tier 3+ clients | 1.2.0.0 | In progress |
+
+## 1.2.0.0 — After 1.0: the late game, the altitude chamber and the capstone
+
+- **The altitude chamber** (stand s0, a Facilities lease after the tender register: 40,000 cr, reputation 55, 2,500 cr
+  a firing): the old programme's pumped-down tank at 3 kPa. Its jobs fire against that back-pressure, and the bench
+  predicts against it too (`standCond` in sim/career.js, used by the designer, the slot sheet, the firing, lots,
+  replays, the balance bot and the tests). No new physics: the nozzle model already took the outside pressure, so a big
+  bell that separates on the open stand gains 40-odd seconds of Isp in the chamber. A new spec, **specific impulse**,
+  grades it. The work order says "Fires in the altitude chamber, at 3 kPa" and the glossary explains it.
+- **Seven new jobs**, each with a reference solution the balance bot also reaches from the start drawing:
+  - tier 3: Dala's *Catalogue M1400*, Kökjal's *A flat sustainer* (a neutral curve), Saryk's *Every second counts*
+    (228 s Isp on the open stand);
+  - tier 4 tenders: Bürkit's *Desert booster lot* (40 °C in the hut), Kökjal's *Kick stage lot* and Kumtal's
+    *High-altitude sonde stage* (both in the chamber);
+  - the capstone: Altyn's *Orbital booster lot* (chamber, 90,000 cr), on the board only once every other tender is won.
+- **The range is yours**: winning the capstone the first time puts a card on the board with the career's numbers (days,
+  firings, jobs done, A grades, tenders, reputation). The career carries on. The flag lives in the career object
+  (`won`, `wonSeen`): no new storage key.
+- **Repeat orders** on every tier 3 and 4 job (60% pay; every 6 days at tier 3, 10 for tenders, 14 for the capstone).
+  Repeats now list the best paid first, so late in a career the big clients' orders aren't crowded off the 8-card
+  board by the club's. The empty board's hint now points at the next step (tender register, chamber, capstone).
+- Tests: a new physics invariant (in the chamber the chamber pressure is unchanged mid-burn and thrust rises by exactly
+  eta · Δp · A_e; a wider exit gains more; the kick stage's bell separates on the ground but not in the chamber), and
+  the career playthrough now leases the chamber, wins the capstone and checks its repeat doesn't "win" again.
 
 ## 1.1.0.0 — After 1.0: the night shift theme, and the voice script
 

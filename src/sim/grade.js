@@ -20,11 +20,12 @@ const SPEC_INFO={
   mass:{name:"Motor mass",short:"mass",unit:"g",dp:0,gloss:"motorMass",fix:["case.mat","case.wall"]},
   massFrac:{name:"Mass fraction",short:"frac",unit:"%",dp:0,gloss:"massFrac",fix:["case.mat","case.wall"]},
   prog:{name:"Curve shape",short:"shape",unit:"×",dp:2,gloss:"curveShape",fix:["grain.shape","grain.segLen","grain.coreD"]},
-  apogee:{name:"Apogee",short:"apogee",unit:"m",dp:0,gloss:"apogee",fix:["grain.segLen","airframe.nose"]}
+  apogee:{name:"Apogee",short:"apogee",unit:"m",dp:0,gloss:"apogee",fix:["grain.segLen","airframe.nose"]},
+  Isp:{name:"Specific impulse",short:"Isp",unit:"s",dp:0,gloss:"isp",fix:["nozzle.exitD","nozzle.throatD"]}
 };
 function specValue(k,s,m){
   switch(k){case"I":return s.I;case"Fav":return s.Fav;case"tb":return s.tb;case"Pmax":return s.Pmax/1e6;case"Fmax":return s.Fmax;
-    case"mass":return m.mass.total*1000;case"massFrac":return s.massFrac*100;case"prog":return s.prog;case"apogee":return s.apogee;}
+    case"mass":return m.mass.total*1000;case"massFrac":return s.massFrac*100;case"prog":return s.prog;case"apogee":return s.apogee;case"Isp":return s.Isp;}
   return NaN;}
 /* closeness to the middle of a two-sided band: 1 in the middle, 0 at the edge, negative outside */
 function specCheck(spec,s,m){

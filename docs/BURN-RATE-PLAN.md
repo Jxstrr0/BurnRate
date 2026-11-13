@@ -22,6 +22,9 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 13 Nov 2026 | Late game | **Repeat orders and new jobs**: most tier 3 and 4 jobs come back as repeat orders (60% pay, as at tiers 1 and 2), plus about six new jobs (three at tier 3, three tier 4 tenders), each with a reference solution the balance bot delivers |
+| 13 Nov 2026 | Late-game mechanic | **The altitude chamber (vacuum upper stages)**: Site 41's old altitude test cell, leased after the tender register. It fires at near-vacuum back-pressure, so a big expansion-ratio nozzle pays off and ground over-expansion stops mattering; its jobs ask for vacuum specific impulse. The predictor and the firing both use the stand's back-pressure |
+| 13 Nov 2026 | Finale | **A capstone, then open play**: once every tier 4 tender is won, Altyn Space Agency puts out its orbital booster lot (in the chamber, the biggest pay in the game). Winning it shows a "The range is yours" card with the career's numbers; the career then carries on with repeat orders |
 | 13 Nov 2026 | Voice lines | **Two full runs, English and Russian, both wired in**: Ruslan's 8 range calls and 34 report sign-offs on the ElevenLabs Multilingual model with a stock voice, about 3,600 credits, capped at **6,000 credits for the whole project**. The script is `tools/voice-lines.json`; a setting picks English, Russian or off |
 | 13 Nov 2026 | An empty board | **A free "Wait for orders" button**: when nothing is on the board, skip ahead to the day the next repeat order (or a lost tender) comes back, at no cost, so a player short of money for the next lease is never stuck |
 | 13 Nov 2026 | Daily Spec tries | **Unlimited, best kept**: fire the day's spec as often as you like; the phone keeps the best grade of the day and how many firings it took |
@@ -173,6 +176,16 @@ nozzle materials and a bigger test stand.
 Tier 4 is about qualification and reliability, not weapons. Keep it at the
 level of "a booster motor that must pass five out of five firings."
 
+**The late game (1.2.0.0, Kelbo 13 November 2026):** every tier 3 and 4 job
+comes back as a repeat order at 60% pay. After the tender register, the
+**altitude chamber** (Site 41's old upper-stage test cell, stand s0: 3 kPa
+back-pressure, 1.6 m by 170 mm, 2,500 cr a firing) can be leased; its tenders
+grade vacuum specific impulse, so a big bell that separates on the open stand
+pays off. Once every other tender is won, Altyn Space Agency's **orbital
+booster lot** (the capstone, in the chamber) comes on the board; winning it
+shows "The range is yours" with the career's numbers, and play carries on
+with repeat orders.
+
 **Money and materials:** each firing costs money (range fee plus the motor's
 build cost) and the materials in it. Failed firings still cost. A run of
 failures can push the outfit into debt; going broke ends the career with an
@@ -263,6 +276,10 @@ This is stable for any n < 1 and needs no ODE solver. Add:
   (divergence angle, throat finish) from the nozzle table.
 - **Flow separation** (over-expanded at sea level): if `P_e` falls below
   roughly 0.4 · `P_a` (a tuning number), thrust drops and the run is flagged.
+- **Back-pressure:** `P_a` is the stand's. The open stands use the range's
+  98.5 kPa; the altitude chamber (1.2.0.0) holds 3 kPa, so the same motor's
+  pressure-thrust term grows by `eta · ΔP_a · A_e` and a vacuum bell stops
+  separating. The predictor uses the stand's `P_a` too.
 - **Throat erosion:** throat radius grows over the burn at a rate set by
   nozzle material and pressure, so Kn sags late in the burn. Graphite erodes
   little, cheap materials a lot.

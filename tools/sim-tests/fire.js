@@ -111,13 +111,13 @@ module.exports = ({ SIM, check, near }) => {
       if (!start || !SIM.motorFromDesign(start).ok) throw new Error(c.id + ": start design doesn't build");
       const k = Object.assign({}, c, { stand: SIM.STANDS[c.stand] }), m = SIM.motorFromDesign(c.solution);
       if (!m.ok) throw new Error(c.id + ": solution doesn't build");
-      const pf = SIM.preFire(k, c.solution, m, { tier: c.tier, sum: SIM.predict(c.solution, { tGrain: 20 }).sum });
+      const pf = SIM.preFire(k, c.solution, m, { tier: c.tier, sum: SIM.predict(c.solution, SIM.standCond(c, { tGrain: 20 })).sum });
       if (pf.length) throw new Error(c.id + ": " + pf[0].text);
       if (c.flight) {   // a flight job: the solution carries its rocket, and the range would launch it
         const pl = SIM.preLaunch(c.solution, m, SIM.predict(c.solution, { tGrain: 20 }).run, c.flight.payload, c.tier);
         if (pl.length) throw new Error(c.id + ": " + pl[0].text);
       }
-      const shoot = (cond, seed) => c.flight ? SIM.launch(c.solution, cond, seed, { payload: c.flight.payload }) : SIM.fire(c.solution, cond, seed);
+      const shoot = (cond, seed) => c.flight ? SIM.launch(c.solution, cond, seed, { payload: c.flight.payload }) : SIM.fire(c.solution, SIM.standCond(c, cond), seed);
       let best = 0, bestSlot = "";
       if (c.slot === "hut" && !(c.tGrain >= SIM.HUT.min && c.tGrain <= SIM.HUT.max)) throw new Error(c.id + ": a hut job needs a tGrain in the hut's range");
       for (const slot of c.slot ? [c.slot] : ["dawn", "noon", "dusk"]) {

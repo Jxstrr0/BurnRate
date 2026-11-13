@@ -36,6 +36,8 @@ const FACILITIES={
   s1:{name:"Stand 1 lease",cost:16000,need:24,give:{stand:"s1",tier:3},
     note:"The old state booster stand: motors up to 2 m long and 170 mm across, a 40 kN load cell. Opens tier 3 work and tier 3 parts."},
   tenders:{name:"Range tender register",cost:30000,need:45,after:"s1",give:{tier:4},
-    note:"A place on the state's list of approved motor suppliers. Opens tier 4: booster tenders, each delivered as a lot of five motors from one design, at least four of which must pass."}
+    note:"A place on the state's list of approved motor suppliers. Opens tier 4: booster tenders, each delivered as a lot of five motors from one design, at least four of which must pass."},
+  chamber:{name:"Altitude chamber lease",cost:40000,need:55,after:"tenders",give:{stand:"s0"},
+    note:"The old programme's altitude chamber, pumped down to the thin air 25 km up. Upper-stage work fires in here, where a big nozzle that would separate on the open stands finally pays off. 2500 cr a firing."}
 };
 Object.assign(SIM,{CAREER,FACILITIES});

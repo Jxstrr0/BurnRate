@@ -42,7 +42,7 @@ function dueText(car,job){const left=job.due-car.day;
 function specList(c){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
   return`<ul class="wo-spec">${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
     ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
-    ${c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
+    ${c.flight?`<li>Flies from the <b>launch rail</b> with a <b class="mono">${c.flight.payload} kg</b> payload</li>`:c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
   const S_=BURN_SIM,jobs=Object.keys(car.jobs),offers=S_.board(car),broke=S_.isBroke(car);
@@ -98,7 +98,7 @@ function openLogbook(){
   const car=S.career,L=car.log.slice().reverse();
   $("lgList").innerHTML=L.length?L.map(e=>{const c=BURN_SIM.contractById(e.key),res=e.letter?`Pass ${e.letter}`:(STAMP[e.why]||"Fail");
     return`<button type="button" class="lg-row" data-log="${e.no}"><span class="mono lg-no">41-${String(e.no).padStart(3,"0")}</span>
-      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · motor ${e.n}</small></span>
+      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · ${c&&c.flight?"launch":"motor"} ${e.n}</small></span>
       <span class="lg-end"><span class="stamp ${e.letter?"pass":"fail"}">${esc(res)}</span><small class="mono">${e.paid?"+"+fmtCr(e.paid):"−"+fmtCr(e.cost)}</small></span></button>`;}).join("")
     :`<p class="hint">No firings yet. Every motor you fire is written up here, and you can read its report again.</p>`;
   showScreen("logbook");}

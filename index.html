@@ -196,6 +196,11 @@ p{margin:0 0 .7em}
 .hut-dial{display:flex;align-items:center;gap:8px;margin:8px 0 0;padding:6px 10px;border:1px dashed var(--line);border-radius:9px}
 .hut-dial span{flex:1}
 .hut-dial .btn{min-width:44px;min-height:40px;font-size:1.1rem}
+/* the Rocket tab's readout (flight jobs) */
+.ctl.rocket .val.big{font-size:1.2rem;font-weight:600;color:var(--pred)}
+.ctl.rocket .dtab td.warn{color:var(--warn);font-weight:600}.ctl.rocket .dtab td.crit{color:var(--crit);font-weight:600}
+.rp-fly h3,.rp-chart h3{margin:0 0 6px}
+.rp-fly .dtab td{white-space:nowrap;padding-left:8px}
 .opt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accentBg)}
 #sheetBody .sev{padding:10px 12px;border-left:4px solid var(--warn);background:var(--card);border-radius:8px}
 #sheetBody .sev.crit{border-left-color:var(--crit)}
@@ -382,7 +387,7 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
   <main id="fire" hidden aria-label="Static firing">
     <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span></header>
     <div class="fr-stand"><canvas id="frStand" aria-hidden="true"></canvas><div class="fr-count sign" id="frCount" hidden aria-live="assertive"></div></div>
-    <div class="fr-gauges" aria-live="off"><div><span>Pressure</span><b class="mono" id="frP">0.00</b><small>MPa</small></div><div><span>Thrust</span><b class="mono" id="frF">0</b><small>N</small></div><div><span>Time</span><b class="mono" id="frT">0.00</b><small>s</small></div></div>
+    <div class="fr-gauges" aria-live="off"><div><span id="frPL">Pressure</span><b class="mono" id="frP">0.00</b><small id="frPU">MPa</small></div><div><span>Thrust</span><b class="mono" id="frF">0</b><small>N</small></div><div><span>Time</span><b class="mono" id="frT">0.00</b><small>s</small></div></div>
     <div class="card fr-strip"><canvas id="frStrip" role="img" aria-label="Strip chart: measured pressure and thrust over the prediction"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted<span class="k-me"></span>Measured</p></div>
     <div class="fr-act"><button type="button" class="btn big abort" id="frAbort">Abort</button><button type="button" class="btn pri big" id="frNext" hidden>Read the report ›</button></div>
@@ -633,7 +638,8 @@ Object.assign(SIM,{VARIANCE,SLOTS,HUT});
      the client orders again after `every` days for this share of the pay; optional),
      slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id; "hut" with tGrain: conditioned to that
      temperature, which needs the hut), spec (criteria, sim/grade.js),
-     start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
+     flight ({payload} in kg: a flight job, sim/flight.js; the motor flies in a rocket from the launch rail instead of
+     firing on a stand, which then only sets the size class), start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
      tools/sim-tests/fire.js fires it across seeds and slots, so every contract stays solvable). */
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
 /* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
@@ -667,6 +673,10 @@ const CONTRACTS=[
     brief:"Before the range signs off its new stands, R. Abenov wants to see a motor behave on a cold morning. Fired at dawn, whatever the weather: 120 to 160 N on average, and gentle on the case.",
     spec:[{k:"Fav",lo:120,hi:160},{k:"I",lo:320,hi:450},{k:"Pmax",hi:3.0}],start:"38mm 3-seg BATES, Mule",
     solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:7.5,exitD:18,half:15},igniter:"s"}},
+  {id:"club-cup",client:"Aqsor Steppe Rocketry Club",title:"Club altitude cup",tier:1,stand:"s3",slot:null,flight:{payload:0.25},pay:1800,days:8,repeat:{pay:0.6,every:5},
+    brief:"The club's altitude cup is on Sunday, and they want a proper entry: a rocket that carries their 250 g altimeter to between 800 and 1200 metres, on a G motor or smaller. Build the motor and the rocket; it flies from the range's launch rail.",
+    spec:[{k:"apogee",lo:800,hi:1200},{k:"I",hi:160}],start:"29mm 2-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:42,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:13,half:15},igniter:"s",airframe:{body:"kraft43",nose:"ogive",fins:"three"}}},
   /* ---- tier 2: Stand 2, tier 2 parts, curve shapes and conditioned firings ---- */
   {id:"dala-j",client:"Dala Hobby Supply",title:"Catalogue J350",tier:2,stand:"s2",slot:null,pay:3500,days:8,repeat:{pay:0.6,every:4},
     brief:"The shop's G sold out in a week. Now they want a J for the club's big rockets: about 350 N on average, and a full J's worth of impulse.",
@@ -696,6 +706,14 @@ const CONTRACTS=[
     brief:"The Range Authority is pitching Site 41 to launch firms and wants a showpiece: a K motor where propellant is most of the weight. 62% of the motor or more, and safe on the case.",
     spec:[{k:"massFrac",lo:62},{k:"I",lo:1300,hi:2200},{k:"Pmax",hi:7}],start:"54mm 4-seg BATES, Dray, steel throat",
     solution:{grain:{prop:"tr5",shape:"bates",segs:4,segLen:83,coreD:22},case:{mat:"phenolic",id:51,wall:2,liner:"paper",linerThk:1.5,closure:"bolts",bolts:14},nozzle:{mat:"graphite",throatD:15.6,exitD:26,half:15},igniter:"l"}},
+  {id:"kumtal-fly",client:"Kumtal Weather Service",title:"First sounding flight",tier:2,stand:"s2",slot:null,flight:{payload:1},pay:5200,days:10,
+    brief:"The weather station's first real sounding flight: a one-kilogram instrument pack to between 2500 and 3500 metres, where it reads the wind on the way down. Build the motor and the rocket; it flies from the range's launch rail.",
+    spec:[{k:"apogee",lo:2500,hi:3500}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:5,segLen:77,coreD:21.5},case:{mat:"mild",id:51,wall:4.5,liner:"rubber",linerThk:1.7,closure:"bolts",bolts:3},nozzle:{mat:"steel",throatD:18,exitD:34,half:15},igniter:"m",airframe:{body:"kraft68",nose:"ogive",fins:"four"}}},
+  {id:"saryk-cup",client:"Saryk Polytechnic rocket team",title:"The H altitude record",tier:2,stand:"s3",slot:null,flight:{payload:0.2},pay:4600,days:10,
+    brief:"The students want the steppe league's H-class altitude record: 1700 to 2300 metres with their 200 g altimeter, on 320 N·s or less. With the impulse capped, the height comes from a light motor and a slippery rocket.",
+    spec:[{k:"apogee",lo:1700,hi:2300},{k:"I",hi:320}],start:"38mm 3-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:46,coreD:12},case:{mat:"phenolic",id:35,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:8,exitD:20,half:15},igniter:"s",airframe:{body:"kraft43",nose:"karman",fins:"swept"}}},
   {id:"kokjal-boost",client:"Kökjal Launch Systems",title:"Boost, then sustain",tier:3,stand:"s1",slot:null,pay:14000,days:14,
     brief:"A small-launcher firm wants a first stage that kicks hard off the pad, then settles to a long, gentle push while the rocket climbs out of the thick air. The last third no more than 60% of the first, and at least three and a half seconds.",
     spec:[{k:"prog",hi:0.6},{k:"tb",lo:3.5},{k:"I",lo:5000,hi:9000},{k:"Pmax",hi:7}],start:"98mm 5-seg BATES, Ox, composite",
@@ -719,7 +737,11 @@ const CONTRACTS=[
   {id:"qyran-long",client:"Qyran Display Team",title:"A slow, long climb",tier:3,stand:"s1",slot:null,pay:11000,days:12,
     brief:"For the night show, Qyran wants a big rocket that rises slowly on a long, steady flame the crowd can follow: 250 to 500 newtons for eight seconds or more.",
     spec:[{k:"tb",lo:8},{k:"Fav",lo:250,hi:500},{k:"I",lo:3000}],start:"98mm 5-seg BATES, Ox, composite",
-    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:137.1,coreD:21.3,pts:2,ptLen:29.3,ptW:21.3,finLen:113.6,offset:15.1},case:{mat:"composite",id:95.1,wall:1.5,liner:"paper",linerThk:4.8,closure:"ring",bolts:15},nozzle:{mat:"graphite",throatD:20.7,exitD:84.3,half:15},igniter:"l"}}
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:137.1,coreD:21.3,pts:2,ptLen:29.3,ptW:21.3,finLen:113.6,offset:15.1},case:{mat:"composite",id:95.1,wall:1.5,liner:"paper",linerThk:4.8,closure:"ring",bolts:15},nozzle:{mat:"graphite",throatD:20.7,exitD:84.3,half:15},igniter:"l"}},
+  {id:"burkit-sounder",client:"Bürkit Aerospace",title:"Six kilometres up",tier:3,stand:"s1",slot:null,flight:{payload:4},pay:17000,days:14,
+    brief:"Bürkit wants flight data from a real ascent before it sells its boosters: a four-kilogram telemetry pack to between 6000 and 8000 metres. Past the speed of sound the drag climbs steeply, so the nose, the fins and how long the motor pushes all matter.",
+    spec:[{k:"apogee",lo:6000,hi:8000}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr9",shape:"tube",segs:8,segLen:169.5,coreD:45.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:27,exitD:56,half:15},igniter:"xl",airframe:{body:"glass118",nose:"karman",fins:"swept"}}}
 ];
 Object.assign(SIM,{GRADING,STANDS,CONTRACTS});
 /* ===================== data/career.js: money, range days, reputation and facilities (plan section 5) =====================
@@ -740,7 +762,7 @@ const CAREER={
   lateCut:0.1,         // each range day past the deadline takes this share off the pay ...
   lateFloor:0.4,       // ... down to this share at worst
   maxJobs:3,           // jobs in hand at once
-  boardMax:6,          // work orders shown on the board
+  boardMax:8,          // work orders shown on the board
   logMax:120,          // logbook entries kept in the save (the oldest go first)
   logRate:{0:120,1:400} // the data logger's sample rate by blockhouse level, Hz
 };
@@ -1653,7 +1675,7 @@ function fit(cv,h){
 function tokens(){const s=getComputedStyle(document.documentElement),g=k=>s.getPropertyValue(k).trim();
   return{ink:g("--ink"),muted:g("--muted"),line:g("--line"),pred:g("--pred"),meas:g("--meas"),stencil:g("--stencil"),warn:g("--warn"),
     card:g("--card"),prop:g("--prop"),propD:g("--propD"),liner:g("--linerC"),metal:g("--metal"),metalL:g("--metalL"),burn:g("--burn"),
-    mono:g("--mono")};}
+    hazard:g("--hazard"),mono:g("--mono")};}
 function nice(v){if(!(v>0))return 1;const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return(m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e;}
 /* how many gridlines to split an axis into so every label is a round number (5 -> 5 steps of 1, 2.5 -> 5 of 0.5, 2 -> 4 of 0.5) */
 function divs(max,few){const opts=few?[2,1]:[4,5,2];return opts.find(n=>Math.abs(Math.round(max/n*10)-max/n*10)<1e-9)||opts[0];}
@@ -1895,6 +1917,82 @@ function stand(cv,o){
   if(fail&&fail.key==="cato"&&age<0.5){c.fillStyle=`rgba(255,250,235,${(0.9*(1-age/0.5)).toFixed(3)})`;c.fillRect(0,0,W,H);}
 }
 Object.assign(VIS,{stand});
+/* ===================== vis/flight.js: flight tests (stage 6; plan section 6.10) =====================
+   altitude(cv, o) charts height against time: the predicted flight (blue, no wind) whole, the real one (red) up to
+   o.upto seconds, each apogee marked, and an X where a rocket was lost.
+     o: {h, pred:{t,h}, meas:{t,h}, upto, lost:{t,h} (optional), apoP, apoM (m, the marks' labels)}
+   sky(cv, o) is the launch seen from the blockhouse: the salt flat, the rail, and the rocket's real path drawn to scale
+   (height and drift on the same scale, so the wind's lean shows), the rocket at time o.t with its flame while the motor
+   burns. Stateless like vis/stand.js: everything is a function of the numbers passed in.
+     o: {h, path:{t,h,x}, t (s since ignition, <0 before), tBurn (s), apogee (m), lost (t of a destroyed motor, or null),
+         still (reduced motion: no flicker)} */
+function altitude(cv,o){
+  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.55,260))),k=tokens();
+  const P=o.pred,M=o.meas,L=46,R=12,T=12,B=22,w=W-L-R,h=H-T-B;
+  const last=s=>s&&s.t.length?s.t[s.t.length-1]:0,peak=s=>s?Math.max(0,...s.h):0;
+  const tMax=Math.max(last(P),last(M))*1.04||1,hMax=nice(Math.max(peak(P),peak(M))*1.1||1),nd=divs(hMax);
+  const X=t=>L+w*Math.min(1,t/tMax),Y=v=>T+h-h*Math.max(0,v)/hMax;
+  c.font=`10px ${k.mono}`;c.lineWidth=1;c.textBaseline="middle";
+  for(let i=0;i<=nd;i++){const v=hMax*i/nd,y=Math.round(Y(v))+.5;c.strokeStyle=k.line;c.beginPath();c.moveTo(L,y);c.lineTo(L+w,y);c.stroke();
+    c.fillStyle=k.muted;c.textAlign="right";c.fillText(v>=10000?(v/1000).toFixed(0)+"k":String(Math.round(v)),L-5,y);}
+  c.font=`600 10px ${k.mono}`;c.textBaseline="alphabetic";c.textAlign="left";c.fillStyle=k.muted;c.fillText("height m",L+4,T+10);c.font=`10px ${k.mono}`;
+  const tStep=nice(tMax/5);c.textAlign="center";
+  for(let t=0;t<=tMax+1e-9;t+=tStep)c.fillText(t.toFixed(tStep<1?1:0)+(t?"":" s"),X(t),H-5);
+  const trace=(s,col,wd,lim)=>{if(!s)return -1;c.strokeStyle=col;c.lineWidth=wd;c.lineJoin="round";c.beginPath();let n=-1;
+    for(let i=0;i<s.t.length&&s.t[i]<=lim;i++){const x=X(s.t[i]),y=Y(s.h[i]);i?c.lineTo(x,y):c.moveTo(x,y);n=i;}c.stroke();return n;};
+  const upto=o.upto==null?Infinity:o.upto;
+  c.globalAlpha=0.85;trace(P,k.pred,1.5,Infinity);c.globalAlpha=1;
+  const n=trace(M,k.meas,2.4,upto);
+  /* apogee marks: a tick and the height, the prediction's above its peak, the real one beside its own */
+  const mark=(s,col,label,below)=>{if(!s||!s.t.length)return;let j=0;for(let i=1;i<s.h.length;i++)if(s.h[i]>s.h[j])j=i;
+    if(s.t[j]>upto&&s===M)return;const x=X(s.t[j]),y=Y(s.h[j]);c.fillStyle=col;c.beginPath();c.arc(x,y,3.5,0,7);c.fill();
+    c.font=`600 10px ${k.mono}`;c.textAlign=x>L+w*0.75?"right":"left";c.textBaseline=below?"top":"alphabetic";
+    c.fillText(label,x+(x>L+w*0.75?-6:6),y+(below?5:-5));c.font=`10px ${k.mono}`;c.textBaseline="alphabetic";};
+  if(o.apoP!=null)mark(P,k.pred,`${Math.round(o.apoP)} m`,false);
+  if(o.lost){if(o.lost.t<=upto){const x=X(o.lost.t),y=Y(o.lost.h);c.strokeStyle=k.stencil;c.lineWidth=2.5;c.beginPath();
+      c.moveTo(x-5,y-5);c.lineTo(x+5,y+5);c.moveTo(x+5,y-5);c.lineTo(x-5,y+5);c.stroke();
+      c.fillStyle=k.stencil;c.font=`600 10px ${k.mono}`;c.textAlign="left";c.fillText("lost",x+8,y-6);c.font=`10px ${k.mono}`;}}
+  else if(o.apoM!=null)mark(M,k.meas,`${Math.round(o.apoM)} m`,true);
+  if(o.now&&n>=0){c.fillStyle=k.meas;c.beginPath();c.arc(X(M.t[n]),Y(M.h[n]),3.5,0,7);c.fill();}
+}
+/* the rocket's position at time t along a sampled path (straight lines between samples) */
+function pathAt(p,t){const n=p.t.length;if(!n)return{h:0,x:0,i:0};if(t<=p.t[0])return{h:p.h[0],x:p.x[0],i:0};
+  for(let i=1;i<n;i++)if(p.t[i]>=t){const u=(t-p.t[i-1])/((p.t[i]-p.t[i-1])||1);return{h:p.h[i-1]+(p.h[i]-p.h[i-1])*u,x:p.x[i-1]+(p.x[i]-p.x[i-1])*u,i};}
+  return{h:p.h[n-1],x:p.x[n-1],i:n-1};}
+function sky(cv,o){
+  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,280))),k=tokens();
+  const P=o.path,ground=H-22,top=16,t=o.t,lost=o.lost!=null&&t>=o.lost;
+  /* the scale: the whole flight fits, height and drift alike (metres per pixel the same both ways) */
+  const hTop=Math.max(o.apogee||1,...P.h)*1.12||1,xs=P.x.length?[Math.min(0,...P.x),Math.max(0,...P.x)]:[0,0];
+  const s=Math.min((ground-top)/hTop,(W-40)/Math.max(1,xs[1]-xs[0])),x0=W/2-((xs[0]+xs[1])/2)*s;
+  const X=x=>x0+x*s,Y=v=>ground-Math.max(0,v)*s;
+  const g=c.createLinearGradient(0,0,0,ground);g.addColorStop(0,k.card);g.addColorStop(1,k.line);c.fillStyle=g;c.fillRect(0,0,W,ground);
+  c.fillStyle=k.line;c.fillRect(0,ground,W,H-ground);
+  /* height gridlines on the left */
+  const step=nice(hTop/3.2),nd=Math.floor(hTop/step);c.font=`10px ${k.mono}`;c.textBaseline="middle";c.textAlign="left";
+  for(let i=1;i<=nd;i++){const v=step*i,y=Math.round(Y(v))+.5;if(y<top-4)continue;c.strokeStyle=k.line;c.globalAlpha=0.7;c.setLineDash([2,4]);c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();c.setLineDash([]);c.globalAlpha=1;
+    c.fillStyle=k.muted;c.fillText(v>=10000?(v/1000).toFixed(0)+" km":Math.round(v)+" m",4,y-7);}
+  /* the blockhouse far off, the rail at the launch point */
+  c.fillStyle=k.metalL;c.globalAlpha=0.45;c.fillRect(W*0.06,ground-14,W*0.12,14);c.globalAlpha=1;
+  const rx=X(0);c.strokeStyle=k.metal;c.lineWidth=2;c.beginPath();c.moveTo(rx,ground);c.lineTo(rx,ground-18);c.stroke();
+  c.fillStyle=k.metal;c.fillRect(rx-7,ground-3,14,3);
+  if(t<0){c.fillStyle=k.ink;c.fillRect(rx-1.5,ground-20,3,14);return;}
+  /* the path flown so far, then the rocket */
+  const here=pathAt(P,t);
+  c.strokeStyle=k.meas;c.lineWidth=2;c.lineJoin="round";c.beginPath();c.moveTo(X(P.x[0]||0),Y(P.h[0]||0));
+  for(let i=1;i<P.t.length&&P.t[i]<=t;i++)c.lineTo(X(P.x[i]),Y(P.h[i]));c.lineTo(X(here.x),Y(here.h));c.stroke();
+  const hx=X(here.x),hy=Y(here.h);
+  if(lost){const age=t-o.lost;c.fillStyle=k.burn;c.globalAlpha=Math.max(0,1-age*1.5);c.beginPath();c.arc(hx,hy,6+age*20,0,7);c.fill();c.globalAlpha=1;
+    c.fillStyle=k.ink;for(let j=0;j<6;j++){const a=j*1.05+0.4,r=4+age*26;c.fillRect(hx+Math.cos(a)*r,hy+Math.sin(a)*r+age*age*30,3,3);}return;}
+  /* the rocket points along its path (straight up on the rail) */
+  const j=Math.max(1,here.i),dx=(P.x[j]-P.x[j-1])||0,dh=(P.h[j]-P.h[j-1])||1,ang=Math.atan2(dx*s,dh*s);
+  c.save();c.translate(hx,hy);c.rotate(ang);
+  if(t<o.tBurn){const fl=o.still?1:0.8+0.4*Math.abs(Math.sin(t*47));c.fillStyle=k.burn;c.beginPath();c.moveTo(-3,6);c.lineTo(3,6);c.lineTo(0,6+12*fl);c.closePath();c.fill();
+    c.fillStyle=k.hazard;c.beginPath();c.moveTo(-1.5,6);c.lineTo(1.5,6);c.lineTo(0,6+6*fl);c.closePath();c.fill();}
+  c.fillStyle=k.ink;c.beginPath();c.moveTo(0,-10);c.lineTo(3,-4);c.lineTo(3,6);c.lineTo(-3,6);c.lineTo(-3,-4);c.closePath();c.fill();
+  c.fillRect(-6,3,12,3);c.restore();
+}
+Object.assign(VIS,{altitude,sky,pathAt});
 return VIS;})();
 </script>
 <script>
@@ -1902,7 +2000,7 @@ return VIS;})();
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.6.0.0";
+const VERSION="0.7.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -2012,6 +2110,14 @@ const GLOSS={
   grainTemp:{t:"Grain temperature",d:"Burn rate rises with the grain's temperature. A motor fired on a cold dawn burns slower, at lower pressure and for longer than the same motor at a hot noon. High-exponent grades feel it most. The predictor's reference is 20 °C; tap the temperature on the bench to predict at a firing slot."},
   firingSlot:{t:"Firing slot",d:"Dawn, noon or dusk. The motors sit out on the range overnight, so the grain is at the air's temperature when it fires. Once you lease the conditioning hut you can hold a motor at a temperature you set instead."},
   hut:{t:"Conditioning hut",d:"An insulated hut where a motor waits overnight at a set temperature, from −20 to 50 °C, so it fires exactly that warm or cold. Qualification jobs use it to prove a motor at the edges of the weather it will fly in: hot grain burns faster at higher pressure, cold grain slower and longer."},
+  apogee:{t:"Apogee",d:"The top of the flight: the height where the rocket stops climbing and starts to fall. A flight job is graded on it. More impulse pushes it up, but so does a lighter rocket and less drag; past the speed of sound the drag climbs steeply, so a longer, gentler burn can fly higher than a short, hard one."},
+  airframe:{t:"Airframe",d:"The rocket around the motor: a body tube the motor slides into, a payload bay and parachute above it, the nose and the fins. A wider tube carries more but has more drag; a heavier one takes impulse to lift."},
+  noseCone:{t:"Nose cone",d:"The nose's shape sets how much the air pushes back. A cone is simple and draggy, an ogive is the classic curve, and a Von Kármán shape is the low-drag nose for fast rockets."},
+  stability:{t:"Fins and stability",d:"Fins at the back keep the rocket pointing into the air, like the feathers on an arrow. Each fin set holds a rocket only up to a certain length for its width (length over diameter): a longer, thinner rocket wobbles and cartwheels. Bigger fins hold a longer rocket but add drag."},
+  drag:{t:"Drag coefficient",d:"How much the air pushes back on the rocket for its size: the body's own share, plus the nose's and the fins'. Drag grows with the square of speed, and jumps near the speed of sound."},
+  railSpeed:{t:"Rail exit speed",d:"How fast the rocket is moving when it leaves the 3 m launch rail. Until then the rail steers it; after that only the fins do, and they need airflow. Under about 15 m/s a gust can tip the rocket over, so a slow motor needs a light rocket."},
+  twr:{t:"Thrust-to-weight",d:"How many times the rocket's weight the motor pushes at liftoff. Under 1 it never leaves the pad. Around 5 or more it clears the rail briskly; a lower number climbs slowly and leans with the wind."},
+  wind:{t:"Wind",d:"The wind on the rail changes every day. A rocket turns to face the air flowing past it, so in a crosswind it leans into the wind (weathercocking), flies a curved path and loses a little height. The predictor assumes still air."},
   variance:{t:"Prediction and reality",d:"Every real motor is a little different from its numbers: the propellant batch burns a touch fast or slow, the case tube is a little stronger or weaker, the igniter gives a little more or less. Margins are what keep a motor safe through all of it."},
   castingVoid:{t:"Casting void",d:"A hidden bubble inside the grain. When the flame front reaches it, the cavity's surface burns too: a sudden jump in burning area and a pressure bump. Bigger grains and more segments make one more likely."},
   grainCrack:{t:"Grain crack",d:"A crack in the propellant adds a lot of burning area at once and keeps it for the rest of the burn. A cold grain and a harsh, fast start make cracks more likely. A gentler igniter and a warmer slot help."},
@@ -2318,7 +2424,8 @@ if(typeof document!=="undefined"){   // (check-savecode.js loads this file in no
 /* ===================== app/designer.js: the design bench (stage 2; plan sections 4, 6.8 and 9.2) =====================
    The player edits a motor and the predictor redraws as they drag. Top (sticky): the live view (predicted curves or the
    cross-section, swipe or tap to switch) with a burn scrubber, the key numbers and the warning flags. Below: the tabs
-   Grain · Nozzle · Case · Igniter with thumb-sized controls.
+   Grain · Nozzle · Case · Igniter with thumb-sized controls, and on a flight job a Rocket tab: the body tube, nose and fins,
+   with the predicted flight (sim/flight.js predictFlight, no wind) and the range's launch checks as flags.
    While a slider moves, the sim runs with fewer steps (DRAG_STEPS) once per frame; on release it runs in full.
    A warning flag opens its explanation with a button that jumps to the control to change.
    The bottom bar (app/game.js) checks the contract's spec against the prediction and leads to the stand. The predictor runs
@@ -2327,8 +2434,9 @@ if(typeof document!=="undefined"){   // (check-savecode.js loads this file in no
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
-const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
+const tabsNow=()=>isFlight()?TABS.concat([["airframe","Rocket"]]):TABS;
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
   flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike",ero:"Erosive spike"};
 const clone=o=>JSON.parse(JSON.stringify(o));
@@ -2371,6 +2479,11 @@ function controls(tab,d){
     {f:"case.closure",type:"seg",label:"Closures held by",g:"closure",opts:[["ring","Snap ring"],["bolts","Radial bolts"]]},
     d.case.closure==="bolts"&&{f:"case.bolts",type:"step",label:"Bolts",g:"retention",min:3,max:36}
   ].filter(Boolean);
+  if(tab==="airframe")return[
+    {f:"airframe.info",type:"info",html:()=>`<div class="ctl rocket" id="dzRocket" aria-live="polite"></div>`},
+    {f:"airframe.body",type:"pick",label:"Body tube",g:"airframe",items:S.BODIES,sub:b=>`${b.id} mm inside · ${Math.round(b.kgm*1000)} g a metre · ${b.cost} cr a metre`},
+    {f:"airframe.nose",type:"pick",label:"Nose cone",g:"noseCone",items:S.NOSES,sub:n=>`drag ${n.cd.toFixed(2)} · ${n.note}`},
+    {f:"airframe.fins",type:"pick",label:"Fins",g:"stability",items:S.FINS,sub:x=>`drag ${x.cd.toFixed(2)} · steady up to ${x.maxLD} body diameters long · ${x.note}`}];
   return[{f:"igniter",type:"pick",label:"Igniter",g:"igniter",items:S.IGNITERS,sub:i=>`${(i.gas*1000).toFixed(2)} g of gas over ${Math.round(i.burn*1000)} ms`}];
 }
 const TAB_OF=f=>f.split(".")[0];
@@ -2392,6 +2505,7 @@ function clampDesign(d){
 
 /* ---- rendering the tab panel ---- */
 function ctlHtml(c,d){
+  if(c.type==="info")return c.html(d);
   const v=getF(d,c.f),lab=`<button type="button" class="gl" data-g="${c.g}">${esc(c.label)}</button>`;
   if(c.type==="pick")return`<fieldset class="ctl pick" data-field="${c.f}"><legend>${lab}</legend>${Object.entries(c.items).map(([id,it])=>
     `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${it.tier>1?`<span class="tag${inCareer()&&it.tier>S.career.tier?" lock":""}">Tier ${it.tier}${inCareer()&&it.tier>S.career.tier?" · locked":""}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
@@ -2406,20 +2520,23 @@ function ctlHtml(c,d){
     <input type="range" data-slide="${c.f}" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" aria-label="${esc(c.label)}">
     <button type="button" class="nudge" data-nudge="${c.f}" data-by="1" aria-label="More">+</button></div>${ex}</div>`;
 }
+function renderTabs(){
+  if(!tabsNow().some(([id])=>id===DZ.tab))DZ.tab="grain";
+  $("dzTabs").innerHTML=tabsNow().map(([id,n])=>`<button type="button" role="tab" data-tab="${id}">${n}</button>`).join("");}
 function renderPanel(){
   const d=DZ.d;
   document.querySelectorAll("#dzTabs [data-tab]").forEach(b=>{const on=b.dataset.tab===DZ.tab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on);});
   $("dzPanel").innerHTML=controls(DZ.tab,d).map(c=>ctlHtml(c,d)).join("");
-  markErrors();
+  markErrors();drawRocket();
 }
 function ctlSpec(f){return controls(TAB_OF(f),DZ.d).find(c=>c.f===f);}
 /* after a slider moves, update its readout and the extras of the controls on screen without rebuilding the panel */
 function refreshReadouts(){
-  for(const c of controls(DZ.tab,DZ.d)){
+  for(const c of controls(DZ.tab,DZ.d)){if(c.type==="info")continue;
     const o=document.querySelector(`[data-out="${c.f}"]`);if(o)o.textContent=fmtV(c,getF(DZ.d,c.f));
     const e=document.querySelector(`[data-ex="${c.f}"]`);if(e&&c.extra)e.textContent=c.extra(DZ.d);}}
 function markErrors(){
-  const bad=new Set(DZ.res&&!DZ.res.ok?DZ.res.errors.map(e=>e.field):[]);
+  const bad=new Set(DZ.res&&!DZ.res.ok?DZ.res.errors.map(e=>e.field):flightChecks().crit.map(e=>e.field));
   document.querySelectorAll("#dzPanel [data-field]").forEach(el=>el.classList.toggle("bad",bad.has(el.dataset.field)));}
 
 /* ---- the sim, at most once a frame ---- */
@@ -2427,7 +2544,38 @@ function schedule(fast){
   DZ.fast=DZ.fast===null?fast:(DZ.fast&&fast);
   if(DZ.raf)return;
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
-    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
+    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);
+    DZ.fl=isFlight()&&DZ.res.ok?BURN_SIM.predictFlight(DZ.d,DZ.res.motor,DZ.res.run,payloadKg()):null;drawAll();});}
+/* the bench's numbers for the spec: a flight job's apogee is the predicted flight's */
+function benchSum(){const r=DZ.res;return r&&r.ok?isFlight()?Object.assign({},r.sum,{apogee:DZ.fl?DZ.fl.apogee:NaN}):r.sum:null;}
+/* a flight job's launch checks: crit = what stops the range launching it (sim/flight.js preLaunch), warn = a slow start */
+function flightChecks(){
+  const out={crit:[],warn:[]},r=DZ.res;if(!isFlight()||!r||!r.ok)return out;
+  out.crit=BURN_SIM.preLaunch(DZ.d,r.motor,r.run,payloadKg(),inCareer()?S.career.tier:null);
+  const fl=DZ.fl,F=BURN_SIM.FLIGHT;
+  if(fl&&fl.left&&!out.crit.length){
+    if(fl.vRail<F.railMin)out.warn.push({key:"rail",short:"Slow off the rail",g:"railSpeed",field:"nozzle.throatD",
+      text:`It leaves the ${F.rail} m rail at ${fl.vRail.toFixed(1)} m/s. Under ${F.railMin} m/s the fins can't steer yet, so a gust tips it over. More thrust at the start, or a lighter rocket.`});
+    if(fl.twr0<F.twrMin)out.warn.push({key:"twr",short:"Slow start",g:"twr",field:"nozzle.throatD",
+      text:`At liftoff the motor pushes ${fl.twr0.toFixed(1)} times the rocket's weight. Under ${F.twrMin}× it climbs off the pad slowly and the wind pushes it around.`});}
+  return out;}
+/* the Rocket tab's readout: the predicted flight and what the rocket is made of */
+function drawRocket(){
+  const el=$("dzRocket");if(!el)return;
+  const r=DZ.res,fl=DZ.fl;
+  if(!r||!r.ok||!fl){el.innerHTML=`<p class="hint">${r&&r.ok?"Pick a body tube, a nose and fins.":"The motor can't be built yet."}</p>`;return;}
+  const R=fl.rocket,F=BURN_SIM.FLIGHT,mach=fl.vMax/F.sound,row=(g,k,v,cls)=>`<tr><th><button type="button" class="gl" data-g="${g}">${k}</button></th><td class="mono ${cls||""}">${v}</td></tr>`;
+  const cost=BURN_SIM.airframeCost(DZ.d,r.motor);
+  el.innerHTML=`<div class="ctl-h"><button type="button" class="gl" data-g="apogee">Predicted apogee</button><span class="val mono big">${fl.left?Math.round(fl.apogee)+" m":"no liftoff"}</span></div>
+    <p class="hint">At ${degC(DZ.tGrain)}, with no wind. On the day the wind and the real motor move it.</p>
+    <table class="dtab mono">${row("apogee","Top speed",`${Math.round(fl.vMax)} m/s · Mach ${mach.toFixed(2)}`)}
+    ${row("railSpeed","Off the rail at",fl.vRail.toFixed(1)+" m/s",fl.vRail<F.railMin?"warn":"")}
+    ${row("twr","Thrust-to-weight",fl.twr0.toFixed(1)+"×",fl.twr0<F.twrMin?"warn":"")}
+    ${row("stability","Length / diameter",`${R.LD.toFixed(1)} (fins hold ${R.fins.maxLD})`,R.LD>R.fins.maxLD?"crit":"")}
+    ${row("airframe","Liftoff mass",`${R.mass0.toFixed(2)} kg${R.payload?` with ${R.payload} kg payload`:""}`)}
+    ${row("drag","Drag coefficient",R.cd.toFixed(2))}
+    ${row("airframe","Rocket length",Math.round(R.L*1000)+" mm")}
+    ${inCareer()?row("airframe","Rocket build",fmtCr(cost)):""}</table>`;}
 function change(f,v,fast){
   setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);if(!fast)save();}
 
@@ -2446,10 +2594,13 @@ function drawAll(){
   const cell=(g,lab,val,cls)=>`<button type="button" class="num" data-g="${g}"><span>${lab}</span><b class="mono ${cls||""}">${val}</b></button>`;
   $("dzNums").innerHTML=cell("impulse","N·s",s.I<100?s.I.toFixed(1):Math.round(s.I))+cell("thrust","Avg N",Math.round(s.Fav))+
     cell("burnTime","Burn s",s.tb.toFixed(2))+cell("pressure","Peak MPa",(s.Pmax/1e6).toFixed(2))+
-    cell("isp","Isp s",s.Isp.toFixed(0))+cell("sf","Safety",s.sf>=10?s.sf.toFixed(0):s.sf.toFixed(2),sfCls);
-  $("dzFlags").innerHTML=s.warnings.length?s.warnings.map((w,i)=>`<button type="button" class="flag ${w.sev}" data-warn="${i}">${esc(FLAG_SHORT[w.key]||w.key)}</button>`).join("")
+    (isFlight()?cell("apogee","Apogee m",DZ.fl&&DZ.fl.left?Math.round(DZ.fl.apogee):"–"):cell("isp","Isp s",s.Isp.toFixed(0)))+cell("sf","Safety",s.sf>=10?s.sf.toFixed(0):s.sf.toFixed(2),sfCls);
+  const fc=flightChecks();
+  $("dzFlags").innerHTML=s.warnings.length||fc.crit.length||fc.warn.length?fc.crit.map(e=>`<button type="button" class="flag crit" data-fix="${e.field}">${esc(e.text)}</button>`).join("")+
+    s.warnings.map((w,i)=>`<button type="button" class="flag ${w.sev}" data-warn="${i}">${esc(FLAG_SHORT[w.key]||w.key)}</button>`).join("")+
+    fc.warn.map((w,i)=>`<button type="button" class="flag warn" data-fwarn="${i}">${esc(w.short)}</button>`).join("")
     :`<span class="flag ok">No warnings</span>`;
-  drawView();markErrors();drawGo();
+  drawView();markErrors();drawGo();drawRocket();
 }
 function drawView(){
   const r=DZ.res;if(!r||!r.ok)return;
@@ -2466,7 +2617,7 @@ function setView(v){DZ.view=v;document.querySelectorAll("#dzView [data-view]").f
 /* ---- sheets: a warning, the data sheet ---- */
 function warnSheet(w){
   const c=ctlSpec(w.field),g=GLOSS[w.gloss];
-  openSheet(FLAG_SHORT[w.key]||"Warning",`<p class="sev ${w.sev}"><b>${w.sev==="crit"?"This will fail.":"Risky."}</b> ${esc(w.text)}</p>
+  openSheet(w.short||FLAG_SHORT[w.key]||"Warning",`<p class="sev ${w.sev}"><b>${w.sev==="crit"?"This will fail.":"Risky."}</b> ${esc(w.text)}</p>
     ${g?`<h3>${esc(g.t)}</h3><p>${esc(g.d)}</p>`:""}
     ${c?`<button type="button" class="btn pri" data-fix="${w.field}">Go to ${esc(c.label.toLowerCase())}</button>`:""}`);}
 function dataRows(r){
@@ -2503,7 +2654,6 @@ function goToField(f){
 /* ---- wiring, once ---- */
 function initDesigner(){
   if(DZ.inited)return;DZ.inited=true;
-  $("dzTabs").innerHTML=TABS.map(([id,n])=>`<button type="button" role="tab" data-tab="${id}">${n}</button>`).join("");
   $("dzTabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;DZ.tab=b.dataset.tab;renderPanel();});
   $("dzView").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view);});
   /* swipe the live view left or right to switch between the curves and the cross-section */
@@ -2522,7 +2672,8 @@ function initDesigner(){
     else if(b.dataset.nudge){const c=ctlSpec(b.dataset.nudge),v=Math.max(c.min,Math.min(c.max,+(getF(DZ.d,c.f)+c.step*(+b.dataset.by)).toFixed(2)));change(c.f,v,false);renderPanel();
       const n=document.querySelector(`[data-nudge="${c.f}"][data-by="${b.dataset.by}"]`);if(n)n.focus({preventScroll:true});}});
   $("dzFlags").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-    if(b.dataset.fix)goToField(b.dataset.fix);else if(b.dataset.warn!=null)warnSheet(DZ.res.sum.warnings[+b.dataset.warn]);});
+    if(b.dataset.fix)goToField(b.dataset.fix);else if(b.dataset.warn!=null)warnSheet(DZ.res.sum.warnings[+b.dataset.warn]);
+    else if(b.dataset.fwarn!=null){const w=flightChecks().warn[+b.dataset.fwarn];if(w)warnSheet(Object.assign({sev:"warn",gloss:w.g},w));}});
   /* buttons inside a sheet: jump to a control, or load a reference motor */
   document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
     if(b.dataset.fix)goToField(b.dataset.fix);
@@ -2535,9 +2686,11 @@ function openDesigner(){
   initDesigner();
   if(!DZ.d)DZ.d=clone(BURN_SIM.DEFAULT_DESIGN);
   BURN_SIM.normDesign(DZ.d);   // an older save's design gets the newer grain fields
-  showScreen("design");renderPanel();setView(DZ.view);
+  /* a flight job's bench opens with a rocket that fits the motor */
+  if(isFlight()&&!BURN_SIM.airframeOf(DZ.d)){const m=BURN_SIM.motorFromDesign(DZ.d);DZ.d.airframe=m.ok?BURN_SIM.defaultAirframe(m):{body:"kraft43",nose:"ogive",fins:"three"};save();}
+  renderTabs();showScreen("design");renderPanel();setView(DZ.view);
   $("dzScrub").value=Math.round(DZ.scrub*1000);
-  DZ.res=null;schedule(false);
+  DZ.res=null;DZ.fl=null;schedule(false);
 }
 /* screens: one <main> shows at a time. One history entry stands for "inside the game"; the phone's Back button walks
    up a level (report -> bench -> work orders -> title; a logbook report -> logbook -> work orders) and pushes the entry
@@ -2566,7 +2719,9 @@ window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.b
    is the load cell rated for it, are the parts open to you), then the firing slot (dawn, noon or dusk sets the grain
    temperature; the conditioning hut, once leased, fires at a temperature you set) with what the firing will cost, then
    app/firing.js. In a career each firing costs a range day, the stand's
-   fee and the motor's materials; a pass pays and finishes the job (sim/career.js settle). */
+   fee and the motor's materials; a pass pays and finishes the job (sim/career.js settle).
+   A flight job (contract.flight) goes to the launch rail instead: the range's launch checks too (sim/flight.js
+   preLaunch), the rail's fee and the rocket's build on the bill, and sim/flight.js launch() in place of fire(). */
 const GAME={mode:"free",contract:null,slot:"dusk",last:null};
 /* the slots the player can pick: the hut only once it's leased (always on the free bench) */
 const hutOpen=()=>!inCareer()||!!(S.career&&S.career.hut);
@@ -2575,6 +2730,8 @@ const slotChoices=()=>["dawn","noon","dusk"].concat(hutOpen()?["hut"]:[]);
 const slotT=id=>BURN_SIM.slotTemp(id,GAME.contract,S.hutT);
 const slotLabel=id=>id==="hut"?`Hut ${degC(slotT(id))}`:`${BURN_SIM.SLOTS[id].name} ${degC(slotT(id))}`;
 const inCareer=()=>GAME.mode==="career"&&!!S.career;
+const isFlight=()=>!!(GAME.contract&&GAME.contract.flight);
+const payloadKg=()=>isFlight()?GAME.contract.flight.payload:0;
 const gameKey=()=>GAME.contract?GAME.contract.id:"free";
 const withStand=c=>c?Object.assign({},c,{stand:BURN_SIM.STANDS[c.stand]}):null;
 const startDesign=c=>clone(typeof c.start==="string"?BURN_SIM.REF_DESIGNS[c.start]:c.start);
@@ -2600,11 +2757,11 @@ function drawGo(){
   const c=GAME.contract,r=DZ.res,locked=!!(c&&c.slot);
   const tl=DZ.predSlot==="ref"?degC(20):slotLabel(DZ.predSlot);
   let checks="";
-  if(c&&r&&r.ok)checks=BURN_SIM.specCheck(c.spec,r.sum,r.motor).map(k=>`<span class="ck ${k.ok?"ok":"no"}"><i aria-hidden="true">${k.ok?"✓":"✗"}</i>${esc(k.info.short)} <b class="mono">${fmtSpec(k.k,k.v)}</b><span class="vh">${k.ok?" in spec":" out of spec"}</span></span>`).join("");
+  if(c&&r&&r.ok)checks=BURN_SIM.specCheck(c.spec,benchSum(),r.motor).map(k=>`<span class="ck ${k.ok?"ok":"no"}"><i aria-hidden="true">${k.ok?"✓":"✗"}</i>${esc(k.info.short)} <b class="mono">${fmtSpec(k.k,k.v)}</b><span class="vh">${k.ok?" in spec":" out of spec"}</span></span>`).join("");
   else if(c)checks=`<span class="ck no">Can't be built</span>`;
   else checks=`<span class="ck">Free design, no client</span>`;
   $("dzGo").innerHTML=`<div class="go-l"><button type="button" class="temp mono" id="dzTemp"${locked?" disabled":""} aria-label="Predict at ${tl}${locked?" (this contract fires then)":", tap to change"}">${esc(tl)}${locked?"":" ▾"}</button><div class="cks">${checks}</div></div>
-    <button type="button" class="btn pri" id="dzFire">${c?"To the stand":"Test fire"} ›</button>`;
+    <button type="button" class="btn pri" id="dzFire">${c?c.flight?"To the rail":"To the stand":"Test fire"} ›</button>`;
   $("dzSite").textContent=c?c.title:"Stand 3 · Design bench";}
 function cycleTemp(){
   const list=["ref"].concat(slotChoices()),i=list.indexOf(DZ.predSlot),nx=list[(i+1)%list.length];
@@ -2622,29 +2779,33 @@ function toStand(){
   const fixList=list=>list.map(e=>{const c=ctlSpec(e.field);return`<li><p>${esc(e.text)}</p>${c?`<button type="button" class="btn sm" data-fix="${e.field}">Go to ${esc(c.label.toLowerCase())}</button>`:""}</li>`;}).join("");
   if(!r.ok){openSheet("Not buildable",`<p>This motor can't be built yet.</p><ul class="fixes">${fixList(r.errors)}</ul>`);return;}
   const pf=BURN_SIM.preFire(withStand(GAME.contract),DZ.d,r.motor,{sum:r.sum,tier:inCareer()?S.career.tier:null});
-  if(pf.length){openSheet("It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul>`);return;}
+  if(pf.length){openSheet(isFlight()?"The range won't launch it":"It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul>`);return;}
+  if(isFlight()){const pl=flightChecks().crit;if(pl.length){openSheet("The range won't launch it",`<ul class="fixes">${fixList(pl)}</ul>`);return;}}
   slotSheet();}
 /* what this firing costs, and whether the bank will cover it (career only) */
 function firingBill(){const c=GAME.contract,r=DZ.res;if(!inCareer()||!c||!r||!r.ok)return null;
-  const b=BURN_SIM.firingCost(c.stand,r.motor,DZ.d,GAME.slot);b.ok=BURN_SIM.canAfford(S.career,b.total);return b;}
+  const b=BURN_SIM.firingCost(c.stand,r.motor,DZ.d,GAME.slot,!!c.flight);b.ok=BURN_SIM.canAfford(S.career,b.total);return b;}
 function slotSheet(){
   const c=GAME.contract,slots=c&&c.slot?[c.slot]:slotChoices(),H=BURN_SIM.HUT,fixedT=!!(c&&c.slot);
   if(!slots.includes(GAME.slot))GAME.slot=slots[0];
+  const fly=isFlight();
   const cards=slots.map(id=>{const sl=BURN_SIM.SLOTS[id],t=slotT(id),p=BURN_SIM.predict(DZ.d,{tGrain:t});if(!p.ok)return"";
-    const s=p.sum,crit=s.warnings.filter(w=>w.sev==="crit").length,ok=c?BURN_SIM.specCheck(c.spec,s,p.motor).filter(k=>k.ok).length:null;
+    const pf=fly?BURN_SIM.predictFlight(DZ.d,p.motor,p.run,payloadKg()):null,s=pf?Object.assign({},p.sum,{apogee:pf.apogee}):p.sum;
+    const crit=s.warnings.filter(w=>w.sev==="crit").length,ok=c?BURN_SIM.specCheck(c.spec,s,p.motor).filter(k=>k.ok).length:null;
     return`<button type="button" class="opt${id===GAME.slot?" on":""}" data-slot="${id}" aria-pressed="${id===GAME.slot}"><b>${sl.name} · ${degC(t)}</b>${crit?`<span class="tag crit">${crit} critical</span>`:""}
-      <small>${esc(sl.hut&&fixedT?"Held overnight in the conditioning hut at the client's temperature.":sl.note)}${sl.hut&&inCareer()?` ${fmtCr(BURN_SIM.CAREER.hutFee)} a firing.`:""}</small><small class="mono">peak ${(s.Pmax/1e6).toFixed(2)} MPa · avg ${Math.round(s.Fav)} N · ${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
+      <small>${esc(sl.hut&&fixedT?"Held overnight in the conditioning hut at the client's temperature.":sl.note)}${sl.hut&&inCareer()?` ${fmtCr(BURN_SIM.CAREER.hutFee)} a firing.`:""}</small><small class="mono">${pf?`apogee ${Math.round(pf.apogee)} m · `:""}peak ${(s.Pmax/1e6).toFixed(2)} MPa · ${pf?"":`avg ${Math.round(s.Fav)} N · `}${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
   const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Hut set to <b class="mono">${degC(hutT)}</b></span>
     <button type="button" class="btn sm" data-hut="-1" aria-label="Colder"${hutT<=H.min?" disabled":""}>−</button><button type="button" class="btn sm" data-hut="1" aria-label="Warmer"${hutT>=H.max?" disabled":""}>+</button></div>`:"";
   const b=firingBill(),car=S.career;
-  const bill=b?`<div class="bill"><p class="mono">${esc(BURN_SIM.STANDS[c.stand].name)} fee ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""} + motor ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
-    <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. A failed motor still costs.</p>
+  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + motor ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
+    <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. ${fly?"A lost rocket still costs.":"A failed motor still costs."}</p>
     ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}</div>`:"";
   const lead=fixedT?(c.slot==="hut"?`This contract is a qualification firing: the motor is held in the conditioning hut at ${degC(slotT("hut"))} overnight.`
       :"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".")
-    :`Pick when to fire. The grain sits out overnight, so it fires at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
-  openSheet("Firing slot",`<p class="hint">${lead} Each line is the predictor at that temperature; the real motor won't match it exactly.</p>
-    <div class="pick">${cards}</div>${dial}${bill}<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>Clear the range and fire</button>`);}
+    :`Pick when to ${fly?"launch":"fire"}. The grain sits out overnight, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
+  const windNote=fly?` The wind on the rail is light, but it changes every day: you'll only know it on the morning.`:"";
+  openSheet(fly?"Launch slot":"Firing slot",`<p class="hint">${lead} Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
+    <div class="pick">${cards}</div>${dial}${bill}<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>${fly?"Clear the range and launch":"Clear the range and fire"}</button>`);}
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   if(b.dataset.take){takeContract(b.dataset.take);return;}
@@ -2655,6 +2816,8 @@ document.addEventListener("click",e=>{
   if(b.dataset.slot){const was=GAME.slot;GAME.slot=b.dataset.slot;if(was!==GAME.slot&&(was==="hut"||GAME.slot==="hut")&&firingBill()){slotSheet();return;}document.querySelectorAll("#sheet [data-slot]").forEach(x=>{const on=x.dataset.slot===GAME.slot;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on);});}
   else if(b.dataset.go){closeSheet();startFiring(GAME.slot);}});
 
+/* a flight job launches the motor in its rocket; everything else fires on the stand */
+const shoot=(c,d,cond,seed)=>c&&c.flight?BURN_SIM.launch(d,cond,seed,{payload:c.flight.payload}):BURN_SIM.fire(d,cond,seed);
 /* fire one motor: draw it, grade it, charge and pay (career), log it, save, then run the firing screen. undoFiring takes it
    back (an abort during the countdown): the career goes back to how it was, so the next attempt fires the same motor */
 function startFiring(slot){
@@ -2662,10 +2825,10 @@ function startFiring(slot){
   if(inCareer()&&c){
     const car=S.career,job=car.jobs[c.id];if(!job){toast("This job is finished. Pick another from the work orders.");return;}
     const r=DZ.res;if(!r||!r.ok){toast("This motor can't be built.");return;}
-    const bill=BURN_SIM.firingCost(c.stand,r.motor,d,slot);
+    const bill=BURN_SIM.firingCost(c.stand,r.motor,d,slot,!!c.flight);
     if(!BURN_SIM.canAfford(car,bill.total)){toast("The bank won't cover this firing.");return;}
     const before=clone(car),n=job.n+1,seed=BURN_SIM.fireSeed(car,c.id,n),rate=BURN_SIM.CAREER.logRate[car.bunker]||BURN_SIM.CAREER.logRate[0];
-    const f=BURN_SIM.fire(d,{tGrain:tG,logRate:rate},seed);if(!f.ok){toast("This motor can't be built.");return;}
+    const f=shoot(c,d,{tGrain:tG,logRate:rate},seed);if(!f.ok){toast("This motor can't be built.");return;}
     const g=BURN_SIM.grade(c,f),out=BURN_SIM.settle(car,c,g,bill.total);
     const entry=BURN_SIM.logFiring(car,{day:out.day,key:c.id,n,slot,tGrain:tG,seed,rate,design:d,letter:g.pass?g.letter:null,why:g.pass?null:g.why,
       fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late});
@@ -2681,7 +2844,7 @@ function undoFiring(){const L=GAME.last;if(!L)return;
   save(true);GAME.last=null;}
 /* a logbook entry's report: the same motor, conditions and seed fire the same, so the report comes back exactly */
 function replayFiring(e){
-  const c=BURN_SIM.contractById(e.key),tG=e.tGrain??BURN_SIM.SLOTS[e.slot].tGrain,f=BURN_SIM.fire(e.design,{tGrain:tG,logRate:e.rate},e.seed);if(!f.ok)return;
+  const c=BURN_SIM.contractById(e.key),tG=e.tGrain??BURN_SIM.SLOTS[e.slot].tGrain,f=shoot(c,e.design,{tGrain:tG,logRate:e.rate},e.seed);if(!f.ok)return;
   GAME.last={f,g:c?BURN_SIM.grade(c,f):null,c,slot:e.slot,tGrain:tG,n:e.n,key:e.key,no:e.no,design:e.design,entry:e,replay:true,bunker:e.rate>=BURN_SIM.CAREER.logRate[1]?1:0};
   openReport();}
 /* ===================== app/career.js: the title, the work orders, facilities, the logbook and saves (stage 4) =====================
@@ -2728,7 +2891,7 @@ function dueText(car,job){const left=job.due-car.day;
 function specList(c){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
   return`<ul class="wo-spec">${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
     ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
-    ${c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
+    ${c.flight?`<li>Flies from the <b>launch rail</b> with a <b class="mono">${c.flight.payload} kg</b> payload</li>`:c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
   const S_=BURN_SIM,jobs=Object.keys(car.jobs),offers=S_.board(car),broke=S_.isBroke(car);
@@ -2784,7 +2947,7 @@ function openLogbook(){
   const car=S.career,L=car.log.slice().reverse();
   $("lgList").innerHTML=L.length?L.map(e=>{const c=BURN_SIM.contractById(e.key),res=e.letter?`Pass ${e.letter}`:(STAMP[e.why]||"Fail");
     return`<button type="button" class="lg-row" data-log="${e.no}"><span class="mono lg-no">41-${String(e.no).padStart(3,"0")}</span>
-      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · motor ${e.n}</small></span>
+      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · ${c&&c.flight?"launch":"motor"} ${e.n}</small></span>
       <span class="lg-end"><span class="stamp ${e.letter?"pass":"fail"}">${esc(res)}</span><small class="mono">${e.paid?"+"+fmtCr(e.paid):"−"+fmtCr(e.cost)}</small></span></button>`;}).join("")
     :`<p class="hint">No firings yet. Every motor you fire is written up here, and you can read its report again.</p>`;
   showScreen("logbook");}
@@ -2811,15 +2974,24 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");
    A countdown, then the stand and the live strip chart: the measured trace (red) draws over the prediction (blue) as
    the motor burns, with pressure, thrust and time gauges. Burns shorter than 2 s play slowed down and burns longer than
    7 s sped up (the speed shows on screen). Abort works during the countdown; once it's lit, it's lit.
-   With reduced motion on, the countdown is skipped, the burn plays without flicker or shake. */
-const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1};
+   With reduced motion on, the countdown is skipped, the burn plays without flicker or shake.
+   A launch (f.flight) shows the rocket climbing from the rail (vis/flight.js sky) in place of the stand, and plays on
+   past burnout to apogee: the coast is sped up to take about four seconds. The first gauge reads height. */
+const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1};
+const COAST_S=4;   // seconds the coast to apogee takes on screen
+/* sim time at el seconds into the burn phase: the burn at FR.sp, then a launch's coast at FR.spC */
+const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb||!FR.tFly?el*FR.sp:FR.tEnd+(el-tb)*FR.spC;};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
 function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
   showScreen("fire");
-  $("frSite").textContent=`${L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(tG)} grain`;$("frDes").textContent=f.pred.sum.designation;
+  const fly=f.flight||null;
+  $("frSite").textContent=`${fly?"Launch rail":L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
+  $("frPL").textContent=fly?"Height":"Pressure";$("frPU").textContent=fly?"m":"MPa";
+  $("fire").setAttribute("aria-label",fly?"Launch":"Static firing");
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
+  FR.tFly=fly?Math.max(FR.tEnd,fly.lost?fly.tLost:fly.tApo):0;FR.spC=fly?Math.max(1,(FR.tFly-FR.tEnd)/COAST_S):1;
   FR.fPk=Math.max(1,...f.plog.f);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
@@ -2836,29 +3008,32 @@ function frameFiring(now){
     if(el>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
-  const t=el*FR.sp;
+  const t=frTime(el),tDone=Math.max(FR.tEnd,FR.tFly);
   drawFiring(t,still);
-  if(t<FR.tEnd+AFTER)FR.raf=requestAnimationFrame(frameFiring);
+  if(t<tDone+AFTER*(FR.tFly?FR.spC:1))FR.raf=requestAnimationFrame(frameFiring);
   else FR.phase="done";
-  if(t>=FR.tEnd&&$("frNext").hidden){$("frNext").hidden=false;$("frAbort").hidden=true;$("frNext").focus({preventScroll:true});}}
+  if(t>=tDone&&$("frNext").hidden){$("frNext").hidden=false;$("frAbort").hidden=true;$("frNext").focus({preventScroll:true});}}
 function drawFiring(t,still){
   const L=GAME.last,f=L.f,lg=f.log,m=f.motor,fl=f.failure;
   const i=t<0?0:BURN_VIS.at(lg,Math.min(t,FR.tEnd));
   const failAt=fl&&fl.destructive?fl.t:null;
   const failNow=fl&&(fl.key==="hangfire"?t>=0:failAt!=null&&t>=failAt)?{key:fl.key,age:fl.key==="hangfire"?t:t-failAt}:null;
-  BURN_VIS.stand($("frStand"),{len:m.length,dia:m.diameter,f:t<0?0:lg.f[i]/FR.fPk,t,fail:failNow,still,
+  const fly=f.flight;
+  if(fly)BURN_VIS.sky($("frStand"),{path:fly.samples,t,tBurn:failAt!=null?Math.min(failAt,FR.tEnd):FR.tEnd,apogee:Math.max(fly.apogee,f.fpred?f.fpred.apogee:0),lost:fly.lost?fly.tLost:null,still,
+    h:w=>Math.min(w*0.62,260)});
+  else BURN_VIS.stand($("frStand"),{len:m.length,dia:m.diameter,f:t<0?0:lg.f[i]/FR.fPk,t,fail:failNow,still,
     smoke:t>FR.tEnd?t-FR.tEnd:(failNow&&fl.key!=="hangfire"?failNow.age:-1)});
   BURN_VIS.strip($("frStrip"),{pred:f.plog,meas:lg,upto:t<0?-1:t,now:t>=0&&t<=FR.tEnd,pLine:f.limits.pBurst,
     mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,events:f.events.map(e=>({t:e.t,label:e.key}))});
-  const tt=t<0?0:Math.min(t,FR.tEnd);
-  $("frP").textContent=(t<0?0:lg.p[i]/1e6).toFixed(2);$("frF").textContent=String(Math.round(t<0?0:lg.f[i]));$("frT").textContent=tt.toFixed(2);}
+  const tt=t<0?0:Math.min(t,fly?FR.tFly:FR.tEnd);
+  $("frP").textContent=fly?String(Math.round(t<0?0:BURN_VIS.pathAt(fly.samples,Math.min(t,FR.tFly)).h)):(t<0?0:lg.p[i]/1e6).toFixed(2);$("frF").textContent=String(Math.round(t<0?0:lg.f[i]));$("frT").textContent=tt.toFixed(2);}
 function abortFiring(){
   if(FR.phase==="count"){cancelAnimationFrame(FR.raf);FR.phase="idle";undoFiring();toast("Countdown held. The motor is still on the stand.");showScreen("design");return;}
   toast("Once it's lit, it's lit.");$("frAbort").disabled=true;}
 function initFiring(){
   $("frAbort").addEventListener("click",abortFiring);
   $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";openReport();});
-  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(FR.tEnd+AFTER,reduced());}});}
+  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+AFTER,reduced());}});}
 /* ===================== app/report.js: the range report and the incident report (plan section 8) =====================
    After every firing: the measured trace over the prediction, the spec checked line by line, and the grade. When it
    failed, the same form becomes the incident report: the failure moment marked on the chart, the root cause in one
@@ -2867,7 +3042,9 @@ function initFiring(){
    The blockhouse data (the real motor's deviations from the grade's and the materials' ratings) sit in a fold-out; with
    the basic instruments only the batch and the case show (the Blockhouse instruments facility shows the rest).
    In a career the bill follows: the stand's fee, the motor's materials, the client's pay (grade and lateness) and the
-   money left. A logbook entry's report (GAME.last.replay) is read-only. */
+   money left. A logbook entry's report (GAME.last.replay) is read-only.
+   A launch (f.flight) adds the flight: height against time, predicted (no wind) and real, with apogee, top speed, the
+   day's wind and where it landed; the motor's own curves follow as the onboard logger's data. */
 const STAMP={cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
 const RSO_LINES={
   A:["Clean curve. Write it up and go home early.","It did what you said it would. Rare. Signed.","Textbook. I'll pin the trace on the blockhouse wall."],
@@ -2880,7 +3057,9 @@ const RSO_LINES={
   chuff:["Sounded like a tractor that won't start. Give it more pressure.","Puff, puff, puff. The customer wanted a motor."],
   spec:["It works. It just isn't what they ordered.","A fine motor for somebody else's contract."],
   yield:["The tube came off the stand wider than it went on.","Stretched cases don't fly. Thicker wall."],
-  free:["Data logged. Nobody's paying for this one, so make it count.","Free firing. The range fee is not free."]};
+  free:["Data logged. Nobody's paying for this one, so make it count.","Free firing. The range fee is not free."],
+  lost:["The recovery team brought back a bag of bits. That was the rocket.","It came apart at a height I'd rather not write down.","The motor went before the rocket did. Then the rocket went too."],
+  flyA:["Straight up, straight down, right where they wanted it. Signed.","The altimeter agrees with you. So do I."]};
 const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
 const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
 const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
@@ -2888,11 +3067,12 @@ function openReport(){renderReport();showScreen("report");}
 function renderReport(){
   const L=GAME.last;if(!L)return;
   const f=L.f,g=L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain,fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
-  const pass=c?g.pass:!fl,key=c?(g.pass?g.letter:g.why):(fl?fl.key:"free");
-  const stamp=c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
+  const fly=f.flight||null,lost=!!(fly&&fly.lost);
+  const pass=c?g.pass:!fl,key=lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");
+  const stamp=lost?"Rocket lost":c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
   /* the spec, line by line: band, predicted at this temperature, measured */
   const checks=c?g.checks.length?g.checks:BURN_SIM.specCheck(c.spec,ms,m):[];
-  const predChecks=c?BURN_SIM.specCheck(c.spec,ps,m):[];
+  const predChecks=c?BURN_SIM.specCheck(c.spec,fly&&f.fpred?Object.assign({},ps,{apogee:f.fpred.apogee}):ps,m):[];
   const rows=checks.map((k,i)=>`<tr><th><button type="button" class="gl" data-g="${k.info.gloss||"impulse"}">${esc(k.info.name)}</button><small>${esc(bandText(k))}</small></th>
     <td class="mono">${fmtSpec(k.k,predChecks[i].v)}</td><td class="mono"><b class="${fl&&fl.destructive?"":k.ok?"good":"crit"}">${fmtSpec(k.k,k.v)}</b></td><td aria-label="${k.ok?"in spec":"out of spec"}">${fl&&fl.destructive?"–":k.ok?"✓":"✗"}</td></tr>`).join("");
   const basic=[["impulse","Total impulse",ps.I.toFixed(1),ms.I.toFixed(1),"N·s"],["thrust","Average thrust",ps.Fav.toFixed(0),ms.Fav.toFixed(0),"N"],
@@ -2917,7 +3097,8 @@ function renderReport(){
   let bill="";
   if(L.out){const b=L.bill,o=L.out,car=S.career;
     bill=`<section class="card rp-bill"><h3>The bill</h3><table class="dtab mono">
-      <tr><th>${esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
+      <tr><th>${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
+      ${b.hut?`<tr><th>Conditioning hut</th><td>−${fmtCr(b.hut)}</td></tr>`:""}${b.air?`<tr><th>The rocket (${esc(fly?fly.rocket.body.name:"airframe")})</th><td>−${fmtCr(b.air)}</td></tr>`:""}
       <tr><th><details><summary>Motor materials</summary><ul>${b.build.items.filter(x=>x.cr>0).map(x=>`<li>${esc(x.label)}: ${fmtCr(x.cr)}</li>`).join("")}</ul></details></th><td>−${fmtCr(b.build.total)}</td></tr>
       ${o.paid?`<tr><th>${esc(c.client)} pays (grade ${g.letter} ×${o.gradeMul}${o.late?`, ${o.late} day${o.late>1?"s":""} late ×${o.lateMul.toFixed(1)}`:""})</th><td class="good">+${fmtCr(o.paid)}</td></tr>`:""}
       <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>
@@ -2929,11 +3110,11 @@ function renderReport(){
     :`<button type="button" class="btn pri" id="rpBench">Back to the bench</button>${!c||S.career&&S.career.jobs[c.id]?`<button type="button" class="btn" id="rpAgain">Fire another</button>`:""}${c?`<button type="button" class="btn" id="rpBoard">Work orders</button>`:""}`;
   $("rpBody").innerHTML=`
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
-      <span class="site">Aqsor Range · Site 41 · ${esc(c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
-      <h2 class="sign">${fl&&fl.destructive?"Incident report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
-      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · motor ${L.n}${c?` · ${esc(c.client)}`:""}</p>
+      <span class="site">Aqsor Range · Site 41 · ${esc(fly?"Launch rail":c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
+      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
+      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${fly?"launch":"motor"} ${L.n}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
-    ${broke}<section class="card rp-chart"><canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
+    ${broke}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
@@ -2945,8 +3126,25 @@ function renderReport(){
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
     <div class="rp-act">${act}</div>`;
   drawReportChart();}
+/* the flight's card: the altitude chart and the numbers that made it */
+function flightCard(f,tG){
+  const fl=f.flight,fp=f.fpred,R=fl.rocket,row=(g,k,a,b)=>`<tr><th><button type="button" class="gl" data-g="${g}">${k}</button></th><td class="mono">${a}</td><td class="mono"><b>${b}</b></td></tr>`;
+  const dir=fl.drift<0?"upwind":"downwind";
+  return`<section class="card rp-fly"><h3><button type="button" class="gl" data-g="apogee">The flight</button></h3>
+    <canvas id="rpFly" role="img" aria-label="Height against time: predicted apogee ${Math.round(fp.apogee)} m, ${fl.lost?`rocket lost at ${Math.round(fl.hLost)} m`:`real apogee ${Math.round(fl.apogee)} m`}"></canvas>
+    <p class="dz-key"><span class="k-pr"></span>Predicted, ${degC(tG)}, no wind<span class="k-me"></span>Flown</p>
+    ${fl.lost?`<p class="sev crit">The motor failed ${fl.hLost<BURN_SIM.FLIGHT.rail?`on the launch rail, ${fl.tLost.toFixed(2)} s after ignition`:`${fl.tLost.toFixed(2)} s after ignition, ${Math.round(fl.hLost)} m up`}. The rocket and the client's payload are gone.</p>`:""}
+    <table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Flown</th></tr></thead><tbody>
+    ${row("apogee","Apogee",Math.round(fp.apogee)+" m",fl.lost?"–":Math.round(fl.apogee)+" m")}
+    ${row("apogee","Top speed",Math.round(fp.vMax)+" m/s",Math.round(fl.vMax)+" m/s")}
+    ${row("railSpeed","Off the rail",fp.vRail.toFixed(1)+" m/s",fl.vRail>0?fl.vRail.toFixed(1)+" m/s":"–")}
+    ${row("wind","Wind on the rail","none",fl.wind.toFixed(1)+" m/s")}
+    ${fl.lost?"":row("wind","Apogee drift","0 m",`${Math.round(Math.abs(fl.drift))} m ${dir}`)}
+    </tbody></table>
+    <p class="hint">${esc(R.body.name)}, ${esc(R.nose.name.toLowerCase())} nose, ${esc(R.fins.name.toLowerCase())} · ${R.mass0.toFixed(2)} kg at liftoff${R.payload?`, ${R.payload} kg of it payload`:""}.</p></section>`;}
 function drawReportChart(){
-  const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.f,fl=f.failure;
+  const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.f,fl=f.failure,fly=f.flight;
+  if(fly&&$("rpFly"))BURN_VIS.altitude($("rpFly"),{pred:f.fpred.samples,meas:fly.samples,apoP:f.fpred.apogee,apoM:fly.apogee,lost:fly.lost?{t:fly.tLost,h:fly.hLost}:null});
   BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
     events:f.events.map(e=>({t:e.t,label:e.key}))});}
 function initReport(){

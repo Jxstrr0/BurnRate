@@ -16,14 +16,16 @@
 | `data/variance.js` | `VARIANCE`: how a real firing differs from the prediction; `SLOTS`: dawn, noon, dusk temperatures and the hut; `HUT`: the hut's range |
 | `data/contracts.js` | `GRADING`, `STANDS` (with range fees and load cells), `CONTRACTS`: the work orders (tiers 1 to 3) with pay, days, repeats and a solution design |
 | `data/career.js` | `CAREER` (money, prices, pay, reputation, late cut, limits), `FACILITIES` (blockhouse instruments, Stand 2, the conditioning hut, Stand 1) |
-| `sim/levelset.js` | level-set cross-sections (star, slotted, finocyl fins, moonburner): the port on a grid, a distance transform, then area, perimeter and port tables against web distance |
+| `data/flight.js` | `FLIGHT` (the launch rail, wind, air and drag numbers), `BODIES`, `NOSES`, `FINS`: the rocket parts for flight jobs |
+| `sim/levelset.js` | level-set cross-sections (star, slotted, finocyl fins, moonburner): the port's exact signed distance on a grid, then area, perimeter and port tables against web distance |
 | `sim/grain.js` | `buildGrain`: burning area, volume and port against web distance (analytic shapes, or level-set segments) |
 | `sim/nozzle.js` | isentropic nozzle, `thrustCoef` with separation, `chokedFrac`, `nozzleEta` |
 | `sim/motor.js` | `designErrors`, `motorFromDesign`: a design in mm to an SI motor with masses and ratings |
 | `sim/ballistics.js` | `simulate`: the firing, step by step (backward Euler lumped chamber), with erosive burning |
 | `sim/derive.js` | `summarize`, `warnings`, `impulseClass`, `predict` (the designer's one call) |
 | `sim/fire.js` | `fire`: a static firing with seeded variance, failure detection, the incident report's cause and factors |
-| `sim/grade.js` | `SPEC_INFO`, `specCheck`, `grade` (A, B, C or fail), `preFire` (stand fit, load cell, part tiers) |
+| `sim/grade.js` | `SPEC_INFO`, `specCheck`, `grade` (A, B, C or fail; a flight job grades the flown apogee), `preFire` (stand fit, load cell, part tiers) |
+| `sim/flight.js` | flight tests: `rocketOf`, `defaultAirframe`, `airframeCost`, `fly` (point mass, drag, Mach, wind), `predictFlight`, `preLaunch`, `windOf`, `launch` |
 | `sim/career.js` | the career's rules, pure: `newCareer`, `slotTemp`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed` |
 | `sim/close.js` | `return SIM;})();` and `module.exports` for node |
 | `html/ld-sim.html` | loading bar step |
@@ -33,6 +35,7 @@
 | `vis/section.js` | `section`: the motor cut along its axis, grain burned back, and an end-on view |
 | `vis/strip.js` | `strip`: the firing's strip chart, measured over predicted, pressure above thrust |
 | `vis/stand.js` | `stand`: the 2D test stand placeholder with the plume and the failure effects |
+| `vis/flight.js` | `altitude` (height against time, predicted and flown), `sky` (the launch drawn to scale), `pathAt` |
 | `vis/close.js` | `return VIS;})();` and closes the `<script>` |
 | `app/state.js` | opens the app `<script>`; `VERSION`, settings (`brn-settings`), `toast`, `openSheet` / `closeSheet` |
 | `app/pwa.js` | service worker registration and the "New version ready" bar |

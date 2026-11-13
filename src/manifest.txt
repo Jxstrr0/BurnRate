@@ -32,6 +32,7 @@ vis/chart.js
 vis/section.js
 vis/strip.js
 vis/stand.js
+vis/flight.js
 vis/close.js
 # --- the app block: the page glue ---
 app/state.js

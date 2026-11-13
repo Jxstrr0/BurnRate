@@ -103,6 +103,7 @@ module.exports = ({ SIM, check, near }) => {
   check("contracts: well formed; every start design builds; every solution fits the stand and passes", () => {
     const out = [];
     for (const c of SIM.CONTRACTS) {
+      if (c.flight && !(c.flight.payload >= 0 && c.spec.some(s => s.k === "apogee"))) throw new Error(c.id + ": a flight job needs a payload and an apogee criterion");
       if (!SIM.STANDS[c.stand]) throw new Error(c.id + ": no stand " + c.stand);
       if (c.slot && !SIM.SLOTS[c.slot]) throw new Error(c.id + ": no slot " + c.slot);
       for (const s of c.spec) if (!SIM.SPEC_INFO[s.k] || (s.lo == null && s.hi == null)) throw new Error(c.id + ": bad criterion " + s.k);
@@ -112,12 +113,17 @@ module.exports = ({ SIM, check, near }) => {
       if (!m.ok) throw new Error(c.id + ": solution doesn't build");
       const pf = SIM.preFire(k, c.solution, m, { tier: c.tier, sum: SIM.predict(c.solution, { tGrain: 20 }).sum });
       if (pf.length) throw new Error(c.id + ": " + pf[0].text);
+      if (c.flight) {   // a flight job: the solution carries its rocket, and the range would launch it
+        const pl = SIM.preLaunch(c.solution, m, SIM.predict(c.solution, { tGrain: 20 }).run, c.flight.payload, c.tier);
+        if (pl.length) throw new Error(c.id + ": " + pl[0].text);
+      }
+      const shoot = (cond, seed) => c.flight ? SIM.launch(c.solution, cond, seed, { payload: c.flight.payload }) : SIM.fire(c.solution, cond, seed);
       let best = 0, bestSlot = "";
       if (c.slot === "hut" && !(c.tGrain >= SIM.HUT.min && c.tGrain <= SIM.HUT.max)) throw new Error(c.id + ": a hut job needs a tGrain in the hut's range");
       for (const slot of c.slot ? [c.slot] : ["dawn", "noon", "dusk"]) {
         let pass = 0;
         const tGrain = SIM.slotTemp(slot, c, null);
-        for (let i = 0; i < 8; i++) if (SIM.grade(c, SIM.fire(c.solution, { tGrain }, c.id + "/" + i)).pass) pass++;
+        for (let i = 0; i < 8; i++) if (SIM.grade(c, shoot({ tGrain }, c.id + "/" + i)).pass) pass++;
         if (pass > best) { best = pass; bestSlot = slot; }
       }
       if (best < 7) throw new Error(`${c.id}: the solution passes only ${best}/8 at ${bestSlot}`);

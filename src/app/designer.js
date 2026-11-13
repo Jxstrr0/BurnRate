@@ -1,7 +1,8 @@
 /* ===================== app/designer.js: the design bench (stage 2; plan sections 4, 6.8 and 9.2) =====================
    The player edits a motor and the predictor redraws as they drag. Top (sticky): the live view (predicted curves or the
    cross-section, swipe or tap to switch) with a burn scrubber, the key numbers and the warning flags. Below: the tabs
-   Grain · Nozzle · Case · Igniter with thumb-sized controls.
+   Grain · Nozzle · Case · Igniter with thumb-sized controls, and on a flight job a Rocket tab: the body tube, nose and fins,
+   with the predicted flight (sim/flight.js predictFlight, no wind) and the range's launch checks as flags.
    While a slider moves, the sim runs with fewer steps (DRAG_STEPS) once per frame; on release it runs in full.
    A warning flag opens its explanation with a button that jumps to the control to change.
    The bottom bar (app/game.js) checks the contract's spec against the prediction and leads to the stand. The predictor runs
@@ -10,8 +11,9 @@
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
-const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
+const tabsNow=()=>isFlight()?TABS.concat([["airframe","Rocket"]]):TABS;
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
   flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike",ero:"Erosive spike"};
 const clone=o=>JSON.parse(JSON.stringify(o));
@@ -54,6 +56,11 @@ function controls(tab,d){
     {f:"case.closure",type:"seg",label:"Closures held by",g:"closure",opts:[["ring","Snap ring"],["bolts","Radial bolts"]]},
     d.case.closure==="bolts"&&{f:"case.bolts",type:"step",label:"Bolts",g:"retention",min:3,max:36}
   ].filter(Boolean);
+  if(tab==="airframe")return[
+    {f:"airframe.info",type:"info",html:()=>`<div class="ctl rocket" id="dzRocket" aria-live="polite"></div>`},
+    {f:"airframe.body",type:"pick",label:"Body tube",g:"airframe",items:S.BODIES,sub:b=>`${b.id} mm inside · ${Math.round(b.kgm*1000)} g a metre · ${b.cost} cr a metre`},
+    {f:"airframe.nose",type:"pick",label:"Nose cone",g:"noseCone",items:S.NOSES,sub:n=>`drag ${n.cd.toFixed(2)} · ${n.note}`},
+    {f:"airframe.fins",type:"pick",label:"Fins",g:"stability",items:S.FINS,sub:x=>`drag ${x.cd.toFixed(2)} · steady up to ${x.maxLD} body diameters long · ${x.note}`}];
   return[{f:"igniter",type:"pick",label:"Igniter",g:"igniter",items:S.IGNITERS,sub:i=>`${(i.gas*1000).toFixed(2)} g of gas over ${Math.round(i.burn*1000)} ms`}];
 }
 const TAB_OF=f=>f.split(".")[0];
@@ -75,6 +82,7 @@ function clampDesign(d){
 
 /* ---- rendering the tab panel ---- */
 function ctlHtml(c,d){
+  if(c.type==="info")return c.html(d);
   const v=getF(d,c.f),lab=`<button type="button" class="gl" data-g="${c.g}">${esc(c.label)}</button>`;
   if(c.type==="pick")return`<fieldset class="ctl pick" data-field="${c.f}"><legend>${lab}</legend>${Object.entries(c.items).map(([id,it])=>
     `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${it.tier>1?`<span class="tag${inCareer()&&it.tier>S.career.tier?" lock":""}">Tier ${it.tier}${inCareer()&&it.tier>S.career.tier?" · locked":""}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
@@ -89,20 +97,23 @@ function ctlHtml(c,d){
     <input type="range" data-slide="${c.f}" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" aria-label="${esc(c.label)}">
     <button type="button" class="nudge" data-nudge="${c.f}" data-by="1" aria-label="More">+</button></div>${ex}</div>`;
 }
+function renderTabs(){
+  if(!tabsNow().some(([id])=>id===DZ.tab))DZ.tab="grain";
+  $("dzTabs").innerHTML=tabsNow().map(([id,n])=>`<button type="button" role="tab" data-tab="${id}">${n}</button>`).join("");}
 function renderPanel(){
   const d=DZ.d;
   document.querySelectorAll("#dzTabs [data-tab]").forEach(b=>{const on=b.dataset.tab===DZ.tab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on);});
   $("dzPanel").innerHTML=controls(DZ.tab,d).map(c=>ctlHtml(c,d)).join("");
-  markErrors();
+  markErrors();drawRocket();
 }
 function ctlSpec(f){return controls(TAB_OF(f),DZ.d).find(c=>c.f===f);}
 /* after a slider moves, update its readout and the extras of the controls on screen without rebuilding the panel */
 function refreshReadouts(){
-  for(const c of controls(DZ.tab,DZ.d)){
+  for(const c of controls(DZ.tab,DZ.d)){if(c.type==="info")continue;
     const o=document.querySelector(`[data-out="${c.f}"]`);if(o)o.textContent=fmtV(c,getF(DZ.d,c.f));
     const e=document.querySelector(`[data-ex="${c.f}"]`);if(e&&c.extra)e.textContent=c.extra(DZ.d);}}
 function markErrors(){
-  const bad=new Set(DZ.res&&!DZ.res.ok?DZ.res.errors.map(e=>e.field):[]);
+  const bad=new Set(DZ.res&&!DZ.res.ok?DZ.res.errors.map(e=>e.field):flightChecks().crit.map(e=>e.field));
   document.querySelectorAll("#dzPanel [data-field]").forEach(el=>el.classList.toggle("bad",bad.has(el.dataset.field)));}
 
 /* ---- the sim, at most once a frame ---- */
@@ -110,7 +121,38 @@ function schedule(fast){
   DZ.fast=DZ.fast===null?fast:(DZ.fast&&fast);
   if(DZ.raf)return;
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
-    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);drawAll();});}
+    DZ.res=BURN_SIM.predict(DZ.d,{tGrain:DZ.tGrain},f?{steps:DRAG_STEPS}:undefined);
+    DZ.fl=isFlight()&&DZ.res.ok?BURN_SIM.predictFlight(DZ.d,DZ.res.motor,DZ.res.run,payloadKg()):null;drawAll();});}
+/* the bench's numbers for the spec: a flight job's apogee is the predicted flight's */
+function benchSum(){const r=DZ.res;return r&&r.ok?isFlight()?Object.assign({},r.sum,{apogee:DZ.fl?DZ.fl.apogee:NaN}):r.sum:null;}
+/* a flight job's launch checks: crit = what stops the range launching it (sim/flight.js preLaunch), warn = a slow start */
+function flightChecks(){
+  const out={crit:[],warn:[]},r=DZ.res;if(!isFlight()||!r||!r.ok)return out;
+  out.crit=BURN_SIM.preLaunch(DZ.d,r.motor,r.run,payloadKg(),inCareer()?S.career.tier:null);
+  const fl=DZ.fl,F=BURN_SIM.FLIGHT;
+  if(fl&&fl.left&&!out.crit.length){
+    if(fl.vRail<F.railMin)out.warn.push({key:"rail",short:"Slow off the rail",g:"railSpeed",field:"nozzle.throatD",
+      text:`It leaves the ${F.rail} m rail at ${fl.vRail.toFixed(1)} m/s. Under ${F.railMin} m/s the fins can't steer yet, so a gust tips it over. More thrust at the start, or a lighter rocket.`});
+    if(fl.twr0<F.twrMin)out.warn.push({key:"twr",short:"Slow start",g:"twr",field:"nozzle.throatD",
+      text:`At liftoff the motor pushes ${fl.twr0.toFixed(1)} times the rocket's weight. Under ${F.twrMin}× it climbs off the pad slowly and the wind pushes it around.`});}
+  return out;}
+/* the Rocket tab's readout: the predicted flight and what the rocket is made of */
+function drawRocket(){
+  const el=$("dzRocket");if(!el)return;
+  const r=DZ.res,fl=DZ.fl;
+  if(!r||!r.ok||!fl){el.innerHTML=`<p class="hint">${r&&r.ok?"Pick a body tube, a nose and fins.":"The motor can't be built yet."}</p>`;return;}
+  const R=fl.rocket,F=BURN_SIM.FLIGHT,mach=fl.vMax/F.sound,row=(g,k,v,cls)=>`<tr><th><button type="button" class="gl" data-g="${g}">${k}</button></th><td class="mono ${cls||""}">${v}</td></tr>`;
+  const cost=BURN_SIM.airframeCost(DZ.d,r.motor);
+  el.innerHTML=`<div class="ctl-h"><button type="button" class="gl" data-g="apogee">Predicted apogee</button><span class="val mono big">${fl.left?Math.round(fl.apogee)+" m":"no liftoff"}</span></div>
+    <p class="hint">At ${degC(DZ.tGrain)}, with no wind. On the day the wind and the real motor move it.</p>
+    <table class="dtab mono">${row("apogee","Top speed",`${Math.round(fl.vMax)} m/s · Mach ${mach.toFixed(2)}`)}
+    ${row("railSpeed","Off the rail at",fl.vRail.toFixed(1)+" m/s",fl.vRail<F.railMin?"warn":"")}
+    ${row("twr","Thrust-to-weight",fl.twr0.toFixed(1)+"×",fl.twr0<F.twrMin?"warn":"")}
+    ${row("stability","Length / diameter",`${R.LD.toFixed(1)} (fins hold ${R.fins.maxLD})`,R.LD>R.fins.maxLD?"crit":"")}
+    ${row("airframe","Liftoff mass",`${R.mass0.toFixed(2)} kg${R.payload?` with ${R.payload} kg payload`:""}`)}
+    ${row("drag","Drag coefficient",R.cd.toFixed(2))}
+    ${row("airframe","Rocket length",Math.round(R.L*1000)+" mm")}
+    ${inCareer()?row("airframe","Rocket build",fmtCr(cost)):""}</table>`;}
 function change(f,v,fast){
   setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);if(!fast)save();}
 
@@ -129,10 +171,13 @@ function drawAll(){
   const cell=(g,lab,val,cls)=>`<button type="button" class="num" data-g="${g}"><span>${lab}</span><b class="mono ${cls||""}">${val}</b></button>`;
   $("dzNums").innerHTML=cell("impulse","N·s",s.I<100?s.I.toFixed(1):Math.round(s.I))+cell("thrust","Avg N",Math.round(s.Fav))+
     cell("burnTime","Burn s",s.tb.toFixed(2))+cell("pressure","Peak MPa",(s.Pmax/1e6).toFixed(2))+
-    cell("isp","Isp s",s.Isp.toFixed(0))+cell("sf","Safety",s.sf>=10?s.sf.toFixed(0):s.sf.toFixed(2),sfCls);
-  $("dzFlags").innerHTML=s.warnings.length?s.warnings.map((w,i)=>`<button type="button" class="flag ${w.sev}" data-warn="${i}">${esc(FLAG_SHORT[w.key]||w.key)}</button>`).join("")
+    (isFlight()?cell("apogee","Apogee m",DZ.fl&&DZ.fl.left?Math.round(DZ.fl.apogee):"–"):cell("isp","Isp s",s.Isp.toFixed(0)))+cell("sf","Safety",s.sf>=10?s.sf.toFixed(0):s.sf.toFixed(2),sfCls);
+  const fc=flightChecks();
+  $("dzFlags").innerHTML=s.warnings.length||fc.crit.length||fc.warn.length?fc.crit.map(e=>`<button type="button" class="flag crit" data-fix="${e.field}">${esc(e.text)}</button>`).join("")+
+    s.warnings.map((w,i)=>`<button type="button" class="flag ${w.sev}" data-warn="${i}">${esc(FLAG_SHORT[w.key]||w.key)}</button>`).join("")+
+    fc.warn.map((w,i)=>`<button type="button" class="flag warn" data-fwarn="${i}">${esc(w.short)}</button>`).join("")
     :`<span class="flag ok">No warnings</span>`;
-  drawView();markErrors();drawGo();
+  drawView();markErrors();drawGo();drawRocket();
 }
 function drawView(){
   const r=DZ.res;if(!r||!r.ok)return;
@@ -149,7 +194,7 @@ function setView(v){DZ.view=v;document.querySelectorAll("#dzView [data-view]").f
 /* ---- sheets: a warning, the data sheet ---- */
 function warnSheet(w){
   const c=ctlSpec(w.field),g=GLOSS[w.gloss];
-  openSheet(FLAG_SHORT[w.key]||"Warning",`<p class="sev ${w.sev}"><b>${w.sev==="crit"?"This will fail.":"Risky."}</b> ${esc(w.text)}</p>
+  openSheet(w.short||FLAG_SHORT[w.key]||"Warning",`<p class="sev ${w.sev}"><b>${w.sev==="crit"?"This will fail.":"Risky."}</b> ${esc(w.text)}</p>
     ${g?`<h3>${esc(g.t)}</h3><p>${esc(g.d)}</p>`:""}
     ${c?`<button type="button" class="btn pri" data-fix="${w.field}">Go to ${esc(c.label.toLowerCase())}</button>`:""}`);}
 function dataRows(r){
@@ -186,7 +231,6 @@ function goToField(f){
 /* ---- wiring, once ---- */
 function initDesigner(){
   if(DZ.inited)return;DZ.inited=true;
-  $("dzTabs").innerHTML=TABS.map(([id,n])=>`<button type="button" role="tab" data-tab="${id}">${n}</button>`).join("");
   $("dzTabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;DZ.tab=b.dataset.tab;renderPanel();});
   $("dzView").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view);});
   /* swipe the live view left or right to switch between the curves and the cross-section */
@@ -205,7 +249,8 @@ function initDesigner(){
     else if(b.dataset.nudge){const c=ctlSpec(b.dataset.nudge),v=Math.max(c.min,Math.min(c.max,+(getF(DZ.d,c.f)+c.step*(+b.dataset.by)).toFixed(2)));change(c.f,v,false);renderPanel();
       const n=document.querySelector(`[data-nudge="${c.f}"][data-by="${b.dataset.by}"]`);if(n)n.focus({preventScroll:true});}});
   $("dzFlags").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-    if(b.dataset.fix)goToField(b.dataset.fix);else if(b.dataset.warn!=null)warnSheet(DZ.res.sum.warnings[+b.dataset.warn]);});
+    if(b.dataset.fix)goToField(b.dataset.fix);else if(b.dataset.warn!=null)warnSheet(DZ.res.sum.warnings[+b.dataset.warn]);
+    else if(b.dataset.fwarn!=null){const w=flightChecks().warn[+b.dataset.fwarn];if(w)warnSheet(Object.assign({sev:"warn",gloss:w.g},w));}});
   /* buttons inside a sheet: jump to a control, or load a reference motor */
   document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
     if(b.dataset.fix)goToField(b.dataset.fix);
@@ -218,9 +263,11 @@ function openDesigner(){
   initDesigner();
   if(!DZ.d)DZ.d=clone(BURN_SIM.DEFAULT_DESIGN);
   BURN_SIM.normDesign(DZ.d);   // an older save's design gets the newer grain fields
-  showScreen("design");renderPanel();setView(DZ.view);
+  /* a flight job's bench opens with a rocket that fits the motor */
+  if(isFlight()&&!BURN_SIM.airframeOf(DZ.d)){const m=BURN_SIM.motorFromDesign(DZ.d);DZ.d.airframe=m.ok?BURN_SIM.defaultAirframe(m):{body:"kraft43",nose:"ogive",fins:"three"};save();}
+  renderTabs();showScreen("design");renderPanel();setView(DZ.view);
   $("dzScrub").value=Math.round(DZ.scrub*1000);
-  DZ.res=null;schedule(false);
+  DZ.res=null;DZ.fl=null;schedule(false);
 }
 /* screens: one <main> shows at a time. One history entry stands for "inside the game"; the phone's Back button walks
    up a level (report -> bench -> work orders -> title; a logbook report -> logbook -> work orders) and pushes the entry

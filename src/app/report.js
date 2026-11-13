@@ -6,7 +6,9 @@
    The blockhouse data (the real motor's deviations from the grade's and the materials' ratings) sit in a fold-out; with
    the basic instruments only the batch and the case show (the Blockhouse instruments facility shows the rest).
    In a career the bill follows: the stand's fee, the motor's materials, the client's pay (grade and lateness) and the
-   money left. A logbook entry's report (GAME.last.replay) is read-only. */
+   money left. A logbook entry's report (GAME.last.replay) is read-only.
+   A launch (f.flight) adds the flight: height against time, predicted (no wind) and real, with apogee, top speed, the
+   day's wind and where it landed; the motor's own curves follow as the onboard logger's data. */
 const STAMP={cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
 const RSO_LINES={
   A:["Clean curve. Write it up and go home early.","It did what you said it would. Rare. Signed.","Textbook. I'll pin the trace on the blockhouse wall."],
@@ -19,7 +21,9 @@ const RSO_LINES={
   chuff:["Sounded like a tractor that won't start. Give it more pressure.","Puff, puff, puff. The customer wanted a motor."],
   spec:["It works. It just isn't what they ordered.","A fine motor for somebody else's contract."],
   yield:["The tube came off the stand wider than it went on.","Stretched cases don't fly. Thicker wall."],
-  free:["Data logged. Nobody's paying for this one, so make it count.","Free firing. The range fee is not free."]};
+  free:["Data logged. Nobody's paying for this one, so make it count.","Free firing. The range fee is not free."],
+  lost:["The recovery team brought back a bag of bits. That was the rocket.","It came apart at a height I'd rather not write down.","The motor went before the rocket did. Then the rocket went too."],
+  flyA:["Straight up, straight down, right where they wanted it. Signed.","The altimeter agrees with you. So do I."]};
 const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
 const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
 const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
@@ -27,11 +31,12 @@ function openReport(){renderReport();showScreen("report");}
 function renderReport(){
   const L=GAME.last;if(!L)return;
   const f=L.f,g=L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain,fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
-  const pass=c?g.pass:!fl,key=c?(g.pass?g.letter:g.why):(fl?fl.key:"free");
-  const stamp=c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
+  const fly=f.flight||null,lost=!!(fly&&fly.lost);
+  const pass=c?g.pass:!fl,key=lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");
+  const stamp=lost?"Rocket lost":c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
   /* the spec, line by line: band, predicted at this temperature, measured */
   const checks=c?g.checks.length?g.checks:BURN_SIM.specCheck(c.spec,ms,m):[];
-  const predChecks=c?BURN_SIM.specCheck(c.spec,ps,m):[];
+  const predChecks=c?BURN_SIM.specCheck(c.spec,fly&&f.fpred?Object.assign({},ps,{apogee:f.fpred.apogee}):ps,m):[];
   const rows=checks.map((k,i)=>`<tr><th><button type="button" class="gl" data-g="${k.info.gloss||"impulse"}">${esc(k.info.name)}</button><small>${esc(bandText(k))}</small></th>
     <td class="mono">${fmtSpec(k.k,predChecks[i].v)}</td><td class="mono"><b class="${fl&&fl.destructive?"":k.ok?"good":"crit"}">${fmtSpec(k.k,k.v)}</b></td><td aria-label="${k.ok?"in spec":"out of spec"}">${fl&&fl.destructive?"–":k.ok?"✓":"✗"}</td></tr>`).join("");
   const basic=[["impulse","Total impulse",ps.I.toFixed(1),ms.I.toFixed(1),"N·s"],["thrust","Average thrust",ps.Fav.toFixed(0),ms.Fav.toFixed(0),"N"],
@@ -56,7 +61,8 @@ function renderReport(){
   let bill="";
   if(L.out){const b=L.bill,o=L.out,car=S.career;
     bill=`<section class="card rp-bill"><h3>The bill</h3><table class="dtab mono">
-      <tr><th>${esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
+      <tr><th>${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
+      ${b.hut?`<tr><th>Conditioning hut</th><td>−${fmtCr(b.hut)}</td></tr>`:""}${b.air?`<tr><th>The rocket (${esc(fly?fly.rocket.body.name:"airframe")})</th><td>−${fmtCr(b.air)}</td></tr>`:""}
       <tr><th><details><summary>Motor materials</summary><ul>${b.build.items.filter(x=>x.cr>0).map(x=>`<li>${esc(x.label)}: ${fmtCr(x.cr)}</li>`).join("")}</ul></details></th><td>−${fmtCr(b.build.total)}</td></tr>
       ${o.paid?`<tr><th>${esc(c.client)} pays (grade ${g.letter} ×${o.gradeMul}${o.late?`, ${o.late} day${o.late>1?"s":""} late ×${o.lateMul.toFixed(1)}`:""})</th><td class="good">+${fmtCr(o.paid)}</td></tr>`:""}
       <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>
@@ -68,11 +74,11 @@ function renderReport(){
     :`<button type="button" class="btn pri" id="rpBench">Back to the bench</button>${!c||S.career&&S.career.jobs[c.id]?`<button type="button" class="btn" id="rpAgain">Fire another</button>`:""}${c?`<button type="button" class="btn" id="rpBoard">Work orders</button>`:""}`;
   $("rpBody").innerHTML=`
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
-      <span class="site">Aqsor Range · Site 41 · ${esc(c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
-      <h2 class="sign">${fl&&fl.destructive?"Incident report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
-      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · motor ${L.n}${c?` · ${esc(c.client)}`:""}</p>
+      <span class="site">Aqsor Range · Site 41 · ${esc(fly?"Launch rail":c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
+      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
+      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${fly?"launch":"motor"} ${L.n}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
-    ${broke}<section class="card rp-chart"><canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
+    ${broke}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
@@ -84,8 +90,25 @@ function renderReport(){
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
     <div class="rp-act">${act}</div>`;
   drawReportChart();}
+/* the flight's card: the altitude chart and the numbers that made it */
+function flightCard(f,tG){
+  const fl=f.flight,fp=f.fpred,R=fl.rocket,row=(g,k,a,b)=>`<tr><th><button type="button" class="gl" data-g="${g}">${k}</button></th><td class="mono">${a}</td><td class="mono"><b>${b}</b></td></tr>`;
+  const dir=fl.drift<0?"upwind":"downwind";
+  return`<section class="card rp-fly"><h3><button type="button" class="gl" data-g="apogee">The flight</button></h3>
+    <canvas id="rpFly" role="img" aria-label="Height against time: predicted apogee ${Math.round(fp.apogee)} m, ${fl.lost?`rocket lost at ${Math.round(fl.hLost)} m`:`real apogee ${Math.round(fl.apogee)} m`}"></canvas>
+    <p class="dz-key"><span class="k-pr"></span>Predicted, ${degC(tG)}, no wind<span class="k-me"></span>Flown</p>
+    ${fl.lost?`<p class="sev crit">The motor failed ${fl.hLost<BURN_SIM.FLIGHT.rail?`on the launch rail, ${fl.tLost.toFixed(2)} s after ignition`:`${fl.tLost.toFixed(2)} s after ignition, ${Math.round(fl.hLost)} m up`}. The rocket and the client's payload are gone.</p>`:""}
+    <table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Flown</th></tr></thead><tbody>
+    ${row("apogee","Apogee",Math.round(fp.apogee)+" m",fl.lost?"–":Math.round(fl.apogee)+" m")}
+    ${row("apogee","Top speed",Math.round(fp.vMax)+" m/s",Math.round(fl.vMax)+" m/s")}
+    ${row("railSpeed","Off the rail",fp.vRail.toFixed(1)+" m/s",fl.vRail>0?fl.vRail.toFixed(1)+" m/s":"–")}
+    ${row("wind","Wind on the rail","none",fl.wind.toFixed(1)+" m/s")}
+    ${fl.lost?"":row("wind","Apogee drift","0 m",`${Math.round(Math.abs(fl.drift))} m ${dir}`)}
+    </tbody></table>
+    <p class="hint">${esc(R.body.name)}, ${esc(R.nose.name.toLowerCase())} nose, ${esc(R.fins.name.toLowerCase())} · ${R.mass0.toFixed(2)} kg at liftoff${R.payload?`, ${R.payload} kg of it payload`:""}.</p></section>`;}
 function drawReportChart(){
-  const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.f,fl=f.failure;
+  const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.f,fl=f.failure,fly=f.flight;
+  if(fly&&$("rpFly"))BURN_VIS.altitude($("rpFly"),{pred:f.fpred.samples,meas:fly.samples,apoP:f.fpred.apogee,apoM:fly.apogee,lost:fly.lost?{t:fly.tLost,h:fly.hLost}:null});
   BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
     events:f.events.map(e=>({t:e.t,label:e.key}))});}
 function initReport(){

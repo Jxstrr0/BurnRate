@@ -85,9 +85,10 @@ module.exports = ({ SIM, check, near }) => {
     const car = SIM.newCareer("bot", "Bot"), slotFor = c => c.slot || "dusk";
     let fired = 0, low = car.money, fails = 0;
     const fireJob = c => {
-      const d = c.solution, m = SIM.motorFromDesign(d), bill = SIM.firingCost(c.stand, m, d, slotFor(c));
+      const d = c.solution, m = SIM.motorFromDesign(d), bill = SIM.firingCost(c.stand, m, d, slotFor(c), !!c.flight);
       if (!SIM.canAfford(car, bill.total)) throw new Error(`day ${car.day}: can't afford ${c.id}`);
-      const n = car.jobs[c.id].n + 1, f = SIM.fire(d, { tGrain: SIM.slotTemp(slotFor(c), c, 20), logRate: C.logRate[car.bunker] }, SIM.fireSeed(car, c.id, n));
+      const n = car.jobs[c.id].n + 1, cond = { tGrain: SIM.slotTemp(slotFor(c), c, 20), logRate: C.logRate[car.bunker] }, seed = SIM.fireSeed(car, c.id, n);
+      const f = c.flight ? SIM.launch(d, cond, seed, { payload: c.flight.payload }) : SIM.fire(d, cond, seed);
       const g = SIM.grade(c, f); SIM.settle(car, c, g, bill.total); fired++; if (!g.pass) fails++;
       SIM.logFiring(car, { day: car.day - 1, key: c.id, n, slot: slotFor(c), seed: "x", design: d });
       low = Math.min(low, car.money);

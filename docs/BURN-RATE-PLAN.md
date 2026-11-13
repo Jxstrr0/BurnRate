@@ -22,6 +22,8 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 13 Nov 2026 | Flight tests | **Launch replaces stand**: flight jobs are their own work orders. You design the motor, pick an airframe (body tube, nose, fins), then launch instead of firing on a stand. The motor fires with its usual real-vs-predicted variance and the rocket flies on the measured curve. Graded on apogee. A motor that bursts loses the rocket |
+| 13 Nov 2026 | Wind on launch day | **Light seeded wind** (0.5 to 7 m/s, most days calm). The rocket weathercocks into it, so it leans upwind, flies a curved path and loses a little height. The predictor assumes still air |
 | 12 Nov 2026 | Country | **Altyn Steppe Republic** ("altyn" = gold), the invented post-Soviet steppe country Aqsor Range is in |
 | 12 Nov 2026 | Money | **Plain credits**, shown as `cr` (e.g. `48 000 cr`). No flavour currency |
 | 12 Nov 2026 | Missed deadlines | **Late pay cut**: a contract can still be delivered after its deadline, but the payout drops for each range day late |
@@ -306,10 +308,15 @@ propellant mass fraction, Kn range, peak mass flux.
 
 ### 6.10 Flight test (stage 6)
 
-Vertical 1D flight: `m · dv/dt = F(t) − m·g − ½ · rho_air(h) · v² · C_d · A`,
-exponential atmosphere, mass dropping with propellant burned, coast to
-apogee. The airframe is a simple pick list (body tube, nose, fins → `C_d`, dry
-mass). No steering, no wind drift at first.
+Point-mass flight: `m · dv/dt = F(t) − m·g − ½ · rho_air(h) · |v_air|² · C_d(M) · A`,
+exponential atmosphere, a drag rise near Mach 1, mass dropping with the
+impulse spent, coast to apogee. The airframe is a simple pick list (body tube,
+nose, fins → `C_d`, dry mass, and the longest rocket each fin set keeps
+straight). On the 3 m rail the rocket only climbs; off it, it points into the
+air flowing past (weathercocking), so the day's seeded wind (decided 13 Nov
+2026) leans it upwind. With no wind this is exactly the vertical 1D flight.
+Flight jobs replace the stand with the launch rail and are graded on apogee
+(`data/flight.js`, `sim/flight.js`).
 
 ---
 

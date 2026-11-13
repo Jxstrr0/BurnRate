@@ -1,5 +1,5 @@
 /* ===================== app/career.js: the title, the work orders, facilities, the logbook and saves (stage 4) =====================
-   The title offers Continue (the career on this phone), New career, the Daily Spec (app/daily.js), Free design and Saves. The board shows the startup's
+   The title offers Continue (the career on this phone), New career, the Daily Spec (app/daily.js), the Sandbox (app/sandbox.js), Free design and Saves. The board shows the startup's
    day, money and reputation, the jobs in hand (with their deadlines) and the work orders on offer; facilities (the
    blockhouse instruments, the Stand 2 lease) sit under it. The logbook lists every firing; tapping one fires the same
    motor again from its seed, so its report comes back exactly. Going broke offers a restart of the tier.
@@ -12,7 +12,7 @@ function renderTitle(){
   $("tActions").innerHTML=(c?`<button type="button" class="btn pri big" id="tCont"><span>Continue</span><small>${esc(c.name)} · day ${c.day} · ${fmtCr(c.money)}</small></button>
       <button type="button" class="btn big" id="tNew">New career</button>`
     :`<button type="button" class="btn pri big" id="tNew">New career</button>`)+
-    dailyTitleBtn()+`<button type="button" class="btn big" id="tFree">Free design</button>
+    dailyTitleBtn()+(S.career?sandboxTitleBtn():"")+`<button type="button" class="btn big" id="tFree">Free design</button>
     <button type="button" class="btn" id="tSaves">Saves and backups</button>
     <button type="button" class="btn" id="tSet">Settings</button>
     <p class="note">${c?"Your career saves on this phone as you play. Keep a backup somewhere else too.":"Run a two-person rocket startup on a leased state test stand: take work orders, design motors, fire them and get paid."}</p>`;}
@@ -22,6 +22,7 @@ function initTitle(){
     else if(b.id==="tNew")newCareerSheet();
     else if(b.id==="tFree")freeDesign();
     else if(b.id==="tDaily")openDaily();
+    else if(b.id==="tSbx")sandboxSheet();
     else if(b.id==="tSaves")savesSheet();
     else if(b.id==="tSet")settingsSheet();});}
 function newCareerSheet(){

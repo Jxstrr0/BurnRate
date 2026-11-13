@@ -52,6 +52,7 @@
 | `app/game.js` | `GAME` (what's on the bench), taking a job, the bench's bottom bar, pre-fire checks, the slot sheet and bill, `startFiring` (fire, grade, settle, log), `replayFiring` |
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |
 | `app/daily.js` | the Daily Spec's app side: today's order sheet, best grade and marks, the streak, sharing, the title button |
+| `app/sandbox.js` | the Sandbox: practise any job up to the career's tier with no money or deadlines, its own bench per job |
 | `app/firing.js` | the stand screen: countdown, live strip chart and gauges, the Abort button, the 3D or 2D stand, the slow-motion replay |
 | `app/report.js` | the range report / incident report: cause, factors, where-to-fix, the bill, Ruslan Abenov's sign-off |
 | `app/debug.js` | the `?debug=1` bench: reference motors, predicted curves, data sheet |

@@ -17,6 +17,8 @@ const slotChoices=()=>["dawn","noon","dusk"].concat(hutOpen()?["hut"]:[]);
 const slotT=id=>BURN_SIM.slotTemp(id,GAME.contract,S.hutT);
 const slotLabel=id=>id==="hut"?`Hut ${degC(slotT(id))}`:`${BURN_SIM.SLOTS[id].name} ${degC(slotT(id))}`;
 const inCareer=()=>GAME.mode==="career"&&!!S.career;
+/* the parts tier open on the bench: the career's in a career or the Sandbox (app/sandbox.js), none on the free bench */
+const partTier=()=>(inCareer()||isSandbox())&&S.career?S.career.tier:null;
 const isFlight=()=>!!(GAME.contract&&GAME.contract.flight);
 const payloadKg=()=>isFlight()?GAME.contract.flight.payload:0;
 const gameKey=()=>GAME.contract?GAME.contract.id:"free";
@@ -29,7 +31,7 @@ const fmtSpec=(k,v)=>{const i=BURN_SIM.SPEC_INFO[k];return(+v).toFixed(k==="I"&&
 /* money: "2 500 cr", "−1 200 cr" (a thin space between thousands, a real minus sign) */
 function fmtCr(v){v=Math.round(+v||0);return(v<0?"−":"")+String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" cr";}
 /* the bench's design is the saved object itself, so edits save with save() */
-function setDesign(d){DZ.d=d;if(inCareer()&&GAME.contract)S.career.designs[GAME.contract.id]=d;else if(isDaily())dailyState(GAME.contract).design=d;else if(!inCareer())S.free=d;save();}
+function setDesign(d){DZ.d=d;if(inCareer()&&GAME.contract)S.career.designs[GAME.contract.id]=d;else if(isDaily())dailyState(GAME.contract).design=d;else if(isSandbox())S.sandbox.designs[GAME.contract.id]=d;else if(!inCareer())S.free=d;save();}
 function benchOpen(c,design,tGrain,predSlot){GAME.contract=c;DZ.d=design;DZ.tGrain=tGrain;DZ.predSlot=predSlot;openDesigner();}
 /* open the bench on a job in hand (taking it first if it's still on the board) */
 function takeContract(id){
@@ -49,7 +51,7 @@ function drawGo(){
   else checks=`<span class="ck">Free design, no client</span>`;
   $("dzGo").innerHTML=`<div class="go-l"><button type="button" class="temp mono" id="dzTemp"${locked?" disabled":""} aria-label="Predict at ${tl}${locked?" (this contract fires then)":", tap to change"}">${esc(tl)}${locked?"":" ▾"}</button><div class="cks">${checks}</div></div>
     <button type="button" class="btn pri" id="dzFire">${c?c.flight?"To the rail":"To the stand":"Test fire"} ›</button>`;
-  $("dzSite").textContent=c?(c.daily?`Daily Spec No. ${c.no} · `:"")+c.title:"Stand 3 · Design bench";}
+  $("dzSite").textContent=c?(c.daily?`Daily Spec No. ${c.no} · `:isSandbox()?"Sandbox · ":"")+c.title:"Stand 3 · Design bench";}
 function cycleTemp(){
   const list=["ref"].concat(slotChoices()),i=list.indexOf(DZ.predSlot),nx=list[(i+1)%list.length];
   DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
@@ -66,7 +68,7 @@ function toStand(){
   const fixList=list=>list.map(e=>{const c=ctlSpec(e.field);return`<li><p>${esc(e.text)}</p>${c?`<button type="button" class="btn sm" data-fix="${e.field}">Go to ${esc(c.label.toLowerCase())}</button>`:""}</li>`;}).join("");
   if(!r.ok){openSheet("Not buildable",`<p>This motor can't be built yet.</p><ul class="fixes">${fixList(r.errors)}</ul>`);return;}
   if(isDaily()){const kc=BURN_SIM.kitCheck(GAME.contract.kit,DZ.d);if(kc.length){openSheet("Not in today's kit",`<ul class="fixes">${fixList(kc)}</ul>`);return;}}
-  const pf=BURN_SIM.preFire(withStand(GAME.contract),DZ.d,r.motor,{sum:r.sum,tier:inCareer()?S.career.tier:null});
+  const pf=BURN_SIM.preFire(withStand(GAME.contract),DZ.d,r.motor,{sum:r.sum,tier:partTier()});
   if(pf.length){openSheet(isFlight()?"The range won't launch it":"It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul>`);return;}
   if(isFlight()){const pl=flightChecks().crit;if(pl.length){openSheet("The range won't launch it",`<ul class="fixes">${fixList(pl)}</ul>`);return;}}
   slotSheet();}
@@ -122,6 +124,11 @@ function startFiring(slot){
       fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late});
     save(true);
     GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker};
+  }else if(isSandbox()){
+    /* the Sandbox: no money, no deadline, graded (app/sandbox.js) */
+    const n=(S.sandbox.n|0)+1,f=shoot(c,d,{tGrain:tG},"sandbox/"+n);if(!f.ok){toast("This motor can't be built.");return;}
+    S.sandbox.n=n;save();
+    GAME.last={f,g:BURN_SIM.grade(c,f),c,slot,tGrain:tG,n,key:"sandbox",no:n,design:d,bunker:1,sandbox:true};
   }else if(isDaily()){
     /* the Daily Spec: free to fire, the best grade kept (app/daily.js) */
     const before={daily:clone(dailyState(c)),hist:S.dailyHist&&S.dailyHist[c.daily]?clone(S.dailyHist[c.daily]):null};
@@ -135,6 +142,7 @@ function startFiring(slot){
   openFiring();}
 function undoFiring(){const L=GAME.last;if(!L)return;
   if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;}
+  else if(L.sandbox)S.sandbox.n=Math.max(0,(S.sandbox.n|0)-1);
   else if(L.daily){const b=L.daily.before,design=S.daily.design;S.daily=b.daily;S.daily.design=design;
     if(b.hist)S.dailyHist[b.daily.date]=b.hist;else delete S.dailyHist[b.daily.date];}
   else S.freeN=Math.max(0,(S.freeN|0)-1);

@@ -12,8 +12,18 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
 | 6. Flight tests | 0.7.0.0 | Done |
 | 7. The test stand in 3D | 0.8.0.0 | Done |
-| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0: Daily Spec) |
+| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0 Daily Spec, 0.8.2.0 Sandbox) |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.8.2.0 — Stage 8, part 2: the Sandbox
+
+- **The Sandbox**, on the title once a career reaches tier 2: practise any work order up to the career's tier, with every
+  part the career has unlocked. No money, no range days, no deadlines, as many firings as you like, each one graded.
+- Each job keeps its own Sandbox bench, apart from the career's; the report offers Back to the bench, Fire another,
+  Other jobs and Title. Nothing in the Sandbox changes the career (money, days, reputation and logbook stay put).
+- Before tier 2 the button is there but says when it opens. The save gains `sandbox` inside `brn-save`; no new key.
+- Tier 4 tender decisions recorded in the plan (section 0): development singles before the lot, a lost tender is put
+  out again later, and a lot fires on one range day for one stand fee.
 
 ## 0.8.1.0 — Stage 8, part 1: the Daily Spec
 

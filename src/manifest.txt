@@ -51,6 +51,7 @@ app/designer.js
 app/game.js
 app/career.js
 app/daily.js
+app/sandbox.js
 app/firing.js
 app/report.js
 app/debug.js

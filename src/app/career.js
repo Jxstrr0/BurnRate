@@ -47,6 +47,10 @@ function specList(c,o){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.s
   return`<ul class="wo-spec">${c.lot&&!(o&&o.practice)?`<li><button type="button" class="gl" data-g="lotTest">Delivered as a lot</button> <b>${BURN_SIM.CAREER.lot.n} motors, ${BURN_SIM.CAREER.lot.need} must pass</b></li>`:""}${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
     ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
     ${c.flight?`<li>Flies from the <b>launch rail</b> with a <b class="mono">${c.flight.payload} kg</b> payload</li>`:c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
+/* an empty board can skip ahead, free, to the day the next repeat order comes back (Kelbo, 13 November 2026) */
+function waitCard(car,held){const d=BURN_SIM.nextWork(car);if(d===null)return"";const n=d-car.day;
+  return`<div class="row"><button type="button" class="btn" id="bdWait">Wait for orders · ${n} day${n>1?"s":""}</button></div>
+    <p class="hint">Repeat orders come back on day ${d}. Waiting costs nothing${held?", but the jobs in hand keep their due days":""}.</p>`;}
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
   const S_=BURN_SIM,jobs=Object.keys(car.jobs),offers=S_.board(car),broke=S_.isBroke(car);
@@ -71,7 +75,7 @@ function renderBoard(){
       <h3>${esc(c.title)}</h3><p>${esc(c.brief)}</p>${specList(c)}
       <p class="hint mono">Pays ${fmtCr(S_.basePay(car,c))} · ${c.days} range days to deliver</p>
       <div class="row"><button type="button" class="btn pri" data-take="${c.id}"${why?" disabled":""}>Take the job</button>${why?`<span class="hint">${esc(why)}</span>`:""}</div></article>`;}).join("")
-    :`<p class="hint">Nothing new on the board today.${car.tier<2?" Build your reputation and lease Stand 2 for bigger work.":car.tier<3?" Build your reputation and lease Stand 1 for the big boosters.":" More clients arrive in a coming update; repeat orders come back after a few days."}</p>`;
+    :`<p class="hint">Nothing new on the board today.${car.tier<2?" Build your reputation and lease Stand 2 for bigger work.":car.tier<3?" Build your reputation and lease Stand 1 for the big boosters.":" More clients arrive in a coming update."}</p>${waitCard(car,jobs.length)}`;
   $("bdList").innerHTML=h;}
 function initBoard(){
   $("bdBack").addEventListener("click",()=>{renderTitle();showScreen("title");});
@@ -79,6 +83,7 @@ function initBoard(){
     if(b.id==="bdLog")openLogbook();else if(b.id==="bdFac")facilitiesSheet();else if(b.id==="bdSaves")savesSheet();
     else if(b.id==="bdRestart"){BURN_SIM.restartTier(car);save(true);renderBoard();toast(`Tier ${car.tier} restarted with ${fmtCr(car.money)}.`);}
     else if(b.id==="bdNew")newCareerSheet();
+    else if(b.id==="bdWait"){const n=BURN_SIM.waitForWork(car);save(true);renderBoard();toast(`${n} day${n>1?"s":""} on: day ${car.day}. New orders are on the board.`);}
     else if(b.dataset.drop){const c=BURN_SIM.contractById(b.dataset.drop);
       if(confirm(`Drop "${c.title}"? It goes back on the board; the money spent on it is gone.`)){BURN_SIM.dropJob(car,c.id);save(true);renderBoard();}}});
   $("lgBack").addEventListener("click",openBoard);

@@ -32,3 +32,30 @@ cut-down build made by `tools/vendor-three.sh` from the official npm package.
 Original work for this game: Stand 3, the blockhouse, the launch rail and the
 range buildings are built by a script (`tools/blender-range.py`, run headless in
 Blender's `bpy`), with no outside models or textures.
+
+## Sound
+
+Every sound is made while the game runs (`src/sound/synth.js`, WebAudio): the
+motor's roar, the crackle, the countdown and the relay. There are no recordings.
+
+## Code shared with other Longlight Interactive games
+
+A few small pieces are adapted from Kelbo's own games, each marked with an
+`Adapted from` line at the top of its file: the save codes and the offline
+service worker (Scrapline), the bottom sheet, the sim test runner and the icon
+renderer (Escapement), and the seeded random numbers (The Whip).
+
+## Algorithms and references
+
+- Seeded random numbers: sfc32 (Chris Doty-Humphrey, PractRand) seeded by
+  cyrb128 (bryc), both public domain.
+- Calendar days for the Daily Spec: Howard Hinnant's `days_from_civil`
+  algorithm ("chrono-Compatible Low-Level Date Algorithms").
+- The internal ballistics are the textbook quasi-steady model (G. P. Sutton
+  and O. Biblarz, *Rocket Propulsion Elements*); nozzle flow separation uses
+  the Summerfield criterion.
+
+## Store art
+
+The cover on the studio site is a frame captured from the game's own 3D stand
+(an N-class motor seen from the nozzle close-up camera), not generated art.

@@ -50,6 +50,15 @@ function board(car){
   return CONTRACTS.filter(c=>{if((c.tier||1)>car.tier||car.jobs[c.id])return false;const d=car.done[c.id];
     if(car.retender&&car.retender[c.id]>car.day)return false;
     return!d||(c.repeat&&car.day>=d.again);}).map((c,i)=>[rank(c),i,c]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]).map(x=>x[2]).slice(0,CAREER.boardMax);}
+/* the next day something comes back on the board (a repeat order or a lost tender), or null if nothing ever will.
+   An empty board offers to wait until then, free, so a player short of money for the next lease is never stuck. */
+function nextWork(car){let best=null;
+  for(const c of CONTRACTS){if((c.tier||1)>car.tier||car.jobs[c.id])continue;const d=car.done[c.id];
+    if(d&&!c.repeat)continue;
+    const ready=Math.max(d?d.again:car.day,(car.retender&&car.retender[c.id])||0);
+    if(ready>car.day&&(best===null||ready<best))best=ready;}
+  return best;}
+function waitForWork(car){const d=nextWork(car);if(d===null)return 0;const n=d-car.day;car.day=d;return n;}
 function canTake(car,id){
   const c=contractById(id);if(!c)return"No such work order.";
   if(car.jobs[id])return"You already have this job.";
@@ -101,5 +110,5 @@ function buy(car,id){const e=canBuy(car,id);if(e)return e;const f=FACILITIES[id]
 /* the logbook keeps what's needed to fire the same motor again for its report: the dice come from the seed */
 function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length>CAREER.logMax)car.log.splice(0,car.log.length-CAREER.logMax);return e;}
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}
-Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,fireLot,gradeLot,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
+Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,fireLot,gradeLot,contractById,basePay,board,nextWork,waitForWork,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
   restartTier,settle,canBuy,owns,buy,logFiring,fireSeed});

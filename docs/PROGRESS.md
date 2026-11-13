@@ -13,7 +13,24 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 6. Flight tests | 0.7.0.0 | Done |
 | 7. The test stand in 3D | 0.8.0.0 | Done |
 | 8. Polish and modes | 0.9.0.0 | Done |
-| 9. Release and studio listing | 1.0.0.0 | |
+| 9. Release and studio listing | 1.0.0.0 | Done |
+
+## 1.0.0.0 — Stage 9: release (Stage 9 done)
+
+- **The final balance pass** played whole careers headless, with a perfect player and with players who fail one, two or
+  three times per job. A perfect career reaches tier 4 by about day 28 and never dips below its starting money. Players
+  who fail often earn far less, and that is fine. The pass found one real bug: a soft-lock. A player who finished every
+  work order but couldn't yet afford the next lease saw an empty board forever. Days only pass when you fire, and repeat
+  orders only come back after days pass.
+- **The fix (Kelbo's call): a free "Wait for orders" button.** It appears under an empty board, says how many days it
+  skips, and jumps to the day the next repeat order (or a lost tender) comes back. It costs nothing. Jobs in hand keep
+  their due days, and the card says so. A sim test checks that the wait lands on the right day, costs nothing and refills
+  the board, and that tier 1 always has repeat work (the board shows older tiers' work, so every tier can wait).
+- **Search engines may list the game now**: the `noindex` tag is gone.
+- **`CREDITS.md`** now also covers the sound (all procedural, no recordings), code shared with other Longlight games,
+  the algorithms and textbooks the sim follows, and the store art (a frame from the 3D stand, not generated art).
+- **Studio listing**: the cover is a frame of an N-class motor from the nozzle camera, added to Burn Rate's entry on
+  longlight.games in its own PR. The listing stays hidden until Kelbo shows it.
 
 ## 0.9.0.0 — Stage 8, part 5: the balance bot (Stage 8 done)
 

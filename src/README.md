@@ -55,6 +55,8 @@
 | `app/sandbox.js` | the Sandbox: practise any job up to the career's tier with no money or deadlines, its own bench per job |
 | `app/firing.js` | the stand screen: countdown, live strip chart and gauges, the Abort button, the 3D or 2D stand, the slow-motion replay |
 | `app/report.js` | the range report / incident report: cause, factors, where-to-fix, the bill, Ruslan Abenov's sign-off |
+| `app/coach.js` | the coach-card tour on the first job: one-off cards that ring what they talk about; switch and "seen" in `brn-settings` |
+| `app/share.js` | the motor data sheet: a 1080 × 1350 picture of a passed motor's certificate, shared as a PNG or saved |
 | `app/debug.js` | the `?debug=1` bench: reference motors, predicted curves, data sheet |
 | `app/boot.js` | `start()`: settings, loads the save, version line, hides the splash; closes the app `<script>` |
 | `html/tail.html` | `</body></html>` |

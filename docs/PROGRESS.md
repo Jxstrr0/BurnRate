@@ -12,8 +12,26 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
 | 6. Flight tests | 0.7.0.0 | Done |
 | 7. The test stand in 3D | 0.8.0.0 | Done |
-| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0 Daily Spec, 0.8.2.0 Sandbox, 0.8.3.0 tenders) |
+| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0 Daily Spec, 0.8.2.0 Sandbox, 0.8.3.0 tenders, 0.8.4.0 coach and data sheet) |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.8.4.0 — Stage 8, part 4: the coach tour, the data sheet, glossary links
+
+- **The first job teaches the loop.** "A G for field day" now opens with the club's old drawing: a thin case and a tight
+  throat. The predictor flags it red, and it bursts at every firing slot. A bigger throat (6.5 mm) passes. A thicker wall
+  alone stops the burst but burns too fast for the spec. A sim test checks all three.
+- **Coach cards**: short cards, each shown once, that walk the first job: the bench and its curves, the red flag, the way
+  to the stand, the incident report, the two ways to fix it, the pay, and the work orders. Each card rings the thing it
+  talks about. "Got it" moves on; "No more tips" turns them off. Settings has a Coach cards switch and "Show them
+  again". They live in `brn-settings` (`coach`, `seen`); no new key.
+- **The data sheet**: a passed job's report has a **Data sheet** button. It draws a 1080 × 1350 picture of the motor's
+  certificate: the range header and report number, the grade stamp, the designation, the client and job, the strip
+  chart (measured over predicted), six numbers with the prediction under each, the spec with its ticks, Abenov's line
+  and the game's address. **Share** sends the PNG through the phone's share sheet (on phones that can share files);
+  **Save picture** downloads it. A lot's sheet shows a passing motor and says how many of the five passed.
+- **Glossary links** for entries nothing pointed at before: the pressure exponent and grain temperature in the bench's
+  data, the load cell when the stand turns a motor away, the range fee and build cost on the bill, firing slots, the job
+  deadline, casting voids, grain cracks and the blockhouse.
 
 ## 0.8.3.0 — Stage 8, part 3: tier 4 range tenders
 

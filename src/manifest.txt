@@ -54,6 +54,8 @@ app/daily.js
 app/sandbox.js
 app/firing.js
 app/report.js
+app/coach.js
+app/share.js
 app/debug.js
 app/boot.js
 html/tail.html

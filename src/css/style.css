@@ -310,3 +310,15 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
   border-radius:12px;padding:8px 8px 8px 14px;box-shadow:var(--shadow);z-index:60;transform:translateY(160%);transition:transform .25s;max-width:520px;margin:0 auto}
 #bkBar.on{transform:none}#bkBar span{flex:1;font-size:.9rem}
 @media (prefers-reduced-motion:reduce){#bkBar{transition:none}}
+
+/* ---- coach cards (app/coach.js): a card over the bottom of the screen, a ring on what it talks about ---- */
+.coach{position:fixed;left:12px;right:12px;bottom:16px;z-index:50;max-width:520px;margin:0 auto;border-left:4px solid var(--hazard);padding:12px 14px}
+.has-go .coach{bottom:84px}
+/* the data sheet picture (app/share.js) */
+.sh-wrap{margin:0 0 12px}.sh-img{display:block;width:100%;max-width:420px;height:auto;margin:0 auto;border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow)}
+.coach[hidden]{display:none}
+.coach-t{display:block;font:400 1.05rem/1.2 var(--sign);letter-spacing:.04em;text-transform:uppercase;color:var(--stateD);margin-bottom:4px}
+.coach p{margin:0 0 10px;font-size:.95rem}
+.coach-on{outline:3px solid var(--hazard);outline-offset:3px;border-radius:8px}
+@media (prefers-reduced-motion:no-preference){.coach-on{animation:coachPulse 1.6s ease-in-out infinite}}
+@keyframes coachPulse{50%{outline-offset:6px}}

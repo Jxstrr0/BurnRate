@@ -39,7 +39,7 @@ function newCareerSheet(){
     closeSheet();GAME.mode="career";renderTitle();openBoard();toast(`${name} signs the lease on Stand 3.`);});}
 
 /* ---- the board ---- */
-function openBoard(){GAME.contract=null;renderBoard();showScreen("board");}
+function openBoard(){GAME.contract=null;renderBoard();showScreen("board");coachBoard();}
 function dueText(car,job){const left=job.due-car.day;
   if(left>1)return`${left} range days left`;if(left===1)return"due tomorrow";if(left===0)return"due today";
   const ls=BURN_SIM.lateShare(job,car.day);return`${ls.late} day${ls.late>1?"s":""} late · pay ${Math.round(ls.mul*100)}%`;}
@@ -62,7 +62,7 @@ function renderBoard(){
   h+=jobs.length?jobs.map(id=>{const c=S_.contractById(id),j=car.jobs[id],late=car.day>j.due;
     return`<article class="wo card job"><header><span class="site">${esc(c.client)}</span><span class="tag ${late?"crit":""}">${esc(dueText(car,j))}</span></header>
       <h3>${esc(c.title)}</h3>${specList(c)}
-      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · due day ${j.due} · ${j.n} motor${j.n===1?"":"s"} fired</p>
+      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · <button type="button" class="gl" data-g="deadline">due day ${j.due}</button> · ${j.n} motor${j.n===1?"":"s"} fired</p>
       <div class="row"><button type="button" class="btn pri" data-take="${id}">To the bench</button><button type="button" class="btn sm" data-drop="${id}">Drop</button></div></article>`;}).join("")
     :`<p class="hint">No jobs in hand. Take one from the board below.</p>`;
   h+=`<h3 class="bd-h">On the board</h3>`;

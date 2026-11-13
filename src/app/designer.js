@@ -207,7 +207,8 @@ function dataRows(r){
     row("erosive","Erosive burning",s.eroPeak>1.005?`+${Math.round((s.eroPeak-1)*100)}% burn rate at ${s.tEro.toFixed(2)} s`:"none"),row("sf","Case safety factor",s.sf.toFixed(2)+` (yield at ${(m.pYield/1e6).toFixed(1)} MPa)`),
     row("retention","Closure margin",s.closureSf.toFixed(2)),row("liner","Liner rating",m.linerRating.toFixed(1)+" s"),
     row("igniter","Igniter strength",s.ign.strength.toFixed(2)),row("throatMat","Throat growth","+"+(s.throatGrowth*100).toFixed(2)+"%"),
-    row("exit","Expansion ratio",m.eps0.toFixed(1)),
+    row("exit","Expansion ratio",m.eps0.toFixed(1)),row("exponent","Pressure exponent",BURN_SIM.PROPELLANTS[DZ.d.grain.prop].n.toFixed(2)),
+    row("grainTemp","Grain temperature",degC(DZ.tGrain)),
     row("","Propellant / total",`${(m.mass.prop*1000).toFixed(0)} / ${(m.mass.total*1000).toFixed(0)} g`),
     row("","Mass fraction",(s.massFrac*100).toFixed(0)+"%"),
     row("","Length × diameter",`${(m.length*1000).toFixed(0)} × ${(m.diameter*1000).toFixed(0)} mm`)].join("");}
@@ -267,7 +268,7 @@ function openDesigner(){
   if(isFlight()&&!BURN_SIM.airframeOf(DZ.d)){const m=BURN_SIM.motorFromDesign(DZ.d);DZ.d.airframe=m.ok?BURN_SIM.defaultAirframe(m):{body:"kraft43",nose:"ogive",fins:"three"};save();}
   renderTabs();showScreen("design");renderPanel();setView(DZ.view);
   $("dzScrub").value=Math.round(DZ.scrub*1000);
-  DZ.res=null;DZ.fl=null;schedule(false);
+  DZ.res=null;DZ.fl=null;schedule(false);coachBench();
 }
 /* screens: one <main> shows at a time. One history entry stands for "inside the game"; the phone's Back button walks
    up a level (report -> bench -> work orders -> title; a logbook report -> logbook -> work orders) and pushes the entry
@@ -277,6 +278,7 @@ const curScreen=()=>SCREENS.find(s=>!$(s).hidden)||"title";
 function parentScreen(id){return id==="board"?"title":id==="logbook"?"board":id==="design"?(inCareer()?"board":"title"):
   id==="report"?(GAME.last&&GAME.last.replay?"logbook":"design"):id==="fire"?"fire":"title";}
 function showScreen(id){
+  coachOff();
   for(const s of SCREENS)$(s).hidden=s!==id;
   document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);

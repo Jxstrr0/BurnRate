@@ -17,8 +17,11 @@ const STANDS={
   s1:{name:"Stand 1",len:2000,dia:170,cell:40000,fee:1200,note:"The old state booster stand: a horizontal thrust frame in a bunkered bay, a 40 kN load cell."}};
 const CONTRACTS=[
   {id:"first-light",client:"Aqsor Steppe Rocketry Club",title:"A G for field day",tier:1,stand:"s3",slot:null,pay:800,days:6,repeat:{pay:0.6,every:5},
-    brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They will fly whatever passes.",
-    spec:[{k:"I",lo:80,hi:160},{k:"tb",lo:1.0,hi:3.5}],start:"29mm 2-seg BATES, Mule",
+    brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They left their old drawing on the bench: they will fly whatever passes.",
+    spec:[{k:"I",lo:80,hi:160},{k:"tb",lo:1.0,hi:3.5}],
+    /* the club's old drawing (plan section 10): a thin phenolic tube and a tight throat, so the first motor bursts and the
+       coach tour walks through the incident report and the fix (a bigger throat; a thicker wall alone burns too short) */
+    start:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:48,coreD:10},case:{mat:"phenolic",id:29,wall:0.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:4.5,exitD:11,half:15},igniter:"s"},
     solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:42,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:13,half:15},igniter:"s"}},
   {id:"dala-g48",client:"Dala Hobby Supply",title:"Catalogue G48",tier:1,stand:"s3",slot:null,pay:1000,days:6,repeat:{pay:0.6,every:4},
     brief:"A hobby shop in town wants a motor for its catalogue: a G averaging close to 48 N. Customers read the label, so the motor has to match it.",

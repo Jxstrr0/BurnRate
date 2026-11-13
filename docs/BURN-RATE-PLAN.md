@@ -22,6 +22,9 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 13 Nov 2026 | 3D launches | **Full 3D flight**: a launch plays in the 3D range too. The rocket stands on the launch rail, lifts off with its plume and smoke trail, and the camera chases it all the way to apogee over the salt flat. The 2D sky view stays as the fallback for phones without WebGL |
+| 13 Nov 2026 | 3D camera | **Both**: set shots by default (tap to switch: blockhouse window, side on, nozzle close-up; for a launch: pad, chase, downrange), and dragging orbits the camera round the stand until the next tap |
+| 13 Nov 2026 | Sound default | **On, with a mute**: sound and vibration start on; a speaker button on the firing screen mutes both, remembered in `brn-settings` |
 | 13 Nov 2026 | Flight tests | **Launch replaces stand**: flight jobs are their own work orders. You design the motor, pick an airframe (body tube, nose, fins), then launch instead of firing on a stand. The motor fires with its usual real-vs-predicted variance and the rocket flies on the measured curve. Graded on apogee. A motor that bursts loses the rocket |
 | 13 Nov 2026 | Wind on launch day | **Light seeded wind** (0.5 to 7 m/s, most days calm). The rocket weathercocks into it, so it leans upwind, flies a curved path and loses a little height. The predictor assumes still air |
 | 12 Nov 2026 | Country | **Altyn Steppe Republic** ("altyn" = gold), the invented post-Soviet steppe country Aqsor Range is in |
@@ -559,7 +562,9 @@ Airframe pick list, 1D flight sim, apogee contracts, flight result screen.
 
 **Stage 7: The test stand in 3D (0.8.0.0)**
 three.js stand and blockhouse (Blender scripts), plume shader, failure fx and
-slow-mo replay, graphics tiers, procedural audio and haptics.
+slow-mo replay, graphics tiers, procedural audio and haptics. Launches fly in
+3D all the way to apogee (Kelbo, 13 November 2026). Two PRs: the 3D stand, tiers,
+failures, replay and 3D flight (0.7.1.0), then sound and haptics (0.8.0.0).
 
 **Stage 8: Polish and modes (0.9.0.0)**
 Coach-card tour, glossary pass, sandbox, Daily Spec (one seeded contract per
@@ -595,6 +600,6 @@ nothing else in that repo.
 | Country and currency names | **Decided:** Altyn Steppe Republic; money in plain credits (`cr`) |
 | Tier 4 tone | Government booster tenders, reliability-focused, no weapons framing |
 | Look and fonts | **Decided:** "Faded state-range", Saira Semi Condensed + Saira Stencil One + Martian Mono |
-| How far to take the 3D stand | Stage 7 as written; 2D placeholder until then |
+| How far to take the 3D stand | **Decided:** full 3D flight; set shots plus drag to orbit; sound on with a mute |
 | Voice lines | None until Kelbo approves an ElevenLabs quote |
 | Name of the Range Safety Officer | **Decided:** Ruslan Abenov |

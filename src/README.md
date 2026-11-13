@@ -36,19 +36,24 @@
 | `vis/strip.js` | `strip`: the firing's strip chart, measured over predicted, pressure above thrust |
 | `vis/stand.js` | `stand`: the 2D test stand placeholder with the plume and the failure effects |
 | `vis/flight.js` | `altitude` (height against time, predicted and flown), `sky` (the launch drawn to scale), `pathAt` |
+| `vis/glb.js` | `glbScene`: a small reader for `models/range.glb` (nodes, meshes, plain materials); `swapMats` for the graphics tiers |
+| `vis/stand3d.js` | `s3`: the 3D range in three.js: Stand 3 and the launch rail, the motor or rocket built from the design, the plume shader, smoke, failure effects, the set shots and orbit camera, Full/Lite tiers with automatic step-down |
 | `vis/close.js` | `return VIS;})();` and closes the `<script>` |
 | `app/state.js` | opens the app `<script>`; `VERSION`, settings (`brn-settings`), `toast`, `openSheet` / `closeSheet` |
 | `app/pwa.js` | service worker registration and the "New version ready" bar |
 | `app/save.js` | `S` (the saved game), `hydrate` (shape checks), `save` (debounced, to `brn-save`), save slots `brn-slot1..3` |
 | `app/savecode.js` | Back up / Restore: the `BRN1:` save code (LZW + checksum), the backup file, the reminder bar |
 | `app/gloss.js` | `GLOSS`, the tap-to-explain glossary; any `data-g="key"` opens its entry |
+| `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js` and `models/range.glb`, builds the 3D range), the Settings sheet |
 | `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control; `showScreen` |
 | `app/game.js` | `GAME` (what's on the bench), taking a job, the bench's bottom bar, pre-fire checks, the slot sheet and bill, `startFiring` (fire, grade, settle, log), `replayFiring` |
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |
-| `app/firing.js` | the stand screen: countdown, live strip chart and gauges, the Abort button |
+| `app/firing.js` | the stand screen: countdown, live strip chart and gauges, the Abort button, the 3D or 2D stand, the slow-motion replay |
 | `app/report.js` | the range report / incident report: cause, factors, where-to-fix, the bill, Ruslan Abenov's sign-off |
 | `app/debug.js` | the `?debug=1` bench: reference motors, predicted curves, data sheet |
 | `app/boot.js` | `start()`: settings, loads the save, version line, hides the splash; closes the app `<script>` |
 | `html/tail.html` | `</body></html>` |
 
 Data tables go in `data/` inside the sim block; charts, the cross-section and later the 3D stand go in `vis/`; procedural audio in `sound/`.
+
+Outside `src/`: `lib/three.min.js` (three.js, rebuilt by `tools/vendor-three.sh`) and `models/range.glb` (written by `tools/blender-range.py`) are fetched by the page at run time, not built into it.

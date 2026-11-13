@@ -215,7 +215,18 @@ p{margin:0 0 .7em}
 .fr-gauges b{font-size:1.15rem;font-weight:600}.fr-gauges small{font-size:.7rem;color:var(--muted)}
 .fr-strip{padding:8px}.fr-strip canvas,.rp-chart canvas{display:block;width:100%}
 .dz-key .k-pr{background:var(--pred)}.dz-key .k-me{background:var(--meas);height:4px}
-.fr-act{display:grid;margin-top:12px}
+.fr-act{display:grid;gap:8px;margin-top:12px}
+/* settings (app/gfx.js): a row of choices */
+.seg-f{border:0;padding:0;margin:0 0 14px}.seg-f legend{font-weight:600;margin-bottom:6px;padding:0}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg .btn.on{background:var(--accent);border-color:var(--accent);color:var(--onAccent)}
+/* the 3D stand (vis/stand3d.js): the shot's name flashes up when it changes; the white flash of a burst */
+#frStand3{background:#E9E4D8;cursor:grab;outline-offset:-3px}
+.s3-shot{position:absolute;left:8px;top:8px;padding:3px 8px;border-radius:6px;background:rgba(35,38,42,.72);color:#FBFAF7;font:600 .72rem/1.3 var(--mono);opacity:0;transition:opacity .3s;pointer-events:none}
+.s3-shot.on{opacity:1}
+.s3-flash{position:absolute;inset:0;background:#FFFBEF;opacity:0;pointer-events:none}
+.fr-slow{position:absolute;right:8px;bottom:8px;padding:3px 8px;border-radius:6px;background:var(--stencil);color:#FBFAF7;font-size:.72rem;font-weight:600}
+@media (prefers-reduced-motion:reduce){.s3-shot{transition:none}}
 .btn.abort{background:var(--critBg);border-color:var(--crit);color:var(--crit)}
 
 /* ---- the report (app/report.js): an old range form, new data ---- */

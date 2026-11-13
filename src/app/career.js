@@ -14,13 +14,15 @@ function renderTitle(){
     :`<button type="button" class="btn pri big" id="tNew">New career</button>`)+
     `<button type="button" class="btn big" id="tFree">Free design</button>
     <button type="button" class="btn" id="tSaves">Saves and backups</button>
+    <button type="button" class="btn" id="tSet">Settings</button>
     <p class="note">${c?"Your career saves on this phone as you play. Keep a backup somewhere else too.":"Run a two-person rocket startup on a leased state test stand: take work orders, design motors, fire them and get paid."}</p>`;}
 function initTitle(){
   $("tActions").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
     if(b.id==="tCont"){GAME.mode="career";openBoard();}
     else if(b.id==="tNew")newCareerSheet();
     else if(b.id==="tFree")freeDesign();
-    else if(b.id==="tSaves")savesSheet();});}
+    else if(b.id==="tSaves")savesSheet();
+    else if(b.id==="tSet")settingsSheet();});}
 function newCareerSheet(){
   const has=!!S.career,idea=NAME_IDEAS[Math.floor(Math.random()*NAME_IDEAS.length)];
   openSheet("New career",`<p>Two engineers, a van, a laptop and a lease on Stand 3 at Aqsor Range, the old state programme's Site 41 on the salt flat of the Altyn Steppe Republic.</p>

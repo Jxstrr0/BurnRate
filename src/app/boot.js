@@ -8,6 +8,7 @@ function start(){
   initFiring();initReport();
   if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();
+  setTimeout(gfxLoad,2500);   // fetch the 3D stand once the title is up (app/gfx.js)
 }
 start();
 </script>

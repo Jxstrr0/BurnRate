@@ -11,9 +11,28 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 4. Career and saves | 0.5.0.0 | Done |
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
 | 6. Flight tests | 0.7.0.0 | Done |
-| 7. The test stand in 3D | 0.8.0.0 | Next |
+| 7. The test stand in 3D | 0.8.0.0 | In progress (0.7.1.0 done) |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.7.1.0 — Stage 7, part 1: the 3D stand and launches
+
+- **Stand 3 in 3D** (three.js r187, vendored in `lib/`): the motor you designed sits in the cradle on the thrust block,
+  built from the design (case length, bore and material colour, the nozzle's real throat and exit). The range model
+  (`models/range.glb`) is scripted in Blender: the stand, the blockhouse, the launch rail, the workshop, water tower,
+  flood masts and radar on the salt flat.
+- **The plume** grows with thrust, shows **shock diamonds** when the exhaust is under-expanded and pinches when it is
+  over-expanded; smoke drifts on the day's wind; the fire lights the stand.
+- **Failures in 3D**: a CATO splits the case with a flash, debris and a smoke cloud; a nozzle ejection fires the nozzle
+  out; a burn-through cuts a side jet; a hang fire leaves a wisp. Destructive failures play a **slow-motion replay**
+  once (not with reduced motion), and "Watch it again, slowed down" replays it any time.
+- **Launches fly in 3D to apogee** (decided): the rocket you built (body tube, nose, fins) leaves the rail with a
+  smoke trail. A rocket lost on the rail or in flight breaks up.
+- **Cameras** (decided: both): tap the view for the next set shot (stand: side on, nozzle close-up, blockhouse window;
+  launch: chase, pad camera, downrange), drag to orbit, pinch to zoom.
+- **Graphics setting** (Settings on the title screen): Auto, Full, Lite or 2D. Auto starts Full or Lite from what the
+  phone reports and steps down to Lite if frames run slow, and remembers it. 2D keeps the old flat stand and sky, which
+  is also the fallback without WebGL. three.js and the model load a few seconds after start-up and are kept offline.
 
 ## 0.7.0.0 — Stage 6: flight tests
 

@@ -33,11 +33,14 @@ vis/section.js
 vis/strip.js
 vis/stand.js
 vis/flight.js
+vis/glb.js
+vis/stand3d.js
 vis/close.js
 # --- the app block: the page glue ---
 app/state.js
 app/pwa.js
 app/gloss.js
+app/gfx.js
 app/save.js
 app/savecode.js
 app/designer.js

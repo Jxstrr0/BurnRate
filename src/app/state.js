@@ -3,7 +3,7 @@
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.7.0.0";
+const VERSION="0.7.1.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -11,7 +11,7 @@ const degC=t=>(t<0?"−":"")+Math.abs(t)+" °C";
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---- settings (this phone only): brn-settings ---- */
-const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true};
+const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,gfx:"auto"};
 let SETTINGS=Object.assign({},SET_DEF);
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem(SET_KEY)||"null");if(o&&typeof o==="object"&&!Array.isArray(o))SETTINGS=Object.assign({},SET_DEF,o);}catch(e){}}
 function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS));}catch(e){}}

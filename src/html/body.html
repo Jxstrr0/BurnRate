@@ -55,11 +55,11 @@
   <!-- THE STAND (app/firing.js): countdown, the stand, the live strip chart -->
   <main id="fire" hidden aria-label="Static firing">
     <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span></header>
-    <div class="fr-stand"><canvas id="frStand" aria-hidden="true"></canvas><div class="fr-count sign" id="frCount" hidden aria-live="assertive"></div></div>
+    <div class="fr-stand"><canvas id="frStand" aria-hidden="true"></canvas><canvas id="frStand3" hidden tabindex="0" aria-label="The stand in 3D. Tap or press Enter to change the camera, drag to look round"></canvas><div class="fr-count sign" id="frCount" hidden aria-live="assertive"></div><span class="fr-slow mono" id="frSlow" hidden>Slow-motion replay</span></div>
     <div class="fr-gauges" aria-live="off"><div><span id="frPL">Pressure</span><b class="mono" id="frP">0.00</b><small id="frPU">MPa</small></div><div><span>Thrust</span><b class="mono" id="frF">0</b><small>N</small></div><div><span>Time</span><b class="mono" id="frT">0.00</b><small>s</small></div></div>
     <div class="card fr-strip"><canvas id="frStrip" role="img" aria-label="Strip chart: measured pressure and thrust over the prediction"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted<span class="k-me"></span>Measured</p></div>
-    <div class="fr-act"><button type="button" class="btn big abort" id="frAbort">Abort</button><button type="button" class="btn pri big" id="frNext" hidden>Read the report ›</button></div>
+    <div class="fr-act"><button type="button" class="btn big abort" id="frAbort">Abort</button><button type="button" class="btn pri big" id="frNext" hidden>Read the report ›</button><button type="button" class="btn" id="frReplay" hidden>Watch it again, slowed down</button><button type="button" class="btn sm" id="frPlume" data-g="diamonds" hidden>Reading the plume</button></div>
   </main>
 
   <!-- THE REPORT (app/report.js): range report, or the incident report when it failed -->

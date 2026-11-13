@@ -2,7 +2,7 @@
    start() runs once the page has parsed: settings, the save, the title, then the loading splash goes. */
 function start(){
   loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
-  document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
+  applyTheme();
   $("verLbl").textContent="v"+VERSION;
   loadSave();renderTitle();initTitle();initBoard();
   initFiring();initReport();

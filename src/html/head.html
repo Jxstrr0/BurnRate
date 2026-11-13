@@ -24,6 +24,10 @@ body{margin:0;background:#E6E3DC;color:#23262A;font:16px/1.4 "Saira SC",system-u
 </style>
 </head><body>
 <div id="boot" role="status" aria-live="polite"><div class="bx"><img src="assets/studio/longlight-logo-light.svg" alt="Longlight Interactive" width="300" height="97"><div class="bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5"><i></i></div><p class="msg">Loading…</p><button type="button" hidden>Reload</button></div></div>
+<script>/* the theme before the first paint (app/state.js applyTheme keeps it right after start) */
+try{const o=JSON.parse(localStorage.getItem("brn-settings")||"null"),t=o&&o.theme;
+  if(t==="dark"||(t==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.dataset.theme="dark";}catch(e){}
+</script>
 <script>/* loading bar: __ld(fraction, message) between the big script blocks, __ldDone() at the end of start() */
 (function(){var b=document.getElementById("boot"),bar=b.querySelector(".bar"),f=bar.querySelector("i"),m=b.querySelector(".msg"),rl=b.querySelector("button"),fin=0,bad=0;
 window.__ld=function(p,s){if(fin)return;f.style.transform="scaleX("+p+")";bar.setAttribute("aria-valuenow",Math.round(p*100));if(s&&!bad)m.textContent=s;};

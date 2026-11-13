@@ -22,6 +22,7 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 13 Nov 2026 | Voice lines | **Two full runs, English and Russian, both wired in**: Ruslan's 8 range calls and 34 report sign-offs on the ElevenLabs Multilingual model with a stock voice, about 3,600 credits, capped at **6,000 credits for the whole project**. The script is `tools/voice-lines.json`; a setting picks English, Russian or off |
 | 13 Nov 2026 | An empty board | **A free "Wait for orders" button**: when nothing is on the board, skip ahead to the day the next repeat order (or a lost tender) comes back, at no cost, so a player short of money for the next lease is never stuck |
 | 13 Nov 2026 | Daily Spec tries | **Unlimited, best kept**: fire the day's spec as often as you like; the phone keeps the best grade of the day and how many firings it took |
 | 13 Nov 2026 | Daily Spec parts | **A fixed kit per day**: each day's spec comes with its own parts list, the same for everyone and independent of the career |
@@ -391,7 +392,8 @@ gear on top. (The plan's retro "Range Data Sheet" paper look was dropped.)
   `#E6E3DC` ground, panel `#F2F0EB`, card `#FBFAF7`, graphite ink `#23262A`,
   faded state green `#5E7F6E`, stencil red `#A8322A`, hazard amber `#E0A526`,
   measured trace red `#C8341E`, predicted trace blue `#1F5FA8`, startup cobalt
-  `#2A55C9` for the player's controls. A "night shift" dark theme later.
+  `#2A55C9` for the player's controls. A "night shift" dark theme (1.1.0.0): Settings, Theme picks Day (the default),
+  Night shift or Match phone; the same token names under `:root[data-theme="dark"]`.
 - **Fonts** (unused elsewhere in the studio, self-hosted `.woff2`, OFL): Saira
   Semi Condensed for headings and UI, Saira Stencil One for range signage,
   Martian Mono for readouts and stencils (it has Cyrillic). No font CDN.
@@ -608,5 +610,5 @@ nothing else in that repo.
 | Tier 4 tone | Government booster tenders, reliability-focused, no weapons framing |
 | Look and fonts | **Decided:** "Faded state-range", Saira Semi Condensed + Saira Stencil One + Martian Mono |
 | How far to take the 3D stand | **Decided:** full 3D flight; set shots plus drag to orbit; sound on with a mute |
-| Voice lines | None until Kelbo approves an ElevenLabs quote |
+| Voice lines | Approved 13 Nov 2026: English and Russian, Multilingual, 6,000-credit project cap (section 0) |
 | Name of the Range Safety Officer | **Decided:** Ruslan Abenov |

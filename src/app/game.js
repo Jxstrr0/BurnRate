@@ -46,7 +46,9 @@ function freeDesign(){GAME.mode="free";S.free=S.free||clone(BURN_SIM.DEFAULT_DES
 /* ---- the bench's bottom bar: the spec against the prediction, the predictor's temperature, the way to the stand ---- */
 function drawGo(){
   const c=GAME.contract,r=DZ.res,locked=!!(c&&c.slot);
-  const tl=DZ.predSlot==="ref"?degC(20):slotLabel(DZ.predSlot);
+  /* the altitude chamber: the predictor works at the chamber's back-pressure, and says so */
+  const st=c&&typeof c.stand==="string"?BURN_SIM.STANDS[c.stand]:null,vac=st&&st.pAmb!=null?` · ${(st.pAmb/1000).toFixed(0)} kPa`:"";
+  const tl=(DZ.predSlot==="ref"?degC(20):slotLabel(DZ.predSlot))+vac;
   let checks="";
   if(c&&r&&r.ok)checks=BURN_SIM.specCheck(c.spec,benchSum(),r.motor).map(k=>`<span class="ck ${k.ok?"ok":"no"}"><i aria-hidden="true">${k.ok?"✓":"✗"}</i>${esc(k.info.short)} <b class="mono">${fmtSpec(k.k,k.v)}</b><span class="vh">${k.ok?" in spec":" out of spec"}</span></span>`).join("");
   else if(c)checks=`<span class="ck no">Can't be built</span>`;
@@ -82,7 +84,7 @@ function slotSheet(){
   const c=GAME.contract,slots=c&&c.slot?[c.slot]:slotChoices(),H=BURN_SIM.HUT,fixedT=!!(c&&c.slot);
   if(!slots.includes(GAME.slot))GAME.slot=slots[0];
   const fly=isFlight();
-  const cards=slots.map(id=>{const sl=BURN_SIM.SLOTS[id],t=slotT(id),p=BURN_SIM.predict(DZ.d,{tGrain:t});if(!p.ok)return"";
+  const cards=slots.map(id=>{const sl=BURN_SIM.SLOTS[id],t=slotT(id),p=BURN_SIM.predict(DZ.d,BURN_SIM.standCond(c,{tGrain:t}));if(!p.ok)return"";
     const pf=fly?BURN_SIM.predictFlight(DZ.d,p.motor,p.run,payloadKg()):null,s=pf?Object.assign({},p.sum,{apogee:pf.apogee}):p.sum;
     const crit=s.warnings.filter(w=>w.sev==="crit").length,ok=c?BURN_SIM.specCheck(c.spec,s,p.motor).filter(k=>k.ok).length:null;
     return`<button type="button" class="opt${id===GAME.slot?" on":""}" data-slot="${id}" aria-pressed="${id===GAME.slot}"><b>${sl.name} · ${degC(t)}</b>${crit?`<span class="tag crit">${crit} critical</span>`:""}
@@ -114,7 +116,8 @@ document.addEventListener("click",e=>{
   else if(b.dataset.go){closeSheet();startFiring(GAME.slot,b.dataset.go==="lot");}});
 
 /* a flight job launches the motor in its rocket; everything else fires on the stand */
-const shoot=(c,d,cond,seed)=>c&&c.flight?BURN_SIM.launch(d,cond,seed,{payload:c.flight.payload}):BURN_SIM.fire(d,cond,seed);
+/* a job's motor fires against its stand's back-pressure (sim/career.js standCond: the altitude chamber's near-vacuum) */
+const shoot=(c,d,cond,seed)=>c&&c.flight?BURN_SIM.launch(d,cond,seed,{payload:c.flight.payload}):BURN_SIM.fire(d,BURN_SIM.standCond(c,cond),seed);
 /* fire one motor: draw it, grade it, charge and pay (career), log it, save, then run the firing screen. undoFiring takes it
    back (an abort during the countdown): the career goes back to how it was, so the next attempt fires the same motor */
 function startFiring(slot,lot){
@@ -126,7 +129,7 @@ function startFiring(slot,lot){
     const bill=BURN_SIM.firingCost(c.stand,r.motor,d,slot,!!c.flight,lot?BURN_SIM.CAREER.lot.n:1);
     if(!BURN_SIM.canAfford(car,bill.total)){toast("The bank won't cover this firing.");return;}
     const before=clone(car),n=job.n+1,seed=BURN_SIM.fireSeed(car,c.id,n),rate=BURN_SIM.CAREER.logRate[car.bunker]||BURN_SIM.CAREER.logRate[0];
-    const fires=lot?BURN_SIM.fireLot(d,{tGrain:tG,logRate:rate},seed):[shoot(c,d,{tGrain:tG,logRate:rate},seed)],f=fires[0];
+    const fires=lot?BURN_SIM.fireLot(d,BURN_SIM.standCond(c,{tGrain:tG,logRate:rate}),seed):[shoot(c,d,{tGrain:tG,logRate:rate},seed)],f=fires[0];
     if(!f.ok){toast("This motor can't be built.");return;}
     const g=lot?BURN_SIM.gradeLot(c,fires):BURN_SIM.grade(c,f),out=BURN_SIM.settle(car,c,g,bill.total,{lot});
     const entry=BURN_SIM.logFiring(car,{day:out.day,key:c.id,n,slot,tGrain:tG,seed,rate,design:d,letter:g.pass?g.letter:null,why:g.pass?null:g.why,
@@ -162,7 +165,7 @@ function lotView(fires,gl){const i=gl.grades.findIndex(g=>!g.pass);return{fires,
 /* a logbook entry's report: the same motor, conditions and seed fire the same, so the report comes back exactly */
 function replayFiring(e){
   const c=BURN_SIM.contractById(e.key),tG=e.tGrain??BURN_SIM.SLOTS[e.slot].tGrain,cond={tGrain:tG,logRate:e.rate};
-  const fires=e.lot&&c?BURN_SIM.fireLot(e.design,cond,e.seed,e.lot):[shoot(c,e.design,cond,e.seed)],f=fires[0];if(!f.ok)return;
+  const fires=e.lot&&c?BURN_SIM.fireLot(e.design,BURN_SIM.standCond(c,cond),e.seed,e.lot):[shoot(c,e.design,cond,e.seed)],f=fires[0];if(!f.ok)return;
   const gl=e.lot&&c?BURN_SIM.gradeLot(c,fires):null;
   GAME.last={f,g:gl||(c?BURN_SIM.grade(c,f):null),lot:gl?lotView(fires,gl):null,c,slot:e.slot,tGrain:tG,n:e.n,key:e.key,no:e.no,design:e.design,entry:e,replay:true,bunker:e.rate>=BURN_SIM.CAREER.logRate[1]?1:0};
   openReport();}

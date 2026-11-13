@@ -325,6 +325,7 @@ p{margin:0 0 .7em}
 .wo.job{border-left:4px solid var(--accent)}
 .wo p.hint.mono,.bill p.mono{font-size:.8rem}
 #logbook .sc-top{margin-bottom:12px}
+.won{border-left:4px solid var(--good);display:grid;gap:10px}.won h3{margin:0;color:var(--good)}.won p{margin:0}
 .broke{border-left:4px solid var(--crit)}.broke h3{color:var(--crit);margin:0 0 6px}
 .tag.lock{color:var(--crit)}
 .fac{margin:0 0 10px}.fac h3{margin:0 0 4px}

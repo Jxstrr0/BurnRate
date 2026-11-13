@@ -104,16 +104,16 @@ module.exports = ({ SIM, check, near }) => {
     const fireJob = c => {
       const d = c.solution, m = SIM.motorFromDesign(d), bill = SIM.firingCost(c.stand, m, d, slotFor(c), !!c.flight, c.lot ? C.lot.n : 1);
       if (!SIM.canAfford(car, bill.total)) throw new Error(`day ${car.day}: can't afford ${c.id}`);
-      const n = car.jobs[c.id].n + 1, cond = { tGrain: SIM.slotTemp(slotFor(c), c, 20), logRate: C.logRate[car.bunker] }, seed = SIM.fireSeed(car, c.id, n);
+      const n = car.jobs[c.id].n + 1, cond = SIM.standCond(c, { tGrain: SIM.slotTemp(slotFor(c), c, 20), logRate: C.logRate[car.bunker] }), seed = SIM.fireSeed(car, c.id, n);
       /* a tender delivers by a lot of five */
       const g = c.lot ? SIM.gradeLot(c, SIM.fireLot(d, cond, seed)) : SIM.grade(c, c.flight ? SIM.launch(d, cond, seed, { payload: c.flight.payload }) : SIM.fire(d, cond, seed));
       SIM.settle(car, c, g, bill.total, { lot: !!c.lot }); fired++; if (!g.pass) fails++;
       SIM.logFiring(car, { day: car.day - 1, key: c.id, n, slot: slotFor(c), seed: "x", design: d });
       low = Math.min(low, car.money);
     };
-    const runTier = t => {
+    const runTier = (t, only) => {
       for (let guard = 0; guard < 80; guard++) {
-        const todo = SIM.CONTRACTS.filter(c => c.tier === t && !car.done[c.id]);
+        const todo = SIM.CONTRACTS.filter(c => c.tier === t && !car.done[c.id] && (!only || only(c)));
         if (!todo.length) return;
         for (const c of todo) if (!car.jobs[c.id] && !SIM.canTake(car, c.id)) SIM.takeJob(car, c.id);
         const id = Object.keys(car.jobs)[0]; if (!id) throw new Error("stuck with no job at tier " + t);
@@ -131,7 +131,17 @@ module.exports = ({ SIM, check, near }) => {
     runTier(3);
     { const why = SIM.canBuy(car, "tenders"); if (why) throw new Error(`can't join the tender register after tier 3: ${why}`); SIM.buy(car, "tenders"); }
     if (car.tier !== 4) throw new Error("the tender register didn't open tier 4");
+    /* tier 4: the open-stand tenders first, then the altitude chamber's; the capstone only once every other tender is won */
+    const cap = SIM.CONTRACTS.find(c => c.final);
+    runTier(4, c => c.stand !== "s0");
+    if (SIM.board(car).includes(cap)) throw new Error("the capstone is on the board before the chamber's tenders are won");
+    { const why = SIM.canBuy(car, "chamber"); if (why) throw new Error(`can't lease the altitude chamber after the open-stand tenders: ${why}`); SIM.buy(car, "chamber"); }
+    runTier(4, c => !c.final);
+    if (!SIM.finalOpen(car) || !SIM.board(car).includes(cap)) throw new Error("the capstone didn't open once every other tender was won");
     runTier(4);
+    if (car.won !== car.done[cap.id].day) throw new Error("winning the capstone didn't mark the career won");
+    const wonDay = car.won; car.day = car.done[cap.id].again; { const why = SIM.takeJob(car, cap.id); if (why) throw new Error("the capstone's repeat order: " + why); } fireJob(cap);
+    if (car.won !== wonDay || car.done[cap.id].times !== 2) throw new Error("the capstone's repeat order should pay again but not win again");
     if (low < -C.overdraft) throw new Error("money went past the overdraft");
     if (car.log.length > C.logMax) throw new Error("logbook not capped");
     return `${fired} firings (${fails} failed), day ${car.day}, ${Math.round(car.money)} cr, reputation ${car.rep}, lowest ${Math.round(low)} cr`;
@@ -175,7 +185,7 @@ module.exports = ({ SIM, check, near }) => {
     for (const c of SIM.CONTRACTS.filter(x => x.lot)) {
       let best = 0, bestSlot = "";
       for (const slot of c.slot ? [c.slot] : ["dusk", "noon", "dawn"]) {
-        let ok = 0; for (let i = 0; i < N; i++) if (SIM.gradeLot(c, SIM.fireLot(c.solution, { tGrain: SIM.slotTemp(slot, c, null) }, c.id + "/lot" + i)).pass) ok++;
+        let ok = 0; for (let i = 0; i < N; i++) if (SIM.gradeLot(c, SIM.fireLot(c.solution, SIM.standCond(c, { tGrain: SIM.slotTemp(slot, c, null) }), c.id + "/lot" + i)).pass) ok++;
         if (ok > best) { best = ok; bestSlot = slot; }
         if (best === N) break;
       }

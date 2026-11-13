@@ -26,13 +26,23 @@ function gfxLoad(){
       GFX.state="ready";})
     .catch(e=>{GFX.state="failed";console.warn("3D stand unavailable:",e&&e.message);});
   return GFX.p;}
-/* the settings sheet (title screen): graphics now; sound and vibration join it with the sound stage */
+/* the settings sheet (title screen): graphics, sound and vibration */
 function settingsSheet(){
   const g=SETTINGS.gfx||"auto",st=GFX.state==="failed"?`<p class="hint">This phone couldn't start the 3D stand, so the 2D one is used.</p>`:"";
+  const onOff=(key,label,note)=>`<fieldset class="seg-f"><legend>${label}</legend><div class="seg two" role="radiogroup" aria-label="${label}">${[[true,"On"],[false,"Off"]].map(([v,n])=>
+      `<button type="button" role="radio" aria-checked="${SETTINGS[key]===v}" data-set="${key}" data-v="${v}" class="btn sm${SETTINGS[key]===v?" on":""}">${n}</button>`).join("")}</div>${note}</fieldset>`;
   openSheet("Settings",`<fieldset class="seg-f"><legend>Graphics</legend><div class="seg" role="radiogroup" aria-label="Graphics">${GFX_OPTS.map(([k,n])=>
       `<button type="button" role="radio" aria-checked="${k===g}" data-gfx="${k}" class="btn sm${k===g?" on":""}">${n}</button>`).join("")}</div>
-    <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`);
-  $("sheetBody").addEventListener("click",e=>{const b=e.target.closest("[data-gfx]");if(!b)return;
+    <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`+
+    onOff("sound","Sound",`<p class="hint">The motor, the countdown and the stand's relays. The speaker button on the stand mutes sound and vibration together.</p>`)+
+    onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`));
+  $("sheetBody").addEventListener("click",e=>{
+    const t=e.target.closest("[data-set]");
+    if(t){const k=t.dataset.set,v=t.dataset.v==="true";SETTINGS[k]=v;saveSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
+      if(k==="sound"&&v)BURN_SOUND.unlock();if(k==="haptics"&&v)BURN_SOUND.buzz("ignite");
+      $("sheetBody").querySelectorAll(`[data-set="${k}"]`).forEach(x=>{const on=x===t;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});
+      muteUI();return;}
+    const b=e.target.closest("[data-gfx]");if(!b)return;
     const k=b.dataset.gfx;SETTINGS.gfx=k;if(k!=="auto")delete SETTINGS.gfxAuto;saveSettings();
     $("sheetBody").querySelectorAll("[data-gfx]").forEach(x=>{const on=x===b;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});
     $("gfxNote").textContent=GFX_OPTS.find(o=>o[0]===k)[2];

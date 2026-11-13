@@ -47,8 +47,8 @@ local copy: `python3 -m http.server` in the repo root. The service worker only r
   for byte, then writes `sw.js`. Commit `src/`, `index.html` and `sw.js` together.
 - `src/README.md` is the file map. `src/` files are slices of one page: a file may open or close a `<script>`.
 - A new `src/` file must go into `src/manifest.txt` at the right place, or the build refuses to run.
-- Blocks: `BURN_SIM` (sim + data, pure) · the app glue (`src/app/`) · later `BURN_VIS` (charts, cross-section, the 3D
-  stand) and `BURN_SOUND`.
+- Blocks: `BURN_SIM` (sim + data, pure) · `BURN_VIS` (charts, cross-section, the 3D stand) · `BURN_SOUND`
+  (procedural audio and vibration) · the app glue (`src/app/`).
 
 ## Code conventions
 

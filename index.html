@@ -242,6 +242,7 @@ p{margin:0 0 .7em}
 
 /* ---- the stand (app/firing.js) ---- */
 .fr-speed{margin-left:auto;font-size:.7rem;color:var(--muted);white-space:nowrap}
+.fr-mute{margin-left:8px;min-width:44px;min-height:44px;padding:0;color:var(--ink)}.fr-mute[aria-pressed="true"]{color:var(--muted)}
 .fr-stand{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
 .fr-stand canvas{display:block;width:100%}
 .fr-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--stencil);background:rgba(251,250,247,.45)}
@@ -254,7 +255,7 @@ p{margin:0 0 .7em}
 .fr-act{display:grid;gap:8px;margin-top:12px}
 /* settings (app/gfx.js): a row of choices */
 .seg-f{border:0;padding:0;margin:0 0 14px}.seg-f legend{font-weight:600;margin-bottom:6px;padding:0}
-.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.seg.two{grid-template-columns:repeat(2,1fr)}
 .seg .btn.on{background:var(--accent);border-color:var(--accent);color:var(--onAccent)}
 /* the 3D stand (vis/stand3d.js): the shot's name flashes up when it changes; the white flash of a burst */
 #frStand3{background:#E9E4D8;cursor:grab;outline-offset:-3px}
@@ -396,7 +397,7 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
 
   <!-- THE STAND (app/firing.js): countdown, the stand, the live strip chart -->
   <main id="fire" hidden aria-label="Static firing">
-    <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span></header>
+    <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span><button type="button" class="btn sm fr-mute" id="frMute" aria-pressed="false" aria-label="Mute sound and vibration"></button></header>
     <div class="fr-stand"><canvas id="frStand" aria-hidden="true"></canvas><canvas id="frStand3" hidden tabindex="0" aria-label="The stand in 3D. Tap or press Enter to change the camera, drag to look round"></canvas><div class="fr-count sign" id="frCount" hidden aria-live="assertive"></div><span class="fr-slow mono" id="frSlow" hidden>Slow-motion replay</span></div>
     <div class="fr-gauges" aria-live="off"><div><span id="frPL">Pressure</span><b class="mono" id="frP">0.00</b><small id="frPU">MPa</small></div><div><span>Thrust</span><b class="mono" id="frF">0</b><small>N</small></div><div><span>Time</span><b class="mono" id="frT">0.00</b><small>s</small></div></div>
     <div class="card fr-strip"><canvas id="frStrip" role="img" aria-label="Strip chart: measured pressure and thrust over the prediction"></canvas>
@@ -2402,11 +2403,121 @@ Object.assign(VIS,{s3:{S:S3,init:s3Init,setup:s3Setup,draw:s3Draw,redraw:s3Redra
 return VIS;})();
 </script>
 <script>
+/* ===================== sound/synth.js: the BURN_SOUND block, procedural audio and vibration (stage 7) =====================
+   Every sound is made in WebAudio while the game runs: there are no sound files. Three looping noise buffers (white, brown
+   and a sparse "crackle" of clicks) feed the motor's roar: a low rumble and a broader roar whose loudness and brightness
+   follow the live thrust, a crackle that rises when the pressure trace gets rough (chuffing, a failing motor), and a
+   hiss for a burn-through's side jet. Distance (a rocket climbing away) turns it down and dulls it. The one-off sounds
+   are short synth blips: countdown beeps, the firing relay's click, the data logger's chirp, and a bang for a burst.
+   Vibration (navigator.vibrate, Android only: iPhones ignore it) buzzes on ignition and on failures.
+   The app owns the settings: it calls setOn(sound, haptics) at start-up and when the player changes them, and unlock()
+   from a tap, because phones only let a page start audio from a user gesture. The audio context sleeps while the page is
+   hidden. Nothing here reads the game state: app/firing.js drives it. */
+const BURN_SOUND=(()=>{"use strict";
+const AC=window.AudioContext||window.webkitAudioContext;
+let ctx=null,out=null,bufs=null,M=null,sndOn=true,hapOn=true;
+/* the vibration patterns, in milliseconds (buzz, pause, buzz...) */
+const HAPTIC={ignite:[28],cato:[90,40,220],eject:[60,40,90],burnthrough:[30,30,30,30,70],lost:[70,40,140],hangfire:[15,60,15]};
+/* mixing levels: the roar's layers at full thrust, and the one-off sounds */
+const MIX={master:0.8,rumble:0.9,roar:0.38,crackle:0.55,hiss:0.3,beep:0.22,click:0.45,chirp:0.11,bang:1.0};
+
+function noise(kind,sec){
+  const n=Math.floor(ctx.sampleRate*sec),b=ctx.createBuffer(1,n,ctx.sampleRate),d=b.getChannelData(0);
+  if(kind==="white")for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
+  else if(kind==="brown"){let l=0;for(let i=0;i<n;i++){l=(l+0.02*(Math.random()*2-1))/1.02;d[i]=l*3.5;}}
+  else{let a=0,k=0;for(let i=0;i<n;i++){if(Math.random()<0.0016){a=(0.3+0.7*Math.random())*(Math.random()<0.5?-1:1);k=0;}d[i]=a*Math.exp(-k/14)*(Math.random()*0.6+0.4);k++;}}
+  return b;}
+/* the audio context, made on first use (after a tap) */
+function ensure(){
+  if(!sndOn||!AC)return null;
+  if(!ctx){try{ctx=new AC();}catch(e){return null;}
+    const comp=ctx.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=6;
+    out=ctx.createGain();out.gain.value=MIX.master;out.connect(comp);comp.connect(ctx.destination);
+    bufs={white:noise("white",2),brown:noise("brown",2),crackle:noise("crackle",2)};}
+  if(ctx.state==="suspended")ctx.resume().catch(()=>{});
+  return ctx;}
+const unlock=()=>{ensure();};
+const loop=buf=>{const s=ctx.createBufferSource();s.buffer=buf;s.loop=true;s.start(0,Math.random()*1.9);return s;};
+const filt=(type,f,q)=>{const x=ctx.createBiquadFilter();x.type=type;x.frequency.value=f;if(q)x.Q.value=q;return x;};
+const gain=v=>{const g=ctx.createGain();g.gain.value=v;return g;};
+const ease=(param,v,tc)=>param.setTargetAtTime(v,ctx.currentTime,tc||0.04);
+
+/* ---- the motor ---- */
+function motorStart(size){
+  if(!ensure())return;motorStop(0);
+  const bus=gain(0),far=filt("lowpass",16000);bus.connect(far);far.connect(out);
+  const layer=(buf,type,f,q)=>{const s=loop(buf),x=filt(type,f,q),g=gain(0);s.connect(x);x.connect(g);g.connect(bus);return{s,x,g};};
+  M={bus,far,size:Math.max(0,Math.min(1,size||0)),
+    rumble:layer(bufs.brown,"lowpass",120),roar:layer(bufs.white,"lowpass",600),
+    crackle:layer(bufs.crackle,"highpass",1400),hiss:layer(bufs.white,"highpass",3200)};
+  ease(bus.gain,1,0.01);}
+/* o: f (thrust as a share of peak, 0..1), rough (0..1, a jumpy pressure trace), jet (0..1, burn-through), dist (metres
+   from the microphone), slow (true in the slow-motion replay: everything drops in pitch) */
+function motorSet(o){
+  if(!M||!ctx)return;
+  const f=Math.max(0,Math.min(1.3,o.f||0)),sz=M.size,sl=o.slow?0.45:1,d=o.dist||0;
+  const near=1/(1+d/90);
+  ease(M.rumble.g.gain,MIX.rumble*f*(0.45+0.55*sz)*near);ease(M.rumble.x.frequency,(70+130*f)*(1-0.3*sz)*sl);
+  ease(M.roar.g.gain,MIX.roar*Math.pow(f,0.7)*(0.8+0.2*(1-sz))*near);ease(M.roar.x.frequency,Math.max(150,(350+2700*f)*(1-0.35*sz)*sl));
+  ease(M.crackle.g.gain,MIX.crackle*Math.min(1,0.12*f+0.9*(o.rough||0))*near);
+  ease(M.hiss.g.gain,MIX.hiss*(o.jet||0)*near);
+  ease(M.far.frequency,Math.max(350,16000/(1+d/50)),0.1);
+  for(const k of["rumble","roar","crackle","hiss"])M[k].s.playbackRate.setTargetAtTime(o.slow?0.6:1,ctx.currentTime,0.05);}
+function motorStop(fade){
+  if(!M)return;const m=M;M=null;if(!ctx)return;
+  const t=fade==null?0.35:fade;
+  if(t<=0){for(const k of["rumble","roar","crackle","hiss"])try{m[k].s.stop();}catch(e){}m.bus.disconnect();return;}
+  ease(m.bus.gain,0,t/3);
+  for(const k of["rumble","roar","crackle","hiss"])try{m[k].s.stop(ctx.currentTime+t*2);}catch(e){}
+  setTimeout(()=>{try{m.bus.disconnect();}catch(e){}},t*2000+200);}
+
+/* ---- one-off sounds ---- */
+function tone(freq,dur,vol,type,at){
+  const t=ctx.currentTime+(at||0),o=ctx.createOscillator(),g=gain(0);o.type=type||"sine";o.frequency.value=freq;
+  o.connect(g);g.connect(out);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.02);}
+/* a countdown beep; last=true for the long high one on "Fire" */
+function beep(last){if(!ensure())return;tone(last?1320:880,last?0.45:0.13,MIX.beep,"sine");}
+/* the firing relay closing: a hard tick */
+function click(){if(!ensure())return;
+  const s=ctx.createBufferSource(),x=filt("bandpass",2600,4),g=gain(MIX.click),t=ctx.currentTime;s.buffer=bufs.white;
+  s.connect(x);x.connect(g);g.connect(out);g.gain.setValueAtTime(MIX.click,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.025);
+  s.start(t,Math.random());s.stop(t+0.04);tone(1700,0.03,MIX.click*0.4,"square");}
+/* the data logger: two rising blips when it arms, two falling when it has saved the run */
+function chirp(done){if(!ensure())return;const a=done?2800:2100,b=done?2100:2800;
+  tone(a,0.06,MIX.chirp,"triangle");tone(b,0.07,MIX.chirp,"triangle",0.08);}
+/* a burst (size 1), a nozzle popping out (about 0.4), a rocket breaking up (about 0.7) */
+function bang(size){if(!ensure())return;
+  const sz=Math.max(0.2,Math.min(1,size)),t=ctx.currentTime,dur=0.5+1.4*sz;
+  const s=ctx.createBufferSource(),x=filt("lowpass",7000),g=gain(0);s.buffer=bufs.white;s.loop=true;
+  s.connect(x);x.connect(g);g.connect(out);
+  g.gain.setValueAtTime(MIX.bang*sz,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  x.frequency.setValueAtTime(7000,t);x.frequency.exponentialRampToValueAtTime(160,t+dur*0.8);
+  s.start(t);s.stop(t+dur+0.05);
+  const o=ctx.createOscillator(),og=gain(0);o.frequency.setValueAtTime(70,t);o.frequency.exponentialRampToValueAtTime(28,t+dur*0.7);
+  o.connect(og);og.connect(out);og.gain.setValueAtTime(MIX.bang*0.9*sz,t);og.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.7);
+  o.start(t);o.stop(t+dur);}
+
+/* ---- vibration ---- */
+const canBuzz=()=>typeof navigator!=="undefined"&&typeof navigator.vibrate==="function";
+function buzz(key){if(!hapOn||!canBuzz())return;const p=HAPTIC[key];if(p)try{navigator.vibrate(p);}catch(e){}}
+
+/* ---- switches ---- */
+function setOn(sound,haptics){
+  sndOn=!!sound;hapOn=!!haptics;
+  if(!sndOn){motorStop(0);if(ctx&&ctx.state==="running")ctx.suspend().catch(()=>{});}
+  if(!hapOn&&canBuzz())try{navigator.vibrate(0);}catch(e){}}
+function stop(){motorStop(0.25);}
+document.addEventListener("visibilitychange",()=>{if(!ctx)return;
+  if(document.hidden)ctx.suspend().catch(()=>{});else if(sndOn)ctx.resume().catch(()=>{});});
+return{unlock,setOn,stop,beep,click,chirp,bang,buzz,canBuzz,motor:{start:motorStart,set:motorSet,stop:motorStop,on:()=>!!M},HAPTIC};})();
+</script>
+<script>
 /* ===================== app/state.js: version, settings, small helpers, the sheet =====================
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.7.1.0";
+const VERSION="0.8.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -2570,13 +2681,23 @@ function gfxLoad(){
       GFX.state="ready";})
     .catch(e=>{GFX.state="failed";console.warn("3D stand unavailable:",e&&e.message);});
   return GFX.p;}
-/* the settings sheet (title screen): graphics now; sound and vibration join it with the sound stage */
+/* the settings sheet (title screen): graphics, sound and vibration */
 function settingsSheet(){
   const g=SETTINGS.gfx||"auto",st=GFX.state==="failed"?`<p class="hint">This phone couldn't start the 3D stand, so the 2D one is used.</p>`:"";
+  const onOff=(key,label,note)=>`<fieldset class="seg-f"><legend>${label}</legend><div class="seg two" role="radiogroup" aria-label="${label}">${[[true,"On"],[false,"Off"]].map(([v,n])=>
+      `<button type="button" role="radio" aria-checked="${SETTINGS[key]===v}" data-set="${key}" data-v="${v}" class="btn sm${SETTINGS[key]===v?" on":""}">${n}</button>`).join("")}</div>${note}</fieldset>`;
   openSheet("Settings",`<fieldset class="seg-f"><legend>Graphics</legend><div class="seg" role="radiogroup" aria-label="Graphics">${GFX_OPTS.map(([k,n])=>
       `<button type="button" role="radio" aria-checked="${k===g}" data-gfx="${k}" class="btn sm${k===g?" on":""}">${n}</button>`).join("")}</div>
-    <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`);
-  $("sheetBody").addEventListener("click",e=>{const b=e.target.closest("[data-gfx]");if(!b)return;
+    <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`+
+    onOff("sound","Sound",`<p class="hint">The motor, the countdown and the stand's relays. The speaker button on the stand mutes sound and vibration together.</p>`)+
+    onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`));
+  $("sheetBody").addEventListener("click",e=>{
+    const t=e.target.closest("[data-set]");
+    if(t){const k=t.dataset.set,v=t.dataset.v==="true";SETTINGS[k]=v;saveSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
+      if(k==="sound"&&v)BURN_SOUND.unlock();if(k==="haptics"&&v)BURN_SOUND.buzz("ignite");
+      $("sheetBody").querySelectorAll(`[data-set="${k}"]`).forEach(x=>{const on=x===t;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});
+      muteUI();return;}
+    const b=e.target.closest("[data-gfx]");if(!b)return;
     const k=b.dataset.gfx;SETTINGS.gfx=k;if(k!=="auto")delete SETTINGS.gfxAuto;saveSettings();
     $("sheetBody").querySelectorAll("[data-gfx]").forEach(x=>{const on=x===b;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});
     $("gfxNote").textContent=GFX_OPTS.find(o=>o[0]===k)[2];
@@ -3428,13 +3549,19 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");
    past burnout to apogee: the coast is sped up to take about four seconds. The first gauge reads height.
    Stage 7: when the 3D range is loaded (app/gfx.js) the stand and the launch play in 3D (vis/stand3d.js) instead of the
    2D drawings. A motor that fails destructively gets a slow-motion replay of the moment it went (0.3x, from half a second
-   before), once on its own and again from the "Watch it again" button. */
+   before), once on its own and again from the "Watch it again" button.
+   Sound and vibration (sound/synth.js) run off the same clock: countdown beeps, the relay's click, a roar that follows
+   the measured thrust and crackles when the pressure gets rough, a bang when it goes. The speaker button mutes both. */
 const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false};
+const SND={n:-1,lit:false,boom:false,out:false,saved:false};   // which sounds this run has made
 const REPLAY_SP=0.3,REPLAY_PRE=0.5,REPLAY_POST=1.4;   // replay speed, and seconds shown before and after the failure
 const COAST_S=4;   // seconds the coast to apogee takes on screen
-/* sim time at el seconds into the burn phase: the burn at FR.sp, then a launch's coast at FR.spC */
-const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb||!FR.tFly?el*FR.sp:FR.tEnd+(el-tb)*FR.spC;};
+/* sim time at el seconds into the burn phase: the burn at FR.sp, then a launch's coast at FR.spC, or real time after a
+   static burn (so a slowed short burn doesn't leave the stand idling in slow motion afterwards) */
+const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb?el*FR.sp:FR.tEnd+(el-tb)*(FR.tFly?FR.spC:1);};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
+/* AFTER in sim seconds at the speed the end of the run plays (real time, or a launch's sped-up coast) */
+const frAfter=()=>AFTER*(FR.tFly?FR.spC:1);
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
 function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
@@ -3445,7 +3572,8 @@ function openFiring(){
   $("fire").setAttribute("aria-label",fly?"Launch":"Static firing");
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
   FR.tFly=fly?Math.max(FR.tEnd,fly.lost?fly.tLost:fly.tApo):0;FR.spC=fly?Math.max(1,(FR.tFly-FR.tEnd)/COAST_S):1;
-  FR.fPk=Math.max(1,...f.plog.f);
+  FR.fPk=Math.max(1,...f.plog.f);FR.pPk=1;for(const p of f.log.p)if(p>FR.pPk)FR.pPk=p;
+  Object.assign(SND,{n:-1,lit:false,boom:false,out:false,saved:false});BURN_SOUND.stop();BURN_SOUND.chirp(false);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
   $("frNext").hidden=true;$("frAbort").hidden=false;$("frAbort").disabled=false;$("frReplay").hidden=true;$("frPlume").hidden=true;$("frSlow").hidden=true;
@@ -3465,35 +3593,58 @@ function setup3d(L){
     tBurn:fl&&fl.destructive?Math.min(fl.t,FR.tEnd):FR.tEnd,lost:fly.lost?fly.tLost:null});}
   BURN_VIS.s3.setup(o);}
 function frameFiring(now){
-  const L=GAME.last;if(!L||$("fire").hidden){FR.phase="idle";playing3d(false);return;}
-  const f=L.f,el=(now-FR.t0)/1000,still=reduced();playing3d(true);
-  if(FR.phase==="replay"){const t=FR.rp0+el*REPLAY_SP;drawFiring(Math.min(t,FR.rp1),still);
+  const L=GAME.last;if(!L||$("fire").hidden){FR.phase="idle";playing3d(false);BURN_SOUND.stop();return;}
+  const f=L.f,el=Math.max(0,(now-FR.t0)/1000),still=reduced();   // a frame can be stamped a moment before t0playing3d(true);
+  if(FR.phase==="replay"){const t=FR.rp0+el*REPLAY_SP;drawFiring(Math.min(t,FR.rp1),still);sndAt(Math.min(t,FR.rp1),true);
     if(t<FR.rp1)FR.raf=requestAnimationFrame(frameFiring);else endReplay();return;}
   if(FR.phase==="count"){
     const left=FIRE_COUNT-Math.floor(el/COUNT_STEP);
     $("frCount").textContent=left>0?String(left):"Fire";$("frCount").hidden=false;
+    if(left!==SND.n){SND.n=left;BURN_SOUND.beep(left<=0);}
     drawFiring(-1,still);
     if(el>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
   const t=frTime(el),tDone=Math.max(FR.tEnd,FR.tFly);
-  drawFiring(t,still);
-  if(t<tDone+AFTER*(FR.tFly?FR.spC:1))FR.raf=requestAnimationFrame(frameFiring);
+  drawFiring(t,still);sndAt(t,false);
+  if(t<tDone+frAfter())FR.raf=requestAnimationFrame(frameFiring);
   else if(FR.rp0>=0&&!FR.replayed&&!still)startReplay();
-  else{FR.phase="done";playing3d(false);if(FR.rp0>=0)$("frReplay").hidden=false;$("frPlume").hidden=!FR.d3;}
+  else{FR.phase="done";playing3d(false);sndDone();if(FR.rp0>=0)$("frReplay").hidden=false;$("frPlume").hidden=!FR.d3;}
   if(t>=tDone&&$("frNext").hidden){$("frNext").hidden=false;$("frAbort").hidden=true;$("frNext").focus({preventScroll:true});}}
 /* the slow-motion replay of a failure: the same seconds again at REPLAY_SP, from the close-up camera in 3D */
 function startReplay(){
-  FR.replayed=true;FR.phase="replay";FR.t0=performance.now();$("frSlow").hidden=false;$("frReplay").hidden=true;
+  FR.replayed=true;FR.phase="replay";FR.t0=performance.now();Object.assign(SND,{lit:false,boom:false,out:false});$("frSlow").hidden=false;$("frReplay").hidden=true;
   $("frSpeed").textContent=`slowed ×${REPLAY_SP}`;
   if(FR.d3){const S=BURN_VIS.s3.S,k=GAME.last.f.failure.key;FR.shot0=S.shot;
     if(GAME.last.f.flight){S.shot=1;S.orbit=null;}else if(k==="cato"){S.shot=0;S.orbit={az:-0.35,el:0.12,zoom:0.8};}else{S.shot=1;S.orbit=null;}}
   cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
 function endReplay(){
-  FR.phase="done";playing3d(false);$("frSlow").hidden=true;$("frReplay").hidden=false;
+  FR.phase="done";playing3d(false);sndDone();$("frSlow").hidden=true;$("frReplay").hidden=false;
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
   if(FR.d3){const S=BURN_VIS.s3.S;S.shot=FR.shot0||0;S.orbit=null;}
-  drawFiring(Math.max(FR.tEnd,FR.tFly)+AFTER,reduced());}
+  drawFiring(Math.max(FR.tEnd,FR.tFly)+frAfter(),reduced());}
+/* sound and vibration at sim time t (slow: in the replay, where nothing vibrates and the relay doesn't click again) */
+function sndAt(t,slow){
+  if(t<0)return;
+  const B=BURN_SOUND,f=GAME.last.f,lg=f.log,fl=f.failure,fly=f.flight,burning=t<=FR.tEnd;
+  if(!SND.lit){SND.lit=true;if(!slow){B.click();B.buzz(fl&&fl.key==="hangfire"?"hangfire":"ignite");}}
+  if(burning&&!B.motor.on())B.motor.start(Math.max(0,Math.min(1,(Math.log10(FR.fPk)-1.3)/3.2)));
+  const i=BURN_VIS.at(lg,Math.min(t,FR.tEnd)),j=Math.max(0,i-2);
+  B.motor.set({f:burning?lg.f[i]/FR.fPk:0,rough:burning?Math.min(1,Math.abs(lg.p[i]-lg.p[j])/FR.pPk*12):0,
+    jet:fl&&fl.key==="burnthrough"&&t>=fl.t&&burning?1:0,dist:fly?BURN_VIS.pathAt(fly.samples,Math.min(t,FR.tFly)).h:0,slow});
+  const boomAt=fl&&fl.destructive?fl.t:fly&&fly.lost?fly.tLost:null;
+  if(boomAt!=null&&t>=boomAt&&!SND.boom){SND.boom=true;const k=fl&&fl.destructive?fl.key:"lost";
+    B.bang(k==="cato"?1:k==="eject"?0.45:k==="burnthrough"?0.3:0.7);if(!slow)B.buzz(k);}
+  if(!burning&&!SND.out){SND.out=true;if(!slow&&!(fl&&fl.destructive))B.click();}}
+/* the run is over: the roar stops and, the first time, the logger chirps that it has saved the data */
+function sndDone(){BURN_SOUND.motor.stop();if(!SND.saved){SND.saved=true;BURN_SOUND.chirp(true);}}
+/* the speaker button: one switch for sound and vibration together (Kelbo, 13 November 2026) */
+const SPK_ON='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const SPK_OFF='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+function muteUI(){const on=SETTINGS.sound||SETTINGS.haptics,b=$("frMute");b.innerHTML=on?SPK_ON:SPK_OFF;b.setAttribute("aria-pressed",String(!on));
+  b.setAttribute("aria-label",on?"Mute sound and vibration":"Sound and vibration are off. Turn them on");}
+function toggleMute(){const on=!(SETTINGS.sound||SETTINGS.haptics);SETTINGS.sound=SETTINGS.haptics=on;saveSettings();
+  BURN_SOUND.setOn(on,on);if(on)BURN_SOUND.unlock();muteUI();toast(on?"Sound and vibration on.":"Muted.");}
 const playing3d=on=>{if(FR.d3)BURN_VIS.s3.S.playing=on;};
 function drawFiring(t,still){
   const L=GAME.last,f=L.f,lg=f.log,m=f.motor,fl=f.failure;
@@ -3515,9 +3666,13 @@ function abortFiring(){
   toast("Once it's lit, it's lit.");$("frAbort").disabled=true;}
 function initFiring(){
   $("frAbort").addEventListener("click",abortFiring);
-  $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";playing3d(false);openReport();});
+  $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";playing3d(false);BURN_SOUND.stop();openReport();});
+  $("frMute").addEventListener("click",toggleMute);muteUI();
+  /* phones only start audio from a tap: wake the audio on any tap or key while sound is on */
+  const wake=()=>{if(SETTINGS.sound)BURN_SOUND.unlock();};
+  document.addEventListener("pointerdown",wake,{capture:true,passive:true});document.addEventListener("keydown",wake,{capture:true});
   $("frReplay").addEventListener("click",startReplay);
-  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+AFTER,reduced());}});}
+  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+frAfter(),reduced());}});}
 /* ===================== app/report.js: the range report and the incident report (plan section 8) =====================
    After every firing: the measured trace over the prediction, the spec checked line by line, and the grade. When it
    failed, the same form becomes the incident report: the failure moment marked on the chart, the root cause in one
@@ -3672,7 +3827,7 @@ function debugPage(){
 /* ===================== app/boot.js: start-up and the title screen =====================
    start() runs once the page has parsed: settings, the save, the title, then the loading splash goes. */
 function start(){
-  loadSettings();
+  loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
   document.documentElement.dataset.theme=SETTINGS.theme==="dark"?"dark":"light";
   $("verLbl").textContent="v"+VERSION;
   loadSave();renderTitle();initTitle();initBoard();

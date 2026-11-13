@@ -3,6 +3,7 @@
    tables are deterministic; star points start big and fall away; erosive burning grows as the port narrows, is off in a
    wide port, and the design checks catch points that reach the case. */
 module.exports = ({ SIM, check, near }) => {
+  const rel = (a, b, tol, what) => { if (!(Math.abs(a / b - 1) <= tol)) throw new Error(`${what}: ${a} is ${((a / b - 1) * 100).toFixed(2)}% off ${b} (allowed ${(tol * 100).toFixed(1)}%)`); };
   const clone = o => JSON.parse(JSON.stringify(o));
   const base = () => {
     const d = clone(SIM.REF_DESIGNS["54mm 4-seg BATES, Dray, steel throat"]);
@@ -14,16 +15,16 @@ module.exports = ({ SIM, check, near }) => {
   check("level set: a round core on the grid matches the analytic tube (area, volume, port, web)", () => {
     const R = 0.0235, rc = 0.008, L = 0.1, tab = SIM.lsTable({ shape: "core", R, rc });
     const a = SIM.coreSeg(R, rc, L, false), b = SIM.lsSeg(R, [{ tab, L }], "core");
-    near(b.web, a.web, 0.02, "web");
+    rel(b.web, a.web, 0.02, "web");
     let worstA = 0, worstV = 0;
     for (let f = 0.05; f <= 0.9; f += 0.05) {
       const x = f * a.web;
       worstA = Math.max(worstA, Math.abs(b.A(x) / a.A(x) - 1));
       if (f <= 0.8) worstV = Math.max(worstV, Math.abs(b.V(x) / a.V(x) - 1));
-      near(b.port(x), a.port(x), 0.02, "port at " + f.toFixed(2));
+      rel(b.port(x), a.port(x), 0.02, "port at " + f.toFixed(2));
     }
-    near(b.V(0), a.V(0), 0.01, "volume at the start");
-    near(b.A(0), a.A(0), 0.1, "area at the start (the grid's staircase edge reads high for a cell or two)");
+    rel(b.V(0), a.V(0), 0.01, "volume at the start");
+    rel(b.A(0), a.A(0), 0.05, "area at the start");
     if (worstA > 0.03) throw new Error(`area off by ${(worstA * 100).toFixed(1)}%`);
     if (worstV > 0.015) throw new Error(`volume off by ${(worstV * 100).toFixed(1)}%`);
     return `area within ${(worstA * 100).toFixed(1)}%, volume within ${(worstV * 100).toFixed(1)}%`;
@@ -35,8 +36,8 @@ module.exports = ({ SIM, check, near }) => {
       const p = SIM.predict(shaped(shape), { tGrain: 20 });
       if (!p.ok) throw new Error(shape + ": " + p.errors.map(e => e.text).join(" "));
       const M = p.run.mass, inn = M.burned + M.ign + M.gas0 - M.gasEnd;
-      near(M.out, inn, 0.005, shape + " mass out vs in");
-      near(M.burned, p.motor.mass.prop, 0.01, shape + " burned vs loaded");
+      rel(M.out, inn, 0.005, shape + " mass out vs in");
+      rel(M.burned, p.motor.mass.prop, 0.01, shape + " burned vs loaded");
       if (!(p.sum.I > 0 && p.sum.tb > 0)) throw new Error(shape + " made no impulse");
       out.push(`${shape} ${p.sum.designation}`);
     }
@@ -48,7 +49,7 @@ module.exports = ({ SIM, check, near }) => {
     const a = SIM.lsTable(p), b = SIM.lsTable(Object.assign({}, p));
     if (a !== b) throw new Error("the memo missed an identical key");
     const c = SIM.lsTable(Object.assign({}, p, { ptLen: 0.007000001 }));
-    for (const x of [0, 0.002, 0.005, 0.009]) near(c.area(x), a.area(x), 0.002, "a hair-different table at " + x);
+    for (const x of [0, 0.002, 0.005, 0.009]) rel(c.area(x), a.area(x), 0.002, "a hair-different table at " + x);
     for (let q = 0; q < a.s.length; q += 997) { const u = a.s[q], v = c.s[q]; if (!(u === v || (u !== u && v !== v) || Math.abs(u - v) < 1e-7)) throw new Error("distance maps differ at " + q); }
   });
 

@@ -4,7 +4,7 @@
    shows "New version ready" and sends SKIP_WAITING when tapped. Same-origin models/, sounds/ and textures/ are cached as
    they are fetched. Every cache name starts "brn-": the activate step only ever deletes "brn-" caches, never another game's. */
 "use strict";
-const CACHE = "brn-shell-v0.6.0.0-b2a45ace18", MEDIA = "brn-media-e3b0c442";
+const CACHE = "brn-shell-v0.6.0.0-f54ff5c4a6", MEDIA = "brn-media-e3b0c442";
 const PRECACHE = ["index.html","manifest.webmanifest","icons/apple-touch-icon.png","icons/icon-192.png","icons/icon-512-maskable.png","icons/icon-512.png","icons/icon.svg","fonts/martian-mono-cyrillic-400-normal.woff2","fonts/martian-mono-latin-400-normal.woff2","fonts/martian-mono-latin-600-normal.woff2","fonts/saira-semi-condensed-latin-400-normal.woff2","fonts/saira-semi-condensed-latin-600-normal.woff2","fonts/saira-semi-condensed-latin-700-normal.woff2","fonts/saira-stencil-one-latin-400-normal.woff2","assets/studio/longlight-logo-dark.png","assets/studio/longlight-logo-dark.svg","assets/studio/longlight-logo-light.png","assets/studio/longlight-logo-light.svg"];
 const BASE = new URL("./", self.location).pathname;
 self.addEventListener("install", e => {

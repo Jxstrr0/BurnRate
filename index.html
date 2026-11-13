@@ -756,81 +756,125 @@ const FACILITIES={
     note:"The old state booster stand: motors up to 2 m long and 170 mm across, a 40 kN load cell. Opens tier 3 work and tier 3 parts."}
 };
 Object.assign(SIM,{CAREER,FACILITIES});
+/* ===================== data/flight.js: rockets and the launch day (stage 6; plan section 6.10) =====================
+   A flight job puts the motor in a simple rocket picked from three lists: a body tube, a nose cone and a fin set. The
+   rocket's length is the motor plus the payload bay plus the nose (three body diameters). Drag coefficient is the body's
+   base plus the nose's and the fins' shares. A fin set keeps the rocket pointing straight up to a length/diameter ratio
+   (maxLD); a longer, thinner rocket won't fly straight and the range won't launch it.
+   Bodies: id / od in mm, kgm (kg per metre), cost (cr per metre). Noses: cd, mass (as metres of body tube), cost.
+   Fins: cd, maxLD, mass (kg at 100 mm body diameter, growing with the square of the diameter), cost. */
+const FLIGHT={
+  bayLen:0.25,     // m of payload bay and parachute above the motor
+  noseL:3,         // nose length, body diameters
+  recovery:0.06,   // kg: parachute and harness, plus ...
+  recoveryPerKg:0.04, // ... this share of the rest of the rocket's dry mass
+  cdBody:0.25,     // the body's own drag coefficient (skin friction and base)
+  rail:3,          // m of launch rail
+  railMin:15,      // m/s: leaving the rail slower than this, the wind pushes the rocket over (a warning)
+  twrMin:5,        // liftoff thrust-to-weight under this is a slow, wobbly start (a warning)
+  gap:1,           // mm of clearance the body needs over the motor's case
+  fee:250,         // range fee for a launch from the rail on the salt flat, cr
+  windMin:0.5,     // m/s: the calmest launch day ...
+  windMax:7,       // ... and the windiest the range lets you fly in
+  windPow:1.6,     // most days are on the calm side: speed = min + (max − min) × u^windPow
+  rho0:1.225,hScale:8500,g0:9.80665,   // sea-level air density (kg/m³), its scale height (m), gravity
+  sound:340,       // m/s, for the drag rise near the speed of sound
+  mach:[[0,1],[0.8,1],[1.05,1.6],[1.5,1.35],[3,1.2]],   // drag multiplier against Mach number (straight lines between)
+  dtBurn:0.004,dtCoast:0.02,tMax:900   // integration steps (s) and a time cap
+};
+const BODIES={
+  kraft33:{name:"33 mm kraft tube",id:31,od:33,kgm:0.07,cost:6,tier:1},
+  kraft43:{name:"43 mm kraft tube",id:41,od:43,kgm:0.11,cost:8,tier:1},
+  kraft58:{name:"58 mm kraft tube",id:56,od:58,kgm:0.17,cost:11,tier:1},
+  kraft68:{name:"68 mm kraft tube",id:66,od:68,kgm:0.22,cost:14,tier:1},
+  glass84:{name:"84 mm glass-fibre tube",id:81,od:84,kgm:0.55,cost:60,tier:2},
+  glass118:{name:"118 mm glass-fibre tube",id:114,od:118,kgm:0.85,cost:85,tier:2},
+  carbon160:{name:"160 mm carbon tube",id:156,od:160,kgm:1.05,cost:240,tier:3},
+  carbon184:{name:"184 mm carbon tube",id:180,od:184,kgm:1.25,cost:290,tier:3}
+};
+const NOSES={
+  cone:{name:"Cone",cd:0.18,mass:0.5,cost:10,tier:1,note:"Simple and light. Draggy."},
+  ogive:{name:"Ogive",cd:0.12,mass:0.7,cost:18,tier:1,note:"The classic curve. Less drag."},
+  karman:{name:"Von Kármán",cd:0.08,mass:0.9,cost:45,tier:2,note:"The low-drag shape for fast rockets."}
+};
+const FINS={
+  three:{name:"Three small fins",cd:0.14,maxLD:13,mass:0.05,cost:12,tier:1,note:"Light, little drag; only steady on a short rocket."},
+  four:{name:"Four fins",cd:0.21,maxLD:19,mass:0.08,cost:18,tier:1,note:"Steady on a longer rocket. More drag."},
+  swept:{name:"Three swept fins",cd:0.16,maxLD:22,mass:0.09,cost:45,tier:2,note:"Big, swept and thin: steady and slippery."},
+  long:{name:"Four long-chord fins",cd:0.24,maxLD:30,mass:0.14,cost:60,tier:3,note:"For long, thin boosters."}
+};
+Object.assign(SIM,{FLIGHT,BODIES,NOSES,FINS});
 /* ===================== sim/levelset.js: level-set grain cross-sections (plan section 6.2) =====================
-   For the shapes with no closed form (star, slotted, finocyl fins, moonburner) the port's cross-section is drawn on a
-   square grid (TUNING.lsGrid cells across the grain), and every propellant cell gets its distance from the port with an
-   exact Euclidean distance transform (Felzenszwalb and Huttenlocher's two-pass method). The burning surface after the
-   grain has burned back by web x is the contour where distance = x, so:
-     port area P(x)   = the port at the start plus every cell the contour has passed (each cell burns over one cell
-                        width, so the area grows smoothly, not in steps)
-     perimeter p(x)   = dP/dx (smoothed over about a cell)
+   For the shapes with no closed form (star, slotted, finocyl fins, moonburner) the grain's cross-section is laid on a
+   square grid (TUNING.lsGrid cells across the grain), and every cell gets its exact signed distance from the port's edge
+   (negative inside the port): every port here is built from circles, polygons and rectangles, which all have a
+   closed-form distance. The burning surface after the grain has burned back by web x is the contour where distance = x
+   (the front moves at the same speed everywhere, so the burned region is everything within x of the first port), so:
+     port area P(x)   = every cell the contour has passed; a cell burns smoothly over one cell width, from its centre
+                        distance minus half a cell to plus half a cell, so the edge is not a staircase
+     perimeter p(x)   = dP/dx (smoothed over a few cells)
      propellant left  = the grain's area minus what has burned
    lsTable(params) returns those three as tables against x, plus the distance map for the cross-section view.
    A table only depends on the cross-section, so the last few are kept (the same key always gives the same table: the
    memo doesn't change any result). A circle drawn this way matches the analytic tube (tools/sim-tests/levelset.js). */
 const LS_MEMO=[];
-/* the port's shape as an inside(x, y) test, in metres from the grain's axis. p: {shape, rc, pts, ptLen, ptW, offset} */
-function portTest(p){
+/* the port's signed distance sd(x, y), in metres from the grain's axis: negative inside the port, positive in the
+   propellant. p: {shape, rc, pts, ptLen, ptW, offset} */
+function portDist(p){
   const rc=p.rc;
   if(p.shape==="star"){
     /* a star polygon: the points' tips at rc + ptLen, the valleys between them at rc */
     const vx=[],vy=[],n=p.pts;
     for(let k=0;k<2*n;k++){const a=PI*k/n+PI/2,r=k%2?rc:rc+p.ptLen;vx.push(r*Math.cos(a));vy.push(r*Math.sin(a));}
-    return(x,y)=>{let ins=false;for(let i=0,j=vx.length-1;i<vx.length;j=i++)
-      if((vy[i]>y)!==(vy[j]>y)&&x<(vx[j]-vx[i])*(y-vy[i])/(vy[j]-vy[i])+vx[i])ins=!ins;return ins;};}
+    const m=vx.length;
+    return(x,y)=>{let ins=false,d2=Infinity;
+      for(let i=0,j=m-1;i<m;j=i++){
+        if((vy[i]>y)!==(vy[j]>y)&&x<(vx[j]-vx[i])*(y-vy[i])/(vy[j]-vy[i])+vx[i])ins=!ins;
+        const ex=vx[i]-vx[j],ey=vy[i]-vy[j],wx=x-vx[j],wy=y-vy[j],t=Math.max(0,Math.min(1,(wx*ex+wy*ey)/(ex*ex+ey*ey)));
+        const dx=wx-t*ex,dy=wy-t*ey;d2=Math.min(d2,dx*dx+dy*dy);}
+      const d=Math.sqrt(d2);return ins?-d:d;};}
   if(p.shape==="slots"){
-    /* the core plus radial slots of width ptW reaching out to rc + ptLen */
+    /* the core plus radial slots of width ptW reaching out to rc + ptLen: the union of a circle and rectangles */
     const n=p.pts,tip=rc+p.ptLen,hw=p.ptW/2,cs=[],sn=[];
     for(let k=0;k<n;k++){const a=2*PI*k/n+PI/2;cs.push(Math.cos(a));sn.push(Math.sin(a));}
-    return(x,y)=>{if(x*x+y*y<=rc*rc)return true;
-      for(let k=0;k<n;k++){const u=x*cs[k]+y*sn[k],v=-x*sn[k]+y*cs[k];if(u>=0&&u<=tip&&Math.abs(v)<=hw)return true;}return false;};}
-  if(p.shape==="moon"){const o=p.offset;return(x,y)=>x*x+(y-o)*(y-o)<=rc*rc;}   // the core moved off the axis (upwards)
-  return(x,y)=>x*x+y*y<=rc*rc;}                                                   // a plain round core
-/* squared Euclidean distance transform along one line (f: 0 on the port, BIG elsewhere) */
-function edt1(f,n,d,v,z){
-  let k=0;v[0]=0;z[0]=-Infinity;z[1]=Infinity;
-  for(let q=1;q<n;q++){
-    let s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);
-    while(s<=z[k]){k--;s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);}
-    k++;v[k]=q;z[k]=s;z[k+1]=Infinity;}
-  k=0;for(let q=0;q<n;q++){while(z[k+1]<q)k++;d[q]=(q-v[k])*(q-v[k])+f[v[k]];}}
+    return(x,y)=>{let d=Math.hypot(x,y)-rc;
+      for(let k=0;k<n;k++){const u=x*cs[k]+y*sn[k]-tip/2,v=-x*sn[k]+y*cs[k];
+        const qx=Math.abs(u)-tip/2,qy=Math.abs(v)-hw;
+        d=Math.min(d,Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0));}
+      return d;};}
+  if(p.shape==="moon"){const o=p.offset;return(x,y)=>Math.hypot(x,y-o)-rc;}   // the core moved off the axis (upwards)
+  return(x,y)=>Math.hypot(x,y)-rc;}                                            // a plain round core
+/* the port's shape as an inside(x, y) test */
+function portTest(p){const sd=portDist(p);return(x,y)=>sd(x,y)<0;}
 /* the table for one cross-section. p: {shape, R, rc, pts, ptLen, ptW, offset} in metres */
 function lsTable(p){
   const N=TUNING.lsGrid,key=[p.shape,p.R,p.rc,p.pts,p.ptLen,p.ptW,p.offset,N].join("|");
   const hit=LS_MEMO.find(e=>e.key===key);if(hit)return hit.tab;
-  const R=p.R,c=2*R/N,inPort=portTest(p),BIG=1e10;
-  /* the grid: 0 outside the grain, 1 port, 2 propellant */
-  const kind=new Uint8Array(N*N),D=new Float64Array(N*N);
-  let nPort=0,nGrain=0;
+  const R=p.R,c=2*R/N,sd=portDist(p);
+  /* s: each cell's centre distance (−1 on the port, NaN outside the grain), kept for the cross-section view;
+     u: where each cell starts to burn (half a cell before the front reaches its centre); deep port cells all sit at −1.5 cells */
+  const s=new Float32Array(N*N),u=new Float64Array(N*N);let nDisk=0,nPort=0,sMax=0;
   for(let j=0;j<N;j++){const y=-R+(j+0.5)*c;for(let i=0;i<N;i++){const x=-R+(i+0.5)*c,q=j*N+i;
-    if(x*x+y*y>R*R)continue;
-    if(inPort(x,y)){kind[q]=1;nPort++;}else{kind[q]=2;nGrain++;}}}
-  /* distance (in cells) from every cell to the nearest port cell: columns, then rows */
-  const f=new Float64Array(N),d=new Float64Array(N),v=new Int32Array(N),z=new Float64Array(N+1);
-  for(let q=0;q<N*N;q++)D[q]=kind[q]===1?0:BIG;
-  for(let i=0;i<N;i++){for(let j=0;j<N;j++)f[j]=D[j*N+i];edt1(f,N,d,v,z);for(let j=0;j<N;j++)D[j*N+i]=d[j];}
-  for(let j=0;j<N;j++){for(let i=0;i<N;i++)f[i]=D[j*N+i];edt1(f,N,d,v,z);for(let i=0;i<N;i++)D[j*N+i]=d[i];}
-  /* each propellant cell burns over one cell width: from s = (distance to the nearest port cell) − one cell, to s + c.
-     s is kept for the cross-section view (−1 on the port, NaN outside the grain) */
-  const s=new Float32Array(N*N);let sMax=0;
-  for(let q=0;q<N*N;q++){if(kind[q]===0){s[q]=NaN;continue;}if(kind[q]===1){s[q]=-1;continue;}
-    const sv=Math.max(0,Math.sqrt(D[q])*c-c);s[q]=sv;if(sv>sMax)sMax=sv;}
-  /* histogram in quarter-cell bins, then the port area at each bin edge x_k = k·h */
-  const h=c/4,nb=Math.ceil((sMax+c)/h)+6,H=new Float64Array(nb);
-  for(let q=0;q<N*N;q++)if(kind[q]===2)H[Math.min(nb-1,Math.floor(s[q]/h))]++;
-  const P=new Float64Array(nb+1);let full=0;
-  for(let k=0;k<=nb;k++){
-    if(k-5>=0)full+=H[k-5];
-    let part=0;for(let j=Math.max(0,k-4);j<k;j++)part+=H[j]*Math.min(1,(k-j-0.5)/4);
-    P[k]=(nPort+full+part)*c*c;}
-  /* the perimeter: dP/dx over a window TUNING.lsSmooth cells wide (distances on a grid come in steps, so a narrower
-     window is noisy); within the first half window it looks forward only */
+    if(x*x+y*y>R*R){s[q]=NaN;u[q]=NaN;continue;}
+    const v=sd(x,y);nDisk++;u[q]=Math.max(-1.5*c,v-c/2);
+    if(v<0){s[q]=-1;nPort++;}else{s[q]=v;if(v>sMax)sMax=v;}}}
+  /* histogram of burn starts in fine bins (c/32), then the port area at x_k = k·h: every cell counts in full once the
+     front is half a cell past its centre, and in part (a straight ramp) over the cell width before that */
+  const b=c/32,o=2*c,nf=Math.ceil((sMax+c/2+o)/b)+2,F=new Float64Array(nf);   // bins start at −o
+  for(let q=0;q<N*N;q++){const v=u[q];if(v===v)F[Math.min(nf-1,Math.floor((v+o)/b))]++;}
+  const h=c/4,nb=Math.ceil((sMax+c/2)/h)+2,P=new Float64Array(nb+1);
+  let full=0,fi=0;   // full: cells whose burn start is at least one cell behind x; fi: the first bin not yet in it
+  for(let k=0;k<=nb;k++){const x=k*h;
+    while(fi<nf&&-o+(fi+1)*b<=x-c){full+=F[fi];fi++;}
+    let part=0;for(let i=fi;i<nf;i++){const ui=-o+(i+0.5)*b;if(ui>=x)break;part+=F[i]*Math.min(1,(x-ui)/c);}
+    P[k]=(full+part)*c*c;}
+  /* the perimeter: dP/dx over a window TUNING.lsSmooth cells wide; within the first half window it looks forward only */
   const per=new Float64Array(nb+1),w=Math.max(1,Math.round(TUNING.lsSmooth*2));   // half window, in quarter-cell bins
-  for(let k=0;k<=nb;k++){const a=Math.max(0,k-w),b=Math.min(nb,k+w);per[k]=b>a?(P[b]-P[a])/((b-a)*h):0;}
+  for(let k=0;k<=nb;k++){const a=Math.max(0,k-w),e=Math.min(nb,k+w);per[k]=e>a?(P[e]-P[a])/((e-a)*h):0;}
   for(let k=0;k<w&&k+w<=nb;k++)per[k]=(P[k+w]-P[k])/(w*h);
-  const Ag=nGrain*c*c,web=sMax+c;
-  const at=(arr,x)=>{if(x<=0)return arr[0];const u=x/h,k=Math.floor(u);if(k>=nb)return arr[nb];return arr[k]+(arr[k+1]-arr[k])*(u-k);};
-  const tab={N,c,R,web,s,nPort,nGrain,port0:nPort*c*c,grain0:Ag,
+  const Ad=nDisk*c*c,Ag=Ad-P[0],web=sMax+c/2;
+  const at=(arr,x)=>{if(x<=0)return arr[0];const r=x/h,k=Math.floor(r);if(k>=nb)return arr[nb];return arr[k]+(arr[k+1]-arr[k])*(r-k);};
+  const tab={N,c,R,web,s,nPort,nGrain:nDisk-nPort,port0:P[0],grain0:Ag,
     per:x=>x>=web?0:at(per,x),
     port:x=>Math.min(PI*R*R,at(P,Math.min(x,web))),
     area:x=>x>=web?0:Math.max(0,Ag-(at(P,x)-P[0]))};   // propellant left in the cross-section, m²
@@ -845,7 +889,7 @@ function lsSeg(R,pieces,shape){
     V(x){return x>=web?0:pieces.reduce((s,p)=>s+p.tab.area(x)*p.L,0);},
     port(x){return aft.port(x);},
     minPort(x){return Math.min(...pieces.map(p=>p.tab.port(x)));}};}
-Object.assign(SIM,{portTest,lsTable,lsSeg});
+Object.assign(SIM,{portDist,portTest,lsTable,lsSeg});
 /* ===================== sim/grain.js: grain geometry (plan section 6.2) =====================
    A grain is one or more segments in the case. Every segment answers three questions at web distance x (metres burned
    back from the starting surface):
@@ -1344,7 +1388,9 @@ Object.assign(SIM,{riseRate,drawVariance,fire});
    preFire(contract, design, motor, o) lists what stops the motor going on the stand at all: it doesn't fit the stand, its
    predicted peak thrust is past the stand's load cell (o.sum), or it uses parts from a tier not yet open (o.tier: the
    career's tier; without it, the contract's). Each item names the design field to change.
-   Criteria also include prog (curve shape: last third's thrust over the first third's, sim/derive.js). */
+   Criteria also include prog (curve shape: last third's thrust over the first third's, sim/derive.js) and, on a flight
+   job (contract.flight: {payload kg}), apogee (m: the real flight's, sim/flight.js; 0 when the rocket was lost). A flight
+   job's stand only sets the motor's size class: the load cell doesn't apply on the rail. */
 const SPEC_INFO={
   I:{name:"Total impulse",short:"I",unit:"N·s",dp:1,gloss:"impulse",fix:["grain.segs","grain.segLen"]},
   Fav:{name:"Average thrust",short:"avg",unit:"N",dp:0,gloss:"thrust",fix:["nozzle.throatD","grain.coreD"]},
@@ -1353,11 +1399,12 @@ const SPEC_INFO={
   Fmax:{name:"Peak thrust",short:"peak",unit:"N",dp:0,gloss:"thrust",fix:["nozzle.throatD"]},
   mass:{name:"Motor mass",short:"mass",unit:"g",dp:0,gloss:"motorMass",fix:["case.mat","case.wall"]},
   massFrac:{name:"Mass fraction",short:"frac",unit:"%",dp:0,gloss:"massFrac",fix:["case.mat","case.wall"]},
-  prog:{name:"Curve shape",short:"shape",unit:"×",dp:2,gloss:"curveShape",fix:["grain.shape","grain.segLen","grain.coreD"]}
+  prog:{name:"Curve shape",short:"shape",unit:"×",dp:2,gloss:"curveShape",fix:["grain.shape","grain.segLen","grain.coreD"]},
+  apogee:{name:"Apogee",short:"apogee",unit:"m",dp:0,gloss:"apogee",fix:["grain.segLen","airframe.nose"]}
 };
 function specValue(k,s,m){
   switch(k){case"I":return s.I;case"Fav":return s.Fav;case"tb":return s.tb;case"Pmax":return s.Pmax/1e6;case"Fmax":return s.Fmax;
-    case"mass":return m.mass.total*1000;case"massFrac":return s.massFrac*100;case"prog":return s.prog;}
+    case"mass":return m.mass.total*1000;case"massFrac":return s.massFrac*100;case"prog":return s.prog;case"apogee":return s.apogee;}
   return NaN;}
 /* closeness to the middle of a two-sided band: 1 in the middle, 0 at the edge, negative outside */
 function specCheck(spec,s,m){
@@ -1366,7 +1413,9 @@ function specCheck(spec,s,m){
     return{k:c.k,lo:c.lo,hi:c.hi,v,ok,close,info:SPEC_INFO[c.k]};});}
 function grade(contract,f){
   if(!f.ok)return{pass:false,letter:"–",why:"invalid",checks:[]};
-  const checks=specCheck(contract.spec,f.meas.sum,f.motor);
+  /* a flight job's apogee is the real flight's (sim/flight.js launch) */
+  const sum=f.flight?Object.assign({},f.meas.sum,{apogee:f.flight.lost?0:f.flight.apogee}):f.meas.sum;
+  const checks=specCheck(contract.spec,sum,f.motor);
   if(f.failure)return{pass:false,letter:"–",why:f.failure.key,checks};
   const miss=checks.filter(c=>!c.ok);
   if(miss.length)return{pass:false,letter:"–",why:"spec",checks,miss};
@@ -1381,12 +1430,119 @@ function preFire(contract,design,m,o){
   if(m&&m.ok){
     if(m.length*1000>st.len)add("grain.segLen",`The motor is ${Math.round(m.length*1000)} mm long; ${st.name} takes ${st.len} mm.`);
     if(m.diameter*1000>st.dia)add("case.id",`The motor is ${Math.round(m.diameter*1000)} mm across; ${st.name}'s clamps take ${st.dia} mm.`);
-    if(o.sum&&st.cell&&o.sum.Fmax>st.cell)add("nozzle.throatD",`The motor peaks at ${(o.sum.Fmax/1000).toFixed(2)} kN; ${st.name}'s load cell is rated ${(st.cell/1000).toFixed(1)} kN.`);}
+    if(o.sum&&st.cell&&!contract.flight&&o.sum.Fmax>st.cell)add("nozzle.throatD",`The motor peaks at ${(o.sum.Fmax/1000).toFixed(2)} kN; ${st.name}'s load cell is rated ${(st.cell/1000).toFixed(1)} kN.`);}
   const tier=o.tier||contract.tier||1,parts=[["grain.prop",PROPELLANTS[design.grain.prop],"grade"],["grain.shape",GRAIN_SHAPES[design.grain.shape],"grain shape"],["case.mat",CASES[design.case.mat],"case material"],
     ["case.liner",LINERS[design.case.liner],"liner"],["nozzle.mat",THROATS[design.nozzle.mat],"throat material"]];
   for(const[f,p,what]of parts)if(p&&(p.tier||1)>tier)add(f,`${p.name} is a tier ${p.tier} ${what}. You have tier ${tier} parts${o.tier?" so far":" on this job"}.`);
   return out;}
 Object.assign(SIM,{SPEC_INFO,specValue,specCheck,grade,preFire});
+/* ===================== sim/flight.js: flight tests (stage 6; plan section 6.10) =====================
+   fly(thrust, rocket, wind) flies a point-mass rocket up a launch rail and on to apogee:
+     m · dv/dt = F(t) − m·g − ½ · rho(h) · |v_air|² · Cd(Mach) · A
+   with an exponential atmosphere and the propellant mass falling as the impulse is spent. On the rail the rocket only
+   moves along it (straight up). Off the rail it points into the air flowing past it (weathercocking), so in a wind it
+   tilts upwind and loses height. With no wind this is exactly the plan's vertical 1D flight.
+   rocketOf(design, motor, payload) builds the rocket from design.airframe ({body, nose, fins}) and the motor;
+   preLaunch(...) lists what stops the range launching it; launch(design, cond, seed, o) fires the motor on the rocket
+   (sim/fire.js, the same real-vs-predicted variance as the stand) and flies it on the measured thrust, in a seeded wind
+   (its own "wind" stream). f.fpred is the predicted flight (the predictor's curve at this temperature, no wind). */
+function airframeOf(d){const a=d&&d.airframe;return a&&BODIES[a.body]&&NOSES[a.nose]&&FINS[a.fins]?a:null;}
+/* the smallest body the motor fits, an ogive and the fins that keep it straight (what a flight job's bench opens with) */
+function defaultAirframe(m){
+  const od=m.diameter*1000,bodies=Object.keys(BODIES).sort((a,b)=>BODIES[a].id-BODIES[b].id);
+  const body=bodies.find(k=>BODIES[k].id>=od+FLIGHT.gap)||bodies[bodies.length-1];
+  const a={body,nose:"ogive",fins:"three"},L=rocketLen(a,m);
+  if(L/(BODIES[body].od/1000)>FINS.three.maxLD)a.fins="four";
+  return a;}
+function rocketLen(a,m){const b=BODIES[a.body],D=b.od/1000;return m.length+FLIGHT.bayLen+FLIGHT.noseL*D;}
+/* the rocket as the flight needs it. payload in kg */
+function rocketOf(design,m,payload){
+  const a=airframeOf(design);if(!a||!m||!m.ok)return null;
+  const b=BODIES[a.body],n=NOSES[a.nose],fi=FINS[a.fins],D=b.od/1000,tubeL=m.length+FLIGHT.bayLen,L=rocketLen(a,m);
+  const body=b.kgm*tubeL,nose=b.kgm*FLIGHT.noseL*D*n.mass,fins=fi.mass*Math.pow(b.od/100,2);
+  const shell=body+nose+fins,rec=FLIGHT.recovery+FLIGHT.recoveryPerKg*(shell+(payload||0)+m.mass.total-m.mass.prop);
+  const dry=shell+rec+(payload||0)+(m.mass.total-m.mass.prop);   // everything but the propellant
+  return{a,body:b,nose:n,fins:fi,D,L,LD:L/D,area:PI*D*D/4,cd:FLIGHT.cdBody+n.cd+fi.cd,dry,prop:m.mass.prop,payload:payload||0,
+    mass0:dry+m.mass.prop,airframeMass:shell+rec,fits:b.id>=m.diameter*1000+FLIGHT.gap};}
+/* what the airframe costs to build for one flight, cr */
+function airframeCost(design,m){const a=airframeOf(design);if(!a||!m||!m.ok)return 0;
+  const b=BODIES[a.body];return Math.round(b.cost*(m.length+FLIGHT.bayLen)+NOSES[a.nose].cost+FINS[a.fins].cost);}
+const machMul=M=>{const T=FLIGHT.mach;if(M<=T[0][0])return T[0][1];for(let i=1;i<T.length;i++)if(M<=T[i][0]){const[a,u]=T[i-1],[b,v]=T[i];return u+(v-u)*(M-a)/(b-a);}return T[T.length-1][1];};
+/* the flight. thrust: {t:[s], f:[N]} (a motor run), rocket: rocketOf(...) or any {dry, prop, cd, area}, wind (m/s).
+   o.noMach: constant Cd (the tests' analytic check). Returns apogee and the trace (sampled every 0.05 s). */
+function fly(thrust,rocket,wind,o){
+  o=o||{};const F=FLIGHT,g=F.g0,T=thrust.t,Fv=thrust.f,n=T.length,tEnd=T[n-1];
+  /* cumulative impulse, so the propellant left follows the impulse spent */
+  const Ic=new Float64Array(n);for(let i=1;i<n;i++)Ic[i]=Ic[i-1]+0.5*(Fv[i]+Fv[i-1])*(T[i]-T[i-1]);
+  const Itot=Ic[n-1]||1;let k=0;
+  const at=t=>{if(t>=tEnd)return[0,Itot];while(k<n-2&&T[k+1]<t)k++;while(k>0&&T[k]>t)k--;const u=T[k+1]>T[k]?(t-T[k])/(T[k+1]-T[k]):0;
+    return[Fv[k]+(Fv[k+1]-Fv[k])*u,Ic[k]+(Ic[k+1]-Ic[k])*u];};
+  const w=wind||0,cdA=rocket.cd*rocket.area;
+  let t=0,x=0,h=0,vx=0,vh=0,onRail=true,off=false,vRail=0,vMax=0,aMax=0,hBo=0,vBo=0,tOff=null,s=0;
+  const out={t:[0],h:[0],x:[0],v:[0]};
+  /* liftoff thrust-to-weight: the strongest push in the first 0.3 s against the loaded rocket */
+  let F0=0;for(let j=0;j<n&&T[j]<=0.3;j++)F0=Math.max(F0,Fv[j]);
+  const twr0=F0/((rocket.dry+rocket.prop)*g);
+  while(t<F.tMax){
+    const burning=t<tEnd,dt=burning?Math.min(F.dtBurn,Math.max(1e-6,tEnd-t)):F.dtCoast,   // land a step exactly on burnout
+      [Ft,It]=at(t),m=rocket.dry+rocket.prop*Math.max(0,1-It/Itot);
+    const rho=F.rho0*Math.exp(-Math.max(0,h)/F.hScale),ax_=vx-w,ah_=vh,va=Math.hypot(ax_,ah_);
+    const cdm=o.noMach?1:machMul(va/F.sound),D=0.5*rho*va*va*cdA*cdm;
+    let ax,ah;
+    if(onRail){
+      const net=Ft-m*g-(vh>0?D:0);
+      if(!off&&net<=0){if(!burning)break;t+=dt;continue;}   // still sitting on the pad
+      off=true;if(tOff==null)tOff=t;ax=0;ah=net/m;}
+    else{
+      /* the rocket points along the air flowing past it; thrust along that, drag against it */
+      const ux=va>1e-6?ax_/va:0,uh=va>1e-6?ah_/va:1;
+      ax=(Ft*ux-D*ux)/m;ah=(Ft*uh-D*uh)/m-g;}
+    aMax=Math.max(aMax,Math.hypot(ax,ah+(onRail?0:g))/g);
+    const vh0=vh,h0=h,x0=x;
+    const vx0=vx;vx+=ax*dt;vh+=ah*dt;x+=0.5*(vx0+vx)*dt;h+=0.5*(vh0+vh)*dt;t+=dt;   // trapezoid: exact for steady acceleration
+    if(onRail&&h>=F.rail){onRail=false;vRail=vh;}
+    if(onRail&&h<0){h=0;vh=0;}
+    const v=Math.hypot(vx,vh);vMax=Math.max(vMax,v);
+    if(burning&&t>=tEnd){hBo=h;vBo=v;}
+    if(off&&!onRail&&vh<0&&vh0>=0){   // apogee: interpolate where the climb rate crossed zero
+      const u=vh0/(vh0-vh),ha=h0+(h-h0)*u,xa=x0+(x-x0)*u,ta=t-dt+dt*u;
+      out.t.push(ta);out.h.push(ha);out.x.push(xa);out.v.push(Math.abs(vx));
+      return{ok:true,left:true,apogee:ha,tApo:ta,drift:xa,vMax,aMax,vRail,twr0,hBurnout:hBo,vBurnout:vBo,tOff,wind:w,cd:rocket.cd,samples:out};}
+    if(off&&onRail&&vh<0&&!burning)break;
+    s+=dt;if(s>=0.05){s=0;out.t.push(t);out.h.push(h);out.x.push(x);out.v.push(v);}}
+  return{ok:true,left:off,apogee:Math.max(0,h),tApo:t,drift:x,vMax,aMax,vRail,twr0,hBurnout:hBo,vBurnout:vBo,tOff,wind:w,cd:rocket.cd,samples:out};}
+/* the predicted flight for a design on the bench: the predictor's curve, no wind */
+function predictFlight(design,m,run,payload){const r=rocketOf(design,m,payload);if(!r)return null;const f=fly(run,r,0);f.rocket=r;return f;}
+/* what stops the range launching this rocket. Each item names the design field to change */
+function preLaunch(design,m,run,payload,tier){
+  const out=[],add=(field,text)=>out.push({field,text}),a=airframeOf(design);
+  if(!a){add("airframe.body","Pick a body tube, a nose and fins on the Rocket tab.");return out;}
+  if(!m||!m.ok)return out;
+  const r=rocketOf(design,m,payload);
+  if(!r.fits)add("airframe.body",`The motor is ${Math.round(m.diameter*1000)} mm across; the ${r.body.name} is ${r.body.id} mm inside.`);
+  if(r.LD>r.fins.maxLD)add("airframe.fins",`The rocket is ${r.LD.toFixed(0)} body diameters long; ${r.fins.name.toLowerCase()} keep it straight only up to ${r.fins.maxLD}. It would cartwheel off the rail.`);
+  if(run){const fl=fly(run,r,0);if(!fl.left)add("nozzle.throatD",`The motor never lifts the ${r.mass0.toFixed(2)} kg rocket off the pad: its thrust is under the rocket's weight.`);}
+  if(tier)for(const[f,p,what]of[["airframe.body",r.body,"body tube"],["airframe.nose",r.nose,"nose"],["airframe.fins",r.fins,"fin set"]])
+    if((p.tier||1)>tier)add(f,`The ${p.name} is a tier ${p.tier} ${what}. You have tier ${tier} parts so far.`);
+  return out;}
+/* the wind on a launch day, from the firing's seed */
+function windOf(seed){const F=FLIGHT,u=rngStreams(seed).get("wind").next();return F.windMin+(F.windMax-F.windMin)*Math.pow(u,F.windPow);}
+/* fire the motor on the rocket and fly it. o: {payload}. A motor that bursts, blows its nozzle or burns through destroys
+   the rocket: f.flight.lost = true and the flight ends there. */
+function launch(design,cond,seed,o){
+  const f=fire(design,cond,seed);if(!f.ok)return f;
+  const payload=(o&&o.payload)||0,r=rocketOf(design,f.motor,payload);
+  if(!r)return{ok:false,errors:[{field:"airframe.body",text:"No rocket picked."}]};
+  const wind=windOf(seed);
+  f.fpred=fly(f.pred.run,r,0);f.fpred.rocket=r;
+  const lost=f.failure&&f.failure.destructive;
+  const fl=fly(f.meas.run,r,wind);fl.rocket=r;
+  if(lost){/* the flight stops where the motor failed */
+    const tl=f.failure.t,S=fl.samples;let i=S.t.findIndex(v=>v>=tl);if(i<0)i=S.t.length-1;
+    fl.lost=true;fl.tLost=tl;fl.hLost=S.h[i];fl.apogee=S.h[i];
+    for(const k of["t","h","x","v"])S[k]=S[k].slice(0,i+1);}
+  f.flight=fl;f.launch=true;return f;}
+Object.assign(SIM,{airframeOf,defaultAirframe,rocketOf,airframeCost,machMul,fly,predictFlight,preLaunch,windOf,launch});
 /* ===================== sim/career.js: the career's rules (plan sections 4 and 5) =====================
    Pure functions on a career object (the save holds it as JSON; app/save.js keeps it). Nothing random here: the board
    is the contract list in order, filtered by tier and what's done; each firing's dice come from fire()'s seed.
@@ -1413,8 +1569,10 @@ function buildCost(m,d){
     {k:"igniter",label:I.name,cr:CR(I.cost)},
     {k:"shop",label:"Machining and closures",cr:CR(C.shopBase+C.shopPerMm*d.case.id+(d.case.closure==="bolts"?C.perBolt*d.case.bolts:0))}];
   return{items,total:items.reduce((s,x)=>s+x.cr,0)};}
-function firingCost(standId,m,d,slot){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
-  return{fee:st.fee,hut,build:b,total:st.fee+hut+b.total};}
+function firingCost(standId,m,d,slot,launch){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
+  /* a launch pays the rail's fee and the rocket's build instead of the stand's fee (sim/flight.js airframeCost) */
+  const fee=launch?FLIGHT.fee:st.fee,air=launch?airframeCost(d,m):0;
+  return{fee,hut,air,build:b,total:fee+hut+air+b.total};}
 /* what a job pays before the grade: a repeat order pays its share of the first fee */
 const contractById=id=>CONTRACTS.find(c=>c.id===id)||null;
 function basePay(car,c){const d=car.done[c.id];return CR(d&&c.repeat?c.pay*c.repeat.pay:c.pay);}
@@ -1541,7 +1699,7 @@ Object.assign(VIS,{curves,at});
    drawn beside the end view (time, pressure...). Drawn to scale; burning surfaces glow. h(width) -> height, optional.
    Level-set grains (star, slotted, finocyl, moonburner) are drawn from their distance maps (sim/levelset.js): the side
    cut follows the grid's centre column (the moonburner's core is moved up, so the cut shows its thin side on top), and
-   the end view paints every cell: propellant, the burning front (where the distance equals x) or open port. */
+   the end view paints every cell by its distance from the port: propellant, the burning front (distance = x) or open port. */
 const LS_IMG=new WeakMap();   // distance map -> {canvas, ctx, img}, so the end view reuses its pixels
 const rgbOf=(()=>{let cx=null;return col=>{if(!cx){const cv=document.createElement("canvas");cv.width=cv.height=1;cx=cv.getContext("2d",{willReadFrequently:true});}
   cx.clearRect(0,0,1,1);cx.fillStyle=col;cx.fillRect(0,0,1,1);return cx.getImageData(0,0,1,1).data.slice(0,4);};})();
@@ -1549,17 +1707,17 @@ const rgbOf=(()=>{let cx=null;return col=>{if(!cx){const cv=document.createEleme
 function lsImage(tab,x,band,k){
   let e=LS_IMG.get(tab);
   if(!e){const cv=document.createElement("canvas");cv.width=cv.height=tab.N;const ctx=cv.getContext("2d");e={cv,ctx,img:ctx.createImageData(tab.N,tab.N)};LS_IMG.set(tab,e);}
-  const P=rgbOf(k.prop),B=rgbOf(k.burn),O=rgbOf(k.card),d=e.img.data,s=tab.s,N=tab.N,h=tab.c/2;
+  const P=rgbOf(k.prop),B=rgbOf(k.burn),O=rgbOf(k.card),d=e.img.data,s=tab.s,N=tab.N;
   for(let j=0;j<N;j++)for(let i=0;i<N;i++){
     const q=(N-1-j)*N+i,o=(j*N+i)*4,v=s[q];   // grid row 0 is the bottom (y = −R); the image's row 0 is the top
     let C;if(v!==v){d[o+3]=0;continue;}
-    if(v<0)C=O;else{const dd=v+h;C=Math.abs(dd-x)<=band?B:dd<x?O:P;}
+    if(v<0)C=O;else C=Math.abs(v-x)<=band?B:v<x?O:P;
     d[o]=C[0];d[o+1]=C[1];d[o+2]=C[2];d[o+3]=255;}
   e.ctx.putImageData(e.img,0,0);return e.cv;}
 /* the runs of propellant still there along the grid's centre column, as [y0, y1] in metres from the axis (y up) */
 function lsCut(tab,x){
   const N=tab.N,i=N>>1,c=tab.c,R=tab.R,out=[];let a=-1;
-  for(let j=0;j<=N;j++){const v=j<N?tab.s[j*N+i]:NaN,solid=v===v&&v>=0&&v+c/2>x;
+  for(let j=0;j<=N;j++){const v=j<N?tab.s[j*N+i]:NaN,solid=v===v&&v>=0&&v>x;
     if(solid&&a<0)a=j;else if(!solid&&a>=0){out.push([-R+a*c,-R+j*c,a>0&&tab.s[(a-1)*N+i]===tab.s[(a-1)*N+i],j<N&&v===v]);a=-1;}}
   return out;}   // [y0, y1, burning below, burning above]
 function section(cv,m,x,info,h){

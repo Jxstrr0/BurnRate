@@ -12,8 +12,24 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
 | 6. Flight tests | 0.7.0.0 | Done |
 | 7. The test stand in 3D | 0.8.0.0 | Done |
-| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0 Daily Spec, 0.8.2.0 Sandbox, 0.8.3.0 tenders, 0.8.4.0 coach and data sheet) |
+| 8. Polish and modes | 0.9.0.0 | Done |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.9.0.0 — Stage 8, part 5: the balance bot (Stage 8 done)
+
+- **The headless balance bot**, `node tools/balance-bot.js`: for every contract it plays like a player who has picked the
+  right parts. It starts from the job's own starting drawing with the solution's parts swapped in, but none of the
+  solution's numbers. It tunes the bench's numbers using the predictor alone: one slider at a time, plus moves a player
+  makes together (the exit follows the throat, the core follows a thicker liner, scale the whole motor, split or merge
+  segments, grow the core and the throat together). It aims for the middle of each band, clears every red flag and
+  keeps a margin under every rating. Then it fires the result three times.
+- A job passes if the bot's motor raises no red flag, the stand accepts it, and it passes 2 of 3 firings. Free-slot jobs
+  are tuned at noon first, then at dawn and dusk if noon doesn't deliver (a long burn wants cold grain). **All 27
+  contracts pass** (about 100 s), most of them A A A. It runs in CI as its own job, beside the other checks.
+- The hardest jobs, by the bot's count of tries: Qyran's long burn (a cold dawn grain, close to the chuffing limit),
+  Ozen's cold motor and Kumtal's sounding rocket. These are tier 2-3 puzzles, and they're meant to be hard.
+- Stage 8 is done: the Daily Spec, the Sandbox, tier 4 tenders, the coach tour, the data sheet, the glossary pass and
+  the balance bot.
 
 ## 0.8.4.0 — Stage 8, part 4: the coach tour, the data sheet, glossary links
 

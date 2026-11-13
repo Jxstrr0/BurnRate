@@ -24,3 +24,17 @@ jobs:
         run: node tools/sim-test.js --brief
       - name: Save-code checks
         run: if [ -f check-savecode.js ]; then node check-savecode.js; else echo "no save codes yet (stage 4)"; fi
+  balance:
+    # the headless balance bot (stage 8): every contract delivered from its start design with its tier's parts.
+    # Its own job so it runs beside the checks above (about two minutes).
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Balance bot (every contract solvable from its start design)
+        run: node tools/balance-bot.js

@@ -168,6 +168,20 @@ module.exports = ({ SIM, check, near }) => {
     return out.join(", ");
   });
 
+  check("first job: the club's old drawing bursts at every slot, the predictor says so, and a bigger throat passes", () => {
+    const c = byId("first-light"), d = JSON.parse(JSON.stringify(c.start));
+    const p = SIM.predict(d, { tGrain: 20 }).sum;
+    if (!p.warnings.some(w => w.sev === "crit")) throw new Error("the predictor gives no critical warning on the old drawing");
+    let cato = 0, n = 0;
+    for (const slot of ["dawn", "noon", "dusk"]) for (let i = 0; i < 6; i++) { n++; const f = SIM.fire(d, { tGrain: SIM.SLOTS[slot].tGrain }, "tour" + i + "/first-light/1"); if (f.failure && f.failure.key === "cato") cato++; }
+    if (cato < n) throw new Error(`only ${cato}/${n} burst: the tour expects a CATO`);
+    const f = SIM.fire(d, { tGrain: SIM.SLOTS.dusk.tGrain }, "tour/fix");
+    if (!f.failure.fix.includes("nozzle.throatD")) throw new Error("the incident report doesn't point at the throat");
+    d.nozzle.throatD = 6.5; d.nozzle.exitD = 13; let pass = 0;
+    for (let i = 0; i < 6; i++) if (SIM.grade(c, SIM.fire(d, { tGrain: SIM.SLOTS.dusk.tGrain }, "tourfix" + i)).pass) pass++;
+    if (pass < 6) throw new Error(`the throat fix passes only ${pass}/6`);
+  });
+
   check("hut: fires at the job's temperature or the player's setting (clamped), costs its fee, and hut jobs need the hut", () => {
     const H = SIM.HUT, hutJob = SIM.CONTRACTS.find(c => c.slot === "hut");
     if (!hutJob) throw new Error("no hut job in the contracts");

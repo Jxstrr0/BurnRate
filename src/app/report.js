@@ -31,7 +31,9 @@ const RSO_LINES={
 const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
 const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
 const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
-function openReport(){renderReport();showScreen("report");}
+/* the report's number: S-n in the sandbox, D<daily no>-n on the Daily Spec, 41-nnn otherwise */
+const reportNo=L=>L.sandbox?`S-${L.n}`:L.daily?`D${L.c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`;
+function openReport(){renderReport();showScreen("report");coachReport();}
 function renderReport(){
   const L=GAME.last;if(!L)return;
   /* a lot: the details below are for the selected motor; the stamp is the lot's */
@@ -61,8 +63,8 @@ function renderReport(){
   const d=f.draws,full=L.bunker>=1;
   const blockhouse=[`Propellant batch: ${pctS(d.aMul-1)} burn rate`,`Case tube: ${pctS(d.caseMul-1)} strength`].concat(full?[`Closures: ${pctS(d.retMul-1)} retention`,
     `Liner: ${pctS(d.linerMul-1)} protection`,`Igniter: ${pctS(d.ignMul-1)} gas`,`Throat wear: ×${d.eroMul.toFixed(2)}`,
-    `Casting void: ${d.void?"yes, "+Math.round(d.void.frac*100)+"% extra area":"none"} (chance ${(d.voidChance*100).toFixed(1)}%)`,
-    `Grain crack: ${d.crack?"yes, "+Math.round(d.crack.frac*100)+"% extra area":"none"} (chance ${(d.crackChance*100).toFixed(1)}%)`]:[]);
+    `<button type="button" class="gl" data-g="castingVoid">Casting void</button>: ${d.void?"yes, "+Math.round(d.void.frac*100)+"% extra area":"none"} (chance ${(d.voidChance*100).toFixed(1)}%)`,
+    `<button type="button" class="gl" data-g="grainCrack">Grain crack</button>: ${d.crack?"yes, "+Math.round(d.crack.frac*100)+"% extra area":"none"} (chance ${(d.crackChance*100).toFixed(1)}%)`]:[]);
   /* the bill (career): live after a firing, or the logbook's short version */
   let bill="";
   if(L.out){const b=L.bill,o=L.out,car=S.career;
@@ -88,7 +90,7 @@ function renderReport(){
   $("rpBody").innerHTML=`
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
       <span class="site">Aqsor Range · Site 41 · ${esc(fly?"Launch rail":c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
-      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. ${L.sandbox?`S-${L.n}`:L.daily?`D${c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`}</span></h2>
+      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. ${reportNo(L)}</span></h2>
       <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${LT?`lot of ${LT.fires.length}, motor ${LT.sel+1} below`:`${fly?"launch":"motor"} ${L.n}`}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
     ${broke}${dl}${LT?lotCard(L):""}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
@@ -98,10 +100,10 @@ function renderReport(){
       ${fixes.length?`<h3>Where to fix it</h3><div class="row">${fixes.map(fd=>`<button type="button" class="btn" data-goto="${fd}">${esc(ctlSpec(fd).label)} ›</button>`).join("")}</div>`:""}</section>`:""}
     ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
     <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
-    ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-      <p class="hint">${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
+    ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
+      <p class="hint"><button type="button" class="gl" data-g="blockhouse">The blockhouse</button>. ${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
-    <div class="rp-act">${act}</div>`;
+    <div class="rp-act">${act}${canShareSheet(L)?`<button type="button" class="btn" id="rpSheet">Data sheet</button>`:""}</div>`;
   drawReportChart();}
 /* a tender's lot: one row per motor (tap one to read its details below), and the rule it was judged by */
 function lotCard(L){const LT=L.lot,G=LT.gl,R=BURN_SIM.CAREER.lot;
@@ -135,12 +137,13 @@ function drawReportChart(){
     events:f.events.map(e=>({t:e.t,label:e.key})),others:L.lot?L.lot.fires.filter(x=>x!==f).map(x=>x.log):null});}
 function initReport(){
   $("rpBody").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-    if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);}
+    if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);coachFix();}
     else if(b.id==="rpBench"){showScreen("design");drawAll();}
     else if(b.id==="rpAgain"){showScreen("design");drawAll();toStand();}
     else if(b.id==="rpBoard")openBoard();
     else if(b.id==="rpLog")openLogbook();
     else if(b.id==="rpShare")shareDaily();
+    else if(b.id==="rpSheet")openShareSheet();
     else if(b.id==="rpSbx")sandboxSheet();
     else if(b.dataset.lotsel!=null&&GAME.last&&GAME.last.lot){GAME.last.lot.sel=+b.dataset.lotsel;const y=window.scrollY;renderReport();window.scrollTo(0,y);}
     else if(b.id==="rpTitle"){renderTitle();showScreen("title");}});

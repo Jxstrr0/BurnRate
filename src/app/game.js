@@ -71,7 +71,7 @@ function toStand(){
   if(!r.ok){openSheet("Not buildable",`<p>This motor can't be built yet.</p><ul class="fixes">${fixList(r.errors)}</ul>`);return;}
   if(isDaily()){const kc=BURN_SIM.kitCheck(GAME.contract.kit,DZ.d);if(kc.length){openSheet("Not in today's kit",`<ul class="fixes">${fixList(kc)}</ul>`);return;}}
   const pf=BURN_SIM.preFire(withStand(GAME.contract),DZ.d,r.motor,{sum:r.sum,tier:partTier()});
-  if(pf.length){openSheet(isFlight()?"The range won't launch it":"It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul>`);return;}
+  if(pf.length){openSheet(isFlight()?"The range won't launch it":"It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul><p class="hint"><button type="button" class="gl" data-g="loadCell">What each stand takes</button></p>`);return;}
   if(isFlight()){const pl=flightChecks().crit;if(pl.length){openSheet("The range won't launch it",`<ul class="fixes">${fixList(pl)}</ul>`);return;}}
   slotSheet();}
 /* what this firing costs, and whether the bank will cover it (career only) */
@@ -90,7 +90,7 @@ function slotSheet(){
   const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Hut set to <b class="mono">${degC(hutT)}</b></span>
     <button type="button" class="btn sm" data-hut="-1" aria-label="Colder"${hutT<=H.min?" disabled":""}>−</button><button type="button" class="btn sm" data-hut="1" aria-label="Warmer"${hutT>=H.max?" disabled":""}>+</button></div>`:"";
   const b=firingBill(),car=S.career,tender=isTender(),bl=tender?firingBill(true):null,LT=BURN_SIM.CAREER.lot;
-  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + motor ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
+  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} <button type="button" class="gl" data-g="rangeFee">fee</button> ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + <button type="button" class="gl" data-g="buildCost">motor</button> ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
     ${bl?`<p class="mono">The lot: fee ${fmtCr(bl.fee)}${bl.hut?` + hut ${fmtCr(bl.hut)}`:""} + ${LT.n} motors ${fmtCr(bl.motors)} = <b>${fmtCr(bl.total)}</b></p>`:""}
     <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. ${fly?"A lost rocket still costs.":"A failed motor still costs."}</p>
     ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}
@@ -99,7 +99,7 @@ function slotSheet(){
       :"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".")
     :`Pick when to ${fly?"launch":"fire"}. The grain sits out overnight, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
   const windNote=fly?` The wind on the rail is light, but it changes every day: you'll only know it on the morning.`:"";
-  openSheet(fly?"Launch slot":"Firing slot",`<p class="hint">${lead} Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
+  openSheet(fly?"Launch slot":"Firing slot",`<p class="hint"><button type="button" class="gl" data-g="firingSlot">${fly?"Launch":"Firing"} slots</button>: ${lead} <button type="button" class="gl" data-g="grainTemp">Why the temperature matters</button>. Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
     <div class="pick">${cards}</div>${dial}${bill}${tender?`<p class="hint">A tender is delivered as a lot: ${LT.n} motors from this design on one range day, and ${LT.need} must pass. One failure still delivers at ${Math.round(LT.failPay*100)}% of the pay; two or more lose the tender for ${LT.retender} days. A development motor first shows how this design fires, but the client doesn't take it.</p>
       <button type="button" class="btn pri big wide" data-go="lot"${bl&&!bl.ok?" disabled":""}>Fire the lot of ${LT.n}</button><button type="button" class="btn big wide" data-go="1"${b&&!b.ok?" disabled":""}>Fire one development motor</button>`
     :`<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>${fly?"Clear the range and launch":"Clear the range and fire"}</button>`}`);}

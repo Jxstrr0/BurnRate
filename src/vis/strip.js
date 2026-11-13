@@ -4,9 +4,10 @@
    the report can show it all. The scales come from the prediction and the case rating, never from the measured peak, so
    a burst runs off the top of the chart instead of giving itself away before it happens.
    o: {h, pred:{t,p,f}, meas:{t,p,f}, upto, pLine (Pa, the case's burst rating), mark:{t,label} (the failure moment),
-       events:[{t,label}] (a void, a crack), now (true: draw a pen dot at the head of the measured trace)} */
+       events:[{t,label}] (a void, a crack), now (true: draw a pen dot at the head of the measured trace), others (more measured
+       traces, faint), fix ({W, dpr}: a set size, for the share card)} */
 function strip(cv,o){
-  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,300))),k=tokens();
+  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,300)),o.fix),k=tokens();
   const P=o.pred,M=o.meas,nP=P.t.length,nM=M.t.length;
   const L=38,R=10,T=8,B=20,gap=16,hP=Math.round((H-T-B-gap)*0.58),hF=H-T-B-gap-hP,w=W-L-R;
   const tMax=Math.max(P.t[nP-1],M.t[nM-1])*1.03||1,X=t=>L+w*Math.min(1,t/tMax);

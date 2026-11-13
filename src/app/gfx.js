@@ -35,8 +35,10 @@ function settingsSheet(){
       `<button type="button" role="radio" aria-checked="${k===g}" data-gfx="${k}" class="btn sm${k===g?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`+
     onOff("sound","Sound",`<p class="hint">The motor, the countdown and the stand's relays. The speaker button on the stand mutes sound and vibration together.</p>`)+
-    onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`));
+    onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`)+
+    onOff("coach","Coach cards",`<p class="hint">Short tips on your first job, each shown once. <button type="button" class="btn sm" id="coachAgain">Show them again</button></p>`));
   $("sheetBody").addEventListener("click",e=>{
+    if(e.target.closest("#coachAgain")){SETTINGS.seen={};SETTINGS.coach=true;saveSettings();closeSheet();toast("Coach cards will show again on your first job.");return;}
     const t=e.target.closest("[data-set]");
     if(t){const k=t.dataset.set,v=t.dataset.v==="true";SETTINGS[k]=v;saveSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
       if(k==="sound"&&v)BURN_SOUND.unlock();if(k==="haptics"&&v)BURN_SOUND.buzz("ignite");

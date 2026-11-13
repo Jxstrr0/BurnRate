@@ -346,6 +346,18 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
   border-radius:12px;padding:8px 8px 8px 14px;box-shadow:var(--shadow);z-index:60;transform:translateY(160%);transition:transform .25s;max-width:520px;margin:0 auto}
 #bkBar.on{transform:none}#bkBar span{flex:1;font-size:.9rem}
 @media (prefers-reduced-motion:reduce){#bkBar{transition:none}}
+
+/* ---- coach cards (app/coach.js): a card over the bottom of the screen, a ring on what it talks about ---- */
+.coach{position:fixed;left:12px;right:12px;bottom:16px;z-index:50;max-width:520px;margin:0 auto;border-left:4px solid var(--hazard);padding:12px 14px}
+.has-go .coach{bottom:84px}
+/* the data sheet picture (app/share.js) */
+.sh-wrap{margin:0 0 12px}.sh-img{display:block;width:100%;max-width:420px;height:auto;margin:0 auto;border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow)}
+.coach[hidden]{display:none}
+.coach-t{display:block;font:400 1.05rem/1.2 var(--sign);letter-spacing:.04em;text-transform:uppercase;color:var(--stateD);margin-bottom:4px}
+.coach p{margin:0 0 10px;font-size:.95rem}
+.coach-on{outline:3px solid var(--hazard);outline-offset:3px;border-radius:8px}
+@media (prefers-reduced-motion:no-preference){.coach-on{animation:coachPulse 1.6s ease-in-out infinite}}
+@keyframes coachPulse{50%{outline-offset:6px}}
 </style>
 
 <div id="app">
@@ -667,8 +679,11 @@ const STANDS={
   s1:{name:"Stand 1",len:2000,dia:170,cell:40000,fee:1200,note:"The old state booster stand: a horizontal thrust frame in a bunkered bay, a 40 kN load cell."}};
 const CONTRACTS=[
   {id:"first-light",client:"Aqsor Steppe Rocketry Club",title:"A G for field day",tier:1,stand:"s3",slot:null,pay:800,days:6,repeat:{pay:0.6,every:5},
-    brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They will fly whatever passes.",
-    spec:[{k:"I",lo:80,hi:160},{k:"tb",lo:1.0,hi:3.5}],start:"29mm 2-seg BATES, Mule",
+    brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They left their old drawing on the bench: they will fly whatever passes.",
+    spec:[{k:"I",lo:80,hi:160},{k:"tb",lo:1.0,hi:3.5}],
+    /* the club's old drawing (plan section 10): a thin phenolic tube and a tight throat, so the first motor bursts and the
+       coach tour walks through the incident report and the fix (a bigger throat; a thicker wall alone burns too short) */
+    start:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:48,coreD:10},case:{mat:"phenolic",id:29,wall:0.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:4.5,exitD:11,half:15},igniter:"s"},
     solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:42,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:13,half:15},igniter:"s"}},
   {id:"dala-g48",client:"Dala Hobby Supply",title:"Catalogue G48",tier:1,stand:"s3",slot:null,pay:1000,days:6,repeat:{pay:0.6,every:4},
     brief:"A hobby shop in town wants a motor for its catalogue: a G averaging close to 48 N. Customers read the label, so the motor has to match it.",
@@ -1835,13 +1850,14 @@ if(typeof module!=="undefined")module.exports=BURN_SIM;
    results, never changes them. Colours come from the CSS tokens in css/style.css, read at draw time. */
 const BURN_VIS=(()=>{"use strict";const VIS={};
 /* ===================== vis/canvas.js: shared canvas helpers =====================
-   fit(cv, h) sizes a canvas to its CSS width at the screen's pixel ratio (capped at 2) and returns {c, W, H};
+   fit(cv, h, fix) sizes a canvas to its CSS width at the screen's pixel ratio (capped at 2) and returns {c, W, H}; fix =
+   {W, dpr} draws at a set size instead (the share card's offscreen chart);
    tokens() reads the colour and font tokens; nice(v) rounds an axis maximum up to 1, 2, 2.5 or 5 x 10^k; divs(max) picks a
    gridline count that keeps every axis label a round number. */
-function fit(cv,h){
-  const dpr=Math.min(2,window.devicePixelRatio||1),W=Math.max(200,cv.clientWidth||320),H=Math.round(h(W));
+function fit(cv,h,fix){
+  const dpr=fix?fix.dpr:Math.min(2,window.devicePixelRatio||1),W=fix?fix.W:Math.max(200,cv.clientWidth||320),H=Math.round(h(W));
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
-  cv.style.height=H+"px";
+  if(!fix)cv.style.height=H+"px";
   const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);return{c,W,H};}
 function tokens(){const s=getComputedStyle(document.documentElement),g=k=>s.getPropertyValue(k).trim();
   return{ink:g("--ink"),muted:g("--muted"),line:g("--line"),pred:g("--pred"),meas:g("--meas"),stencil:g("--stencil"),warn:g("--warn"),
@@ -1982,9 +1998,10 @@ Object.assign(VIS,{section});
    the report can show it all. The scales come from the prediction and the case rating, never from the measured peak, so
    a burst runs off the top of the chart instead of giving itself away before it happens.
    o: {h, pred:{t,p,f}, meas:{t,p,f}, upto, pLine (Pa, the case's burst rating), mark:{t,label} (the failure moment),
-       events:[{t,label}] (a void, a crack), now (true: draw a pen dot at the head of the measured trace)} */
+       events:[{t,label}] (a void, a crack), now (true: draw a pen dot at the head of the measured trace), others (more measured
+       traces, faint), fix ({W, dpr}: a set size, for the share card)} */
 function strip(cv,o){
-  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,300))),k=tokens();
+  const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,300)),o.fix),k=tokens();
   const P=o.pred,M=o.meas,nP=P.t.length,nM=M.t.length;
   const L=38,R=10,T=8,B=20,gap=16,hP=Math.round((H-T-B-gap)*0.58),hF=H-T-B-gap-hP,w=W-L-R;
   const tMax=Math.max(P.t[nP-1],M.t[nM-1])*1.03||1,X=t=>L+w*Math.min(1,t/tMax);
@@ -2678,7 +2695,7 @@ return{unlock,setOn,stop,beep,click,chirp,bang,buzz,canBuzz,motor:{start:motorSt
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.8.3.0";
+const VERSION="0.8.4.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -2686,7 +2703,7 @@ const degC=t=>(t<0?"−":"")+Math.abs(t)+" °C";
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---- settings (this phone only): brn-settings ---- */
-const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,gfx:"auto"};
+const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,gfx:"auto",coach:true,seen:{}};
 let SETTINGS=Object.assign({},SET_DEF);
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem(SET_KEY)||"null");if(o&&typeof o==="object"&&!Array.isArray(o))SETTINGS=Object.assign({},SET_DEF,o);}catch(e){}}
 function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS));}catch(e){}}
@@ -2852,8 +2869,10 @@ function settingsSheet(){
       `<button type="button" role="radio" aria-checked="${k===g}" data-gfx="${k}" class="btn sm${k===g?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`+
     onOff("sound","Sound",`<p class="hint">The motor, the countdown and the stand's relays. The speaker button on the stand mutes sound and vibration together.</p>`)+
-    onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`));
+    onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`)+
+    onOff("coach","Coach cards",`<p class="hint">Short tips on your first job, each shown once. <button type="button" class="btn sm" id="coachAgain">Show them again</button></p>`));
   $("sheetBody").addEventListener("click",e=>{
+    if(e.target.closest("#coachAgain")){SETTINGS.seen={};SETTINGS.coach=true;saveSettings();closeSheet();toast("Coach cards will show again on your first job.");return;}
     const t=e.target.closest("[data-set]");
     if(t){const k=t.dataset.set,v=t.dataset.v==="true";SETTINGS[k]=v;saveSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
       if(k==="sound"&&v)BURN_SOUND.unlock();if(k==="haptics"&&v)BURN_SOUND.buzz("ignite");
@@ -3368,7 +3387,8 @@ function dataRows(r){
     row("erosive","Erosive burning",s.eroPeak>1.005?`+${Math.round((s.eroPeak-1)*100)}% burn rate at ${s.tEro.toFixed(2)} s`:"none"),row("sf","Case safety factor",s.sf.toFixed(2)+` (yield at ${(m.pYield/1e6).toFixed(1)} MPa)`),
     row("retention","Closure margin",s.closureSf.toFixed(2)),row("liner","Liner rating",m.linerRating.toFixed(1)+" s"),
     row("igniter","Igniter strength",s.ign.strength.toFixed(2)),row("throatMat","Throat growth","+"+(s.throatGrowth*100).toFixed(2)+"%"),
-    row("exit","Expansion ratio",m.eps0.toFixed(1)),
+    row("exit","Expansion ratio",m.eps0.toFixed(1)),row("exponent","Pressure exponent",BURN_SIM.PROPELLANTS[DZ.d.grain.prop].n.toFixed(2)),
+    row("grainTemp","Grain temperature",degC(DZ.tGrain)),
     row("","Propellant / total",`${(m.mass.prop*1000).toFixed(0)} / ${(m.mass.total*1000).toFixed(0)} g`),
     row("","Mass fraction",(s.massFrac*100).toFixed(0)+"%"),
     row("","Length × diameter",`${(m.length*1000).toFixed(0)} × ${(m.diameter*1000).toFixed(0)} mm`)].join("");}
@@ -3428,7 +3448,7 @@ function openDesigner(){
   if(isFlight()&&!BURN_SIM.airframeOf(DZ.d)){const m=BURN_SIM.motorFromDesign(DZ.d);DZ.d.airframe=m.ok?BURN_SIM.defaultAirframe(m):{body:"kraft43",nose:"ogive",fins:"three"};save();}
   renderTabs();showScreen("design");renderPanel();setView(DZ.view);
   $("dzScrub").value=Math.round(DZ.scrub*1000);
-  DZ.res=null;DZ.fl=null;schedule(false);
+  DZ.res=null;DZ.fl=null;schedule(false);coachBench();
 }
 /* screens: one <main> shows at a time. One history entry stands for "inside the game"; the phone's Back button walks
    up a level (report -> bench -> work orders -> title; a logbook report -> logbook -> work orders) and pushes the entry
@@ -3438,6 +3458,7 @@ const curScreen=()=>SCREENS.find(s=>!$(s).hidden)||"title";
 function parentScreen(id){return id==="board"?"title":id==="logbook"?"board":id==="design"?(inCareer()?"board":"title"):
   id==="report"?(GAME.last&&GAME.last.replay?"logbook":"design"):id==="fire"?"fire":"title";}
 function showScreen(id){
+  coachOff();
   for(const s of SCREENS)$(s).hidden=s!==id;
   document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);
@@ -3522,7 +3543,7 @@ function toStand(){
   if(!r.ok){openSheet("Not buildable",`<p>This motor can't be built yet.</p><ul class="fixes">${fixList(r.errors)}</ul>`);return;}
   if(isDaily()){const kc=BURN_SIM.kitCheck(GAME.contract.kit,DZ.d);if(kc.length){openSheet("Not in today's kit",`<ul class="fixes">${fixList(kc)}</ul>`);return;}}
   const pf=BURN_SIM.preFire(withStand(GAME.contract),DZ.d,r.motor,{sum:r.sum,tier:partTier()});
-  if(pf.length){openSheet(isFlight()?"The range won't launch it":"It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul>`);return;}
+  if(pf.length){openSheet(isFlight()?"The range won't launch it":"It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul><p class="hint"><button type="button" class="gl" data-g="loadCell">What each stand takes</button></p>`);return;}
   if(isFlight()){const pl=flightChecks().crit;if(pl.length){openSheet("The range won't launch it",`<ul class="fixes">${fixList(pl)}</ul>`);return;}}
   slotSheet();}
 /* what this firing costs, and whether the bank will cover it (career only) */
@@ -3541,7 +3562,7 @@ function slotSheet(){
   const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Hut set to <b class="mono">${degC(hutT)}</b></span>
     <button type="button" class="btn sm" data-hut="-1" aria-label="Colder"${hutT<=H.min?" disabled":""}>−</button><button type="button" class="btn sm" data-hut="1" aria-label="Warmer"${hutT>=H.max?" disabled":""}>+</button></div>`:"";
   const b=firingBill(),car=S.career,tender=isTender(),bl=tender?firingBill(true):null,LT=BURN_SIM.CAREER.lot;
-  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + motor ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
+  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} <button type="button" class="gl" data-g="rangeFee">fee</button> ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + <button type="button" class="gl" data-g="buildCost">motor</button> ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
     ${bl?`<p class="mono">The lot: fee ${fmtCr(bl.fee)}${bl.hut?` + hut ${fmtCr(bl.hut)}`:""} + ${LT.n} motors ${fmtCr(bl.motors)} = <b>${fmtCr(bl.total)}</b></p>`:""}
     <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. ${fly?"A lost rocket still costs.":"A failed motor still costs."}</p>
     ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}
@@ -3550,7 +3571,7 @@ function slotSheet(){
       :"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".")
     :`Pick when to ${fly?"launch":"fire"}. The grain sits out overnight, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
   const windNote=fly?` The wind on the rail is light, but it changes every day: you'll only know it on the morning.`:"";
-  openSheet(fly?"Launch slot":"Firing slot",`<p class="hint">${lead} Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
+  openSheet(fly?"Launch slot":"Firing slot",`<p class="hint"><button type="button" class="gl" data-g="firingSlot">${fly?"Launch":"Firing"} slots</button>: ${lead} <button type="button" class="gl" data-g="grainTemp">Why the temperature matters</button>. Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
     <div class="pick">${cards}</div>${dial}${bill}${tender?`<p class="hint">A tender is delivered as a lot: ${LT.n} motors from this design on one range day, and ${LT.need} must pass. One failure still delivers at ${Math.round(LT.failPay*100)}% of the pay; two or more lose the tender for ${LT.retender} days. A development motor first shows how this design fires, but the client doesn't take it.</p>
       <button type="button" class="btn pri big wide" data-go="lot"${bl&&!bl.ok?" disabled":""}>Fire the lot of ${LT.n}</button><button type="button" class="btn big wide" data-go="1"${b&&!b.ok?" disabled":""}>Fire one development motor</button>`
     :`<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>${fly?"Clear the range and launch":"Clear the range and fire"}</button>`}`);}
@@ -3658,7 +3679,7 @@ function newCareerSheet(){
     closeSheet();GAME.mode="career";renderTitle();openBoard();toast(`${name} signs the lease on Stand 3.`);});}
 
 /* ---- the board ---- */
-function openBoard(){GAME.contract=null;renderBoard();showScreen("board");}
+function openBoard(){GAME.contract=null;renderBoard();showScreen("board");coachBoard();}
 function dueText(car,job){const left=job.due-car.day;
   if(left>1)return`${left} range days left`;if(left===1)return"due tomorrow";if(left===0)return"due today";
   const ls=BURN_SIM.lateShare(job,car.day);return`${ls.late} day${ls.late>1?"s":""} late · pay ${Math.round(ls.mul*100)}%`;}
@@ -3681,7 +3702,7 @@ function renderBoard(){
   h+=jobs.length?jobs.map(id=>{const c=S_.contractById(id),j=car.jobs[id],late=car.day>j.due;
     return`<article class="wo card job"><header><span class="site">${esc(c.client)}</span><span class="tag ${late?"crit":""}">${esc(dueText(car,j))}</span></header>
       <h3>${esc(c.title)}</h3>${specList(c)}
-      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · due day ${j.due} · ${j.n} motor${j.n===1?"":"s"} fired</p>
+      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · <button type="button" class="gl" data-g="deadline">due day ${j.due}</button> · ${j.n} motor${j.n===1?"":"s"} fired</p>
       <div class="row"><button type="button" class="btn pri" data-take="${id}">To the bench</button><button type="button" class="btn sm" data-drop="${id}">Drop</button></div></article>`;}).join("")
     :`<p class="hint">No jobs in hand. Take one from the board below.</p>`;
   h+=`<h3 class="bd-h">On the board</h3>`;
@@ -4003,7 +4024,9 @@ const RSO_LINES={
 const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
 const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
 const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
-function openReport(){renderReport();showScreen("report");}
+/* the report's number: S-n in the sandbox, D<daily no>-n on the Daily Spec, 41-nnn otherwise */
+const reportNo=L=>L.sandbox?`S-${L.n}`:L.daily?`D${L.c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`;
+function openReport(){renderReport();showScreen("report");coachReport();}
 function renderReport(){
   const L=GAME.last;if(!L)return;
   /* a lot: the details below are for the selected motor; the stamp is the lot's */
@@ -4033,8 +4056,8 @@ function renderReport(){
   const d=f.draws,full=L.bunker>=1;
   const blockhouse=[`Propellant batch: ${pctS(d.aMul-1)} burn rate`,`Case tube: ${pctS(d.caseMul-1)} strength`].concat(full?[`Closures: ${pctS(d.retMul-1)} retention`,
     `Liner: ${pctS(d.linerMul-1)} protection`,`Igniter: ${pctS(d.ignMul-1)} gas`,`Throat wear: ×${d.eroMul.toFixed(2)}`,
-    `Casting void: ${d.void?"yes, "+Math.round(d.void.frac*100)+"% extra area":"none"} (chance ${(d.voidChance*100).toFixed(1)}%)`,
-    `Grain crack: ${d.crack?"yes, "+Math.round(d.crack.frac*100)+"% extra area":"none"} (chance ${(d.crackChance*100).toFixed(1)}%)`]:[]);
+    `<button type="button" class="gl" data-g="castingVoid">Casting void</button>: ${d.void?"yes, "+Math.round(d.void.frac*100)+"% extra area":"none"} (chance ${(d.voidChance*100).toFixed(1)}%)`,
+    `<button type="button" class="gl" data-g="grainCrack">Grain crack</button>: ${d.crack?"yes, "+Math.round(d.crack.frac*100)+"% extra area":"none"} (chance ${(d.crackChance*100).toFixed(1)}%)`]:[]);
   /* the bill (career): live after a firing, or the logbook's short version */
   let bill="";
   if(L.out){const b=L.bill,o=L.out,car=S.career;
@@ -4060,7 +4083,7 @@ function renderReport(){
   $("rpBody").innerHTML=`
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
       <span class="site">Aqsor Range · Site 41 · ${esc(fly?"Launch rail":c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
-      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. ${L.sandbox?`S-${L.n}`:L.daily?`D${c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`}</span></h2>
+      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. ${reportNo(L)}</span></h2>
       <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${LT?`lot of ${LT.fires.length}, motor ${LT.sel+1} below`:`${fly?"launch":"motor"} ${L.n}`}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
     ${broke}${dl}${LT?lotCard(L):""}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
@@ -4070,10 +4093,10 @@ function renderReport(){
       ${fixes.length?`<h3>Where to fix it</h3><div class="row">${fixes.map(fd=>`<button type="button" class="btn" data-goto="${fd}">${esc(ctlSpec(fd).label)} ›</button>`).join("")}</div>`:""}</section>`:""}
     ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
     <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
-    ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-      <p class="hint">${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
+    ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
+      <p class="hint"><button type="button" class="gl" data-g="blockhouse">The blockhouse</button>. ${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
-    <div class="rp-act">${act}</div>`;
+    <div class="rp-act">${act}${canShareSheet(L)?`<button type="button" class="btn" id="rpSheet">Data sheet</button>`:""}</div>`;
   drawReportChart();}
 /* a tender's lot: one row per motor (tap one to read its details below), and the rule it was judged by */
 function lotCard(L){const LT=L.lot,G=LT.gl,R=BURN_SIM.CAREER.lot;
@@ -4107,16 +4130,182 @@ function drawReportChart(){
     events:f.events.map(e=>({t:e.t,label:e.key})),others:L.lot?L.lot.fires.filter(x=>x!==f).map(x=>x.log):null});}
 function initReport(){
   $("rpBody").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-    if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);}
+    if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);coachFix();}
     else if(b.id==="rpBench"){showScreen("design");drawAll();}
     else if(b.id==="rpAgain"){showScreen("design");drawAll();toStand();}
     else if(b.id==="rpBoard")openBoard();
     else if(b.id==="rpLog")openLogbook();
     else if(b.id==="rpShare")shareDaily();
+    else if(b.id==="rpSheet")openShareSheet();
     else if(b.id==="rpSbx")sandboxSheet();
     else if(b.dataset.lotsel!=null&&GAME.last&&GAME.last.lot){GAME.last.lot.sel=+b.dataset.lotsel;const y=window.scrollY;renderReport();window.scrollTo(0,y);}
     else if(b.id==="rpTitle"){renderTitle();showScreen("title");}});
   addEventListener("resize",()=>{if(!$("report").hidden)drawReportChart();});}
+/* ===================== app/coach.js: the coach-card tour (stage 8, plan section 10) =====================
+   Short cards that teach the loop on the first job, each shown once. The first job ("first-light") opens with the club's
+   old drawing: a thin case and a tight throat that the predictor flags and that bursts on the stand, so the cards walk
+   through the bench, the incident report and the fix. The same idea as Escapement's TUT and Station Keeper's coach
+   cards (cards wait for the player; the thing they talk about gets a ring), written fresh for this page.
+   coach(key) shows TOUR[key] if coach cards are on and it hasn't been seen; "Got it" marks it seen (and shows the next
+   card when there is one), "No more tips" turns them off. Seen cards and the switch live in brn-settings (this phone):
+     SETTINGS.coach (true/false), SETTINGS.seen ({key: 1}). Settings has the switch and "Show them again". */
+const TOUR={
+  bench:{at:"#dzView",t:"Your first job",next:"flag",
+    d:"The club wants a G motor. The curves are the predictor: pressure on top, thrust below, redrawn as you change anything. The chips along the bottom check the prediction against the client's spec."},
+  flag:{at:"#dzFlags",t:"A red flag",next:"fire",when:()=>!!document.querySelector("#dzFlags .flag.crit"),
+    d:"This is the club's old drawing, and the predictor thinks its case will burst. Tap a flag to read why. You can fix it now, or fire it once as it is to see what an incident report looks like."},
+  fire:{at:"#dzFire",t:"To the stand",
+    d:"When you're ready, take it to the stand. Every firing costs a range day, the stand's fee and the motor's materials, pass or fail."},
+  failed:{at:".rp-cause",t:"The incident report",
+    d:"Red is what the motor really did; blue is what you predicted. The mark shows when it went wrong. Root cause says why, with the number that crossed the line, and Where to fix it jumps straight to the control to change."},
+  fix:{at:"#dzPanel .ring",t:"Two ways out",
+    d:"A thicker wall holds more pressure; a bigger throat lowers the pressure. Drag and watch the flag and the peak pressure. Here the throat is the better fix: with only a thicker wall, this motor burns out too fast for the spec."},
+  passed:{at:".rp-bill",t:"Paid",
+    d:"A pass pays the job's fee times its grade: A ×1.2, B ×1, C ×0.8, less for each day late. The job is done; the work orders have the next one."},
+  board:{at:"#bdList .wo",t:"The work orders",
+    d:"Jobs in hand sit at the top with their deadlines; new work orders below. Take a job, design its motor on the bench, fire it. Reputation from good grades opens bigger stands and parts under Facilities."}};
+const coachSeen=k=>!!(SETTINGS.seen&&SETTINGS.seen[k]);
+let COACH=null;   // the card on screen: {key, el (the ringed element)}
+function coachOff(){if(!COACH)return;const c=$("coach");if(c)c.hidden=true;if(COACH.el)COACH.el.classList.remove("coach-on");COACH=null;}
+/* show a card (after the screen has drawn); delay in ms */
+function coach(key,delay){
+  if(SETTINGS.coach===false||coachSeen(key)||!TOUR[key])return;
+  setTimeout(()=>{const T=TOUR[key];if(coachSeen(key)||(T.when&&!T.when()))return;
+    const el=document.querySelector(T.at);if(!el||el.closest("[hidden]"))return;
+    coachOff();COACH={key,el};
+    let c=$("coach");if(!c){c=document.createElement("div");c.id="coach";c.className="coach card";c.setAttribute("role","dialog");c.setAttribute("aria-live","polite");document.body.appendChild(c);
+      c.addEventListener("click",e=>{const b=e.target.closest("button");if(!b||!COACH)return;
+        const k=COACH.key;SETTINGS.seen=Object.assign({},SETTINGS.seen,{[k]:1});
+        if(b.dataset.coach==="off")SETTINGS.coach=false;saveSettings();coachOff();
+        if(b.dataset.coach==="ok"&&TOUR[k].next)coach(TOUR[k].next,150);});}
+    c.setAttribute("aria-label",T.t);
+    c.innerHTML=`<b class="coach-t">${esc(T.t)}</b><p>${esc(T.d)}</p><div class="row"><button type="button" class="btn pri sm" data-coach="ok">Got it</button><button type="button" class="btn sm" data-coach="off">No more tips</button></div>`;
+    c.hidden=false;
+    el.classList.add("coach-on");
+    const r=el.getBoundingClientRect();if(r.top<70||r.bottom>innerHeight-c.offsetHeight-20)el.scrollIntoView({block:"center",behavior:reduced()?"auto":"smooth"});
+    c.querySelector("[data-coach=ok]").focus({preventScroll:true});},delay??400);}
+/* the first job's hooks: the app calls these as the screens open */
+const onFirstJob=()=>inCareer()&&GAME.contract&&GAME.contract.id==="first-light";
+function coachBench(){if(onFirstJob())coach("bench",600);}
+function coachReport(){const L=GAME.last;if(!L||L.replay||!L.out)return;
+  if(!L.g.pass&&L.f.failure)coach("failed",500);else if(L.out.done)coach("passed",500);}
+function coachFix(){if(onFirstJob())coach("fix",700);}
+function coachBoard(){if(S.career&&S.career.day<=3)coach("board",500);}
+/* leaving a screen takes its card away */
+document.addEventListener("click",e=>{if(COACH&&e.target.closest("#dzBack,#rpBench,#rpBoard,#rpAgain,#bdBack,[data-take]"))coachOff();},true);
+/* ===================== app/share.js: the motor data sheet, as a picture (stage 8, plan section 10) =====================
+   A passed job's report has a "Data sheet" button. It draws a 1080 x 1350 picture of the motor's certificate: the range
+   header and report number, the grade stamp, the designation, the client and job, the strip chart (measured red over
+   predicted blue), six numbers with the prediction under each, the spec lines with their ticks, the RSO's line and the
+   game's address. The phone's share sheet sends it as a PNG (navigator.share with a file), or "Save picture" downloads it.
+   Everything is drawn here on a canvas, in the page's own colours and fonts; nothing leaves the phone unless the player
+   shares it. The card is laid out at 540 x 675 and drawn at twice that size. */
+const SHARE_W=540,SHARE_H=675,SHARE_DPR=2;
+let SHARE_PNG=null;   // {blob, url, name} of the last card drawn
+/* what the card shows: the report's motor (a lot's selected motor), and the lot's verdict when there is one */
+function shareInfo(L){
+  /* a lot's sheet shows the selected motor if it passed, else the first motor that did */
+  const LT=L.lot?Object.assign({},L.lot,{sel:L.lot.gl.grades[L.lot.sel].pass?L.lot.sel:Math.max(0,L.lot.gl.grades.findIndex(x=>x.pass))}):null;
+  const f=LT?LT.fires[LT.sel]:L.f,g=LT?LT.gl.grades[LT.sel]:L.g,c=L.c;
+  const letter=LT?LT.gl.letter:g.letter,stamp=LT?`Lot accepted · ${letter}`:`Pass · ${letter}`;
+  const key=LT?(letter==="A"&&!LT.gl.fails?"lotA":letter):(f.flight&&letter==="A"?"flyA":letter);
+  return{f,g,c,LT,stamp,key,no:reportNo(L),tG:L.tGrain??BURN_SIM.SLOTS[L.slot].tGrain};}
+/* can this report have a data sheet? a passed job with a motor that came home */
+const canShareSheet=L=>!!(L&&L.c&&(L.lot?L.lot.gl.pass:L.g.pass)&&!(L.f.flight&&L.f.flight.lost));
+/* lines of text no wider than w */
+function wrapText(c,text,w){const out=[];let line="";
+  for(const word of String(text).split(" ")){const t=line?line+" "+word:word;if(line&&c.measureText(t).width>w){out.push(line);line=word;}else line=t;}
+  if(line)out.push(line);return out;}
+async function drawShareCard(L){
+  const I=shareInfo(L),{f,c,LT}=I,ms=f.meas.sum,ps=f.pred.sum,m=f.motor,k=BURN_VIS.tokens(),s=getComputedStyle(document.documentElement);
+  const tok=n=>s.getPropertyValue(n).trim(),ui=tok("--ui"),sign=tok("--sign"),mono=k.mono,good=tok("--good"),ground=tok("--ground"),stateD=tok("--stateD");
+  try{await Promise.all([`20px ${sign}`,`20px ${mono}`,`600 20px ${mono}`,`20px ${ui}`,`600 20px ${ui}`].map(x=>document.fonts.load(x)));}catch(e){}
+  const cv=document.createElement("canvas");cv.width=SHARE_W*SHARE_DPR;cv.height=SHARE_H*SHARE_DPR;
+  const x=cv.getContext("2d");x.scale(SHARE_DPR,SHARE_DPR);
+  const text=(t,px,py,font,col,align)=>{x.font=font;x.fillStyle=col;x.textAlign=align||"left";x.textBaseline="alphabetic";x.fillText(t,px,py);};
+  /* the ground, the sheet and the hazard stripe along its top */
+  x.fillStyle=ground;x.fillRect(0,0,SHARE_W,SHARE_H);
+  const X0=18,Y0=18,W=SHARE_W-36,H=SHARE_H-36,P=24;
+  x.fillStyle=k.card;x.fillRect(X0,Y0,W,H);x.strokeStyle=k.line;x.lineWidth=1;x.strokeRect(X0+.5,Y0+.5,W-1,H-1);
+  x.save();x.beginPath();x.rect(X0,Y0,W,9);x.clip();x.fillStyle=k.ink;x.fillRect(X0,Y0,W,9);x.fillStyle=k.hazard;
+  for(let i=-20;i<W+20;i+=20){x.beginPath();x.moveTo(X0+i,Y0+9);x.lineTo(X0+i+10,Y0+9);x.lineTo(X0+i+19,Y0);x.lineTo(X0+i+9,Y0);x.fill();}x.restore();
+  /* the header: where, what, which report; the stamp on the right */
+  const L0=X0+P,R0=X0+W-P;
+  const where=f.flight?"Launch rail":BURN_SIM.STANDS[c.stand].name;
+  text(`AQSOR RANGE · SITE 41 · ${where.toUpperCase()}`,L0,Y0+38,`9px ${mono}`,k.muted);
+  text("Motor data sheet",L0,Y0+68,`26px ${sign}`,k.ink);
+  text(`${f.flight?"Flight":"Range"} report No. ${I.no} · ${BURN_SIM.SLOTS[L.slot].name.toLowerCase()} · ${degC(I.tG)} grain`,L0,Y0+86,`9px ${mono}`,k.muted);
+  /* the stamp, shrunk to fit beside the title (a lot's is longer) */
+  const st=I.stamp.toUpperCase();x.font=`20px ${sign}`;const fs=Math.min(20,20*150/x.measureText(st).width);x.font=`${fs.toFixed(1)}px ${sign}`;const sw=x.measureText(st).width+22;
+  x.save();x.translate(R0-sw/2-6,Y0+56);x.rotate(-4*Math.PI/180);
+  x.strokeStyle=good;x.lineWidth=3;x.strokeRect(-sw/2,-fs*0.85,sw,fs*1.7);x.fillStyle=good;x.textAlign="center";x.textBaseline="middle";x.fillText(st,0,1);x.restore();
+  /* the designation, big, with the client and the job beside it */
+  const yD=Y0+142;
+  text(ms.designation,L0,yD,`600 48px ${mono}`,k.ink);
+  const cx=L0+x.measureText(ms.designation).width+18,cw=R0-cx;
+  text(c.client,cx,yD-26,`12px ${ui}`,k.muted);
+  x.font=`600 16px ${ui}`;wrapText(x,c.title,cw).slice(0,2).forEach((t,i)=>text(t,cx,yD-6+i*18,`600 16px ${ui}`,k.ink));
+  /* laid out from the foot up: the RSO's line, the spec, the numbers, the key; the chart takes the height that's left */
+  const checks=(LT?BURN_SIM.specCheck(c.spec,ms,m):(I.g.checks&&I.g.checks.length?I.g.checks:BURN_SIM.specCheck(c.spec,ms,m))).slice(0,4);
+  x.font=`italic 12px ${ui}`;const q=wrapText(x,`“${rsoLine(I.key,L.n)}”`,R0-L0-110).slice(0,2);
+  const yQ=Y0+H-54,quoteTop=yQ-(q.length-1)*15-12,rows=Math.ceil(checks.length/2);
+  const specTop=quoteTop-16-(22+rows*18),numsTop=specTop-128,yKey=numsTop-14,chTop=yD+20,chH=Math.max(120,yKey-18-chTop);
+  /* the strip chart, drawn by the report's own chart code at a set size */
+  const sc=document.createElement("canvas"),chW=W-2*P;
+  BURN_VIS.strip(sc,{h:()=>chH,fix:{W:chW,dpr:SHARE_DPR},pred:f.plog,meas:f.log,pLine:f.limits.pBurst,events:[],others:LT?LT.fires.filter(z=>z!==f).map(z=>z.log):null});
+  x.drawImage(sc,L0,chTop,chW,chH);
+  /* the key */
+  x.lineWidth=2;x.strokeStyle=k.pred;x.beginPath();x.moveTo(L0,yKey-4);x.lineTo(L0+18,yKey-4);x.stroke();
+  text(`Predicted at ${degC(I.tG)}`,L0+24,yKey,`10px ${ui}`,k.muted);
+  const kx=L0+24+x.measureText(`Predicted at ${degC(I.tG)}`).width+16;
+  x.lineWidth=3;x.strokeStyle=k.meas;x.beginPath();x.moveTo(kx,yKey-4);x.lineTo(kx+18,yKey-4);x.stroke();
+  text(LT?`Measured, motor ${LT.sel+1} of ${LT.fires.length}`:"Measured",kx+24,yKey,`10px ${ui}`,k.muted);
+  const rule=yy=>{x.strokeStyle=k.line;x.lineWidth=1;x.beginPath();x.moveTo(L0,yy+.5);x.lineTo(R0,yy+.5);x.stroke();};
+  /* six numbers: measured, big; predicted, small and blue */
+  rule(numsTop);
+  const nums=[["Total impulse",ms.I.toFixed(1),ps.I.toFixed(1),"N·s"],["Average thrust",ms.Fav.toFixed(0),ps.Fav.toFixed(0),"N"],
+    ["Peak pressure",(ms.Pmax/1e6).toFixed(2),(ps.Pmax/1e6).toFixed(2),"MPa"],["Burn time",ms.tb.toFixed(2),ps.tb.toFixed(2),"s"],
+    ["Specific impulse",ms.Isp.toFixed(0),ps.Isp.toFixed(0),"s"],m.mass.total<1?["Loaded mass",(m.mass.total*1000).toFixed(0),null,"g"]:["Loaded mass",m.mass.total.toFixed(2),null,"kg"]];
+  const colW=(R0-L0)/3;
+  nums.forEach(([lab,v,p,u],i)=>{const nx=L0+(i%3)*colW,ny=numsTop+20+Math.floor(i/3)*52;
+    text(lab,nx,ny,`10px ${ui}`,k.muted);
+    text(v,nx,ny+22,`600 19px ${mono}`,k.ink);text(u,nx+x.measureText(v).width+4,ny+22,`10px ${mono}`,k.muted);
+    if(p!=null)text(`pred ${p}`,nx,ny+35,`9px ${mono}`,k.pred);});
+  /* the client's spec, two to a row: the band and what the motor did */
+  rule(specTop);
+  text(LT?`THE CLIENT'S SPEC · LOT OF ${LT.fires.length}, ${LT.fires.length-LT.gl.fails} PASSED`:"THE CLIENT'S SPEC",L0,specTop+18,`600 9px ${mono}`,k.muted);
+  const half=(R0-L0)/2;
+  checks.forEach((ck,i)=>{const sx=L0+(i%2)*half,sy=specTop+38+Math.floor(i/2)*18,right=sx+half-(i%2?0:14);
+    text(ck.ok?"✓":"✗",sx,sy,`600 11px ${mono}`,ck.ok?good:k.stencil);
+    text(ck.info.name,sx+15,sy,`11px ${ui}`,k.ink);const nw=x.measureText(ck.info.name).width;
+    let r=`${bandText(ck)} · ${fmtSpec(ck.k,ck.v)}`;x.font=`9px ${mono}`;if(sx+15+nw+8+x.measureText(r).width>right)r=fmtSpec(ck.k,ck.v);
+    text(r,right,sy,`9px ${mono}`,k.muted,"right");});
+  /* the RSO signs it; the game's name and address at the foot */
+  q.forEach((t,i)=>text(t,L0,yQ-(q.length-1-i)*15,`12px ${ui}`,k.ink));
+  text("R. Abenov, RSO",R0,yQ,`600 11px ${ui}`,stateD,"right");
+  rule(Y0+H-40);
+  text("BURN RATE",L0,Y0+H-16,`18px ${sign}`,k.ink);
+  text("burnrate.longlight.games",R0,Y0+H-17,`10px ${mono}`,k.muted,"right");
+  const blob=await new Promise(r=>cv.toBlob(r,"image/png"));
+  return{blob,name:`burnrate-${ms.designation}-${I.no}.png`.replace(/[^\w.-]+/g,"-")};}
+/* the sheet: the picture, Share (when the phone can share files) and Save picture */
+async function openShareSheet(){
+  const L=GAME.last;if(!canShareSheet(L))return;
+  openSheet("Data sheet",`<div class="sh-wrap"><p class="hint" id="shWait">Drawing the data sheet…</p><img id="shImg" class="sh-img" alt="" hidden></div>
+    <div class="row"><button type="button" class="btn pri" id="shShare" hidden>Share</button><button type="button" class="btn" id="shSave" disabled>Save picture</button></div>
+    <p class="hint">A picture of this motor's certificate, to send to anyone. Nothing is sent unless you share it.</p>`);
+  let out;try{out=await drawShareCard(L);}catch(e){console.error(e);out=null;}
+  if(!out||!out.blob){const w=$("shWait");if(w)w.textContent="This phone couldn't draw the picture.";return;}
+  if(SHARE_PNG)URL.revokeObjectURL(SHARE_PNG.url);
+  SHARE_PNG={blob:out.blob,name:out.name,url:URL.createObjectURL(out.blob)};
+  const img=$("shImg");if(!img)return;
+  img.src=SHARE_PNG.url;img.alt=`Motor data sheet for ${L.f.meas.sum.designation}, ${L.c.client}`;img.hidden=false;$("shWait").hidden=true;$("shSave").disabled=false;
+  const file=shareFile();$("shShare").hidden=!(file&&navigator.canShare&&navigator.canShare({files:[file]}));}
+const shareFile=()=>{try{return SHARE_PNG&&new File([SHARE_PNG.blob],SHARE_PNG.name,{type:"image/png"});}catch(e){return null;}};
+function savePicture(){if(!SHARE_PNG)return;const a=document.createElement("a");a.href=SHARE_PNG.url;a.download=SHARE_PNG.name;document.body.appendChild(a);a.click();a.remove();toast("Saved to your downloads.");}
+document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
+  if(b.id==="shSave")savePicture();
+  else if(b.id==="shShare"){const file=shareFile();if(file)navigator.share({files:[file],title:"Burn Rate data sheet"}).catch(()=>{});}});
 /* ===================== app/debug.js: the ?debug=1 page =====================
    A plain bench for checking the motor model: pick a reference motor and a grain temperature, see the predicted pressure
    and thrust curves and the data-sheet numbers. Open the game with ?debug=1 on the end of the address. Not linked from

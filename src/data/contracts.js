@@ -3,14 +3,16 @@
      id, client, title, brief (the work order's text), tier (the career tier it appears at), stand (where it fires),
      pay (cr, before the grade), days (range days from taking it to the deadline), repeat ({pay, every}: once delivered,
      the client orders again after `every` days for this share of the pay; optional),
-     slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id), spec (criteria, sim/grade.js),
+     slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id; "hut" with tGrain: conditioned to that
+     temperature, which needs the hut), spec (criteria, sim/grade.js),
      start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
      tools/sim-tests/fire.js fires it across seeds and slots, so every contract stays solvable). */
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
 /* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
 const STANDS={
   s3:{name:"Stand 3",len:420,dia:64,cell:2000,fee:150,note:"The smallest stand: a concrete pad, a load cell rated 2 kN, one camera."},
-  s2:{name:"Stand 2",len:900,dia:110,cell:10000,fee:400,note:"The medium stand: a thrust frame in a blast bay, a 10 kN load cell, two cameras."}};
+  s2:{name:"Stand 2",len:900,dia:110,cell:10000,fee:400,note:"The medium stand: a thrust frame in a blast bay, a 10 kN load cell, two cameras."},
+  s1:{name:"Stand 1",len:2000,dia:170,cell:40000,fee:1200,note:"The old state booster stand: a horizontal thrust frame in a bunkered bay, a 40 kN load cell."}};
 const CONTRACTS=[
   {id:"first-light",client:"Aqsor Steppe Rocketry Club",title:"A G for field day",tier:1,stand:"s3",slot:null,pay:800,days:6,repeat:{pay:0.6,every:5},
     brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They will fly whatever passes.",
@@ -65,6 +67,30 @@ const CONTRACTS=[
   {id:"range-frac",client:"Aqsor Range Authority",title:"Lean and strong",tier:2,stand:"s2",slot:null,pay:5500,days:12,
     brief:"The Range Authority is pitching Site 41 to launch firms and wants a showpiece: a K motor where propellant is most of the weight. 62% of the motor or more, and safe on the case.",
     spec:[{k:"massFrac",lo:62},{k:"I",lo:1300,hi:2200},{k:"Pmax",hi:7}],start:"54mm 4-seg BATES, Dray, steel throat",
-    solution:{grain:{prop:"tr5",shape:"bates",segs:4,segLen:83,coreD:22},case:{mat:"phenolic",id:51,wall:2,liner:"paper",linerThk:1.5,closure:"bolts",bolts:14},nozzle:{mat:"graphite",throatD:15.6,exitD:26,half:15},igniter:"l"}}
+    solution:{grain:{prop:"tr5",shape:"bates",segs:4,segLen:83,coreD:22},case:{mat:"phenolic",id:51,wall:2,liner:"paper",linerThk:1.5,closure:"bolts",bolts:14},nozzle:{mat:"graphite",throatD:15.6,exitD:26,half:15},igniter:"l"}},
+  {id:"kokjal-boost",client:"Kökjal Launch Systems",title:"Boost, then sustain",tier:3,stand:"s1",slot:null,pay:14000,days:14,
+    brief:"A small-launcher firm wants a first stage that kicks hard off the pad, then settles to a long, gentle push while the rocket climbs out of the thick air. The last third no more than 60% of the first, and at least three and a half seconds.",
+    spec:[{k:"prog",hi:0.6},{k:"tb",lo:3.5},{k:"I",lo:5000,hi:9000},{k:"Pmax",hi:7}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"finocyl",segs:3,segLen:134.2,coreD:40.9,pts:8,ptLen:11.2,ptW:4.5,finLen:56.9,offset:24},case:{mat:"mild",id:95.3,wall:1.5,liner:"ablative",linerThk:2,closure:"bolts",bolts:14},nozzle:{mat:"steel",throatD:22,exitD:54.4,half:15},igniter:"l"}},
+  {id:"range-m",client:"Aqsor Range Authority",title:"The M showpiece",tier:3,stand:"s1",slot:null,pay:15000,days:14,
+    brief:"The Range Authority's launch-firm pitch needs a headline: an M-class motor that is four-fifths propellant by weight. Every gram of case and nozzle counts. Keep the pressure inside 7.5 MPa.",
+    spec:[{k:"massFrac",lo:80},{k:"I",lo:6000,hi:10000},{k:"Pmax",hi:7.5}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:174.9,coreD:40.2,pts:8,ptLen:19.6,ptW:1.2,finLen:156.2,offset:13.8},case:{mat:"composite",id:97.4,wall:0.4,liner:"ablative",linerThk:0.9,closure:"bolts",bolts:16},nozzle:{mat:"graphite",throatD:28.1,exitD:28.1,half:15},igniter:"xl"}},
+  {id:"burkit-hot",client:"Bürkit Aerospace",title:"Desert qualification",tier:3,stand:"s1",slot:"hut",tGrain:45,pay:13000,days:12,
+    brief:"Bürkit is selling boosters to a launch site in the southern desert. Qualify one with the grain at 45 °C, held overnight in the conditioning hut: about two kilonewtons, and the peak pressure no higher than 6.5 MPa when it's hot.",
+    spec:[{k:"Fav",lo:1500,hi:2500},{k:"I",lo:3000,hi:5000},{k:"Pmax",hi:6.5}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:166.1,coreD:82,pts:3,ptLen:5.9,ptW:4.9,finLen:122.2,offset:6.8},case:{mat:"composite",id:100.2,wall:0.4,liner:"rubber",linerThk:0.7,closure:"bolts",bolts:14},nozzle:{mat:"insert",throatD:26.1,exitD:54.7,half:15},igniter:"xl"}},
+  {id:"ozen-arctic",client:"Ozen Survey Instruments",title:"Arctic qualification",tier:3,stand:"s1",slot:"hut",tGrain:-20,pay:13000,days:12,
+    brief:"Ozen is taking its survey rockets north of the tree line. Prove a motor that lights and burns steadily with the grain at −20 °C: held overnight in the conditioning hut, then a long, moderate burn.",
+    spec:[{k:"Fav",lo:800,hi:1400},{k:"I",lo:4000,hi:7000},{k:"tb",lo:4}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:148.4,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:32.5,exitD:62.1,half:15},igniter:"xl"}},
+  {id:"kumtal-booster",client:"Kumtal Weather Service",title:"Sounding booster",tier:3,stand:"s1",slot:null,pay:18000,days:14,
+    brief:"The weather service wants its sondes higher than any model rocket goes: a real booster stage. An N-class motor, three to five kilonewtons, and done in five seconds.",
+    spec:[{k:"I",lo:12000,hi:18000},{k:"Fav",lo:3000,hi:5000},{k:"tb",hi:5}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr9",shape:"tube",segs:8,segLen:169.5,coreD:45.5,pts:7,ptLen:13.2,ptW:1.9,finLen:139.2,offset:7.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:27,exitD:56,half:15},igniter:"xl"}},
+  {id:"qyran-long",client:"Qyran Display Team",title:"A slow, long climb",tier:3,stand:"s1",slot:null,pay:11000,days:12,
+    brief:"For the night show, Qyran wants a big rocket that rises slowly on a long, steady flame the crowd can follow: 250 to 500 newtons for eight seconds or more.",
+    spec:[{k:"tb",lo:8},{k:"Fav",lo:250,hi:500},{k:"I",lo:3000}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:137.1,coreD:21.3,pts:2,ptLen:29.3,ptW:21.3,finLen:113.6,offset:15.1},case:{mat:"composite",id:95.1,wall:1.5,liner:"paper",linerThk:4.8,closure:"ring",bolts:15},nozzle:{mat:"graphite",throatD:20.7,exitD:84.3,half:15},igniter:"l"}}
 ];
 Object.assign(SIM,{GRADING,STANDS,CONTRACTS});

@@ -9,11 +9,28 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 2. Designer | 0.3.0.0 | Done |
 | 3. Static fire and incident report (first playable) | 0.4.0.0 | Done |
 | 4. Career and saves | 0.5.0.0 | Done |
-| 5. Advanced grains and effects | 0.6.0.0 | In progress (0.5.1.0: grains and erosive burning) |
-| 6. Flight tests | 0.7.0.0 | |
+| 5. Advanced grains and effects | 0.6.0.0 | Done |
+| 6. Flight tests | 0.7.0.0 | Next |
 | 7. The test stand in 3D | 0.8.0.0 | |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.6.0.0 — Stage 5, part 2: the conditioning hut, Stand 1 and tier 3
+
+- **The conditioning hut** (a facility, 3 500 cr, reputation 14): a fourth firing slot that holds the motor overnight
+  at a temperature you set, −20 to 50 °C in 5 °C steps (the − and + under the slot cards). It adds 60 cr to a firing.
+  The bench's temperature button cycles through it too. On the free bench it is always open.
+- **Qualification jobs** fire from the hut at the client's temperature (the work order says "Conditioned in the hut to
+  −20 °C"); taking one needs the hut. The logbook and reports show the real grain temperature.
+- **Stand 1** (16 000 cr, reputation 24): motors up to 2 m long and 170 mm across, a 40 kN load cell, 1 200 cr a
+  firing. It opens tier 3: finocyl and moonburner grains, the TR-9 Ox and Steppefire X grades, composite cases,
+  ablative liners and throat inserts.
+- **Six tier 3 work orders**: a boost-then-sustain curve, an M-class motor that is mostly propellant, hot (45 °C) and
+  arctic (−20 °C) qualifications, an N-class sounding booster and a slow nine-second burn. Every one has a solution the
+  balance check fires across seeds (7/8 or better).
+- Saves: older saves load with no hut; the hut's setting is kept in the save.
+- Tests: a new hut check (slot temperatures, clamping, the fee, hut jobs need the hut), the balance check fires hut jobs
+  at their own temperature, and the career bot now plays through tier 3.
 
 ## 0.5.1.0 — Stage 5, part 1: level-set grains and erosive burning
 

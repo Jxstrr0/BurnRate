@@ -113,9 +113,11 @@ module.exports = ({ SIM, check, near }) => {
       const pf = SIM.preFire(k, c.solution, m, { tier: c.tier, sum: SIM.predict(c.solution, { tGrain: 20 }).sum });
       if (pf.length) throw new Error(c.id + ": " + pf[0].text);
       let best = 0, bestSlot = "";
-      for (const slot of c.slot ? [c.slot] : Object.keys(SIM.SLOTS)) {
+      if (c.slot === "hut" && !(c.tGrain >= SIM.HUT.min && c.tGrain <= SIM.HUT.max)) throw new Error(c.id + ": a hut job needs a tGrain in the hut's range");
+      for (const slot of c.slot ? [c.slot] : ["dawn", "noon", "dusk"]) {
         let pass = 0;
-        for (let i = 0; i < 8; i++) if (SIM.grade(c, SIM.fire(c.solution, { tGrain: SIM.SLOTS[slot].tGrain }, c.id + "/" + i)).pass) pass++;
+        const tGrain = SIM.slotTemp(slot, c, null);
+        for (let i = 0; i < 8; i++) if (SIM.grade(c, SIM.fire(c.solution, { tGrain }, c.id + "/" + i)).pass) pass++;
         if (pass > best) { best = pass; bestSlot = slot; }
       }
       if (best < 7) throw new Error(`${c.id}: the solution passes only ${best}/8 at ${bestSlot}`);

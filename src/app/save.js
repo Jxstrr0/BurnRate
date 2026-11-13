@@ -1,19 +1,20 @@
 /* ===================== app/save.js: the save, the autosave and the three slots (plan section 11.3) =====================
    S is everything Burn Rate keeps for a player:
      S = {v, career (sim/career.js's object, plus career.designs: the bench's design per job) | null,
-          free (the free bench's design) | null, freeN (free firings so far, so each one rolls new dice), lastBackup (ms)}
+          free (the free bench's design) | null, freeN (free firings so far, so each one rolls new dice), lastBackup (ms),
+          hutT (the conditioning hut's setting, °C)}
    save() writes it to "brn-save" (debounced, and at once when the page hides). The three slots "brn-slot1".."brn-slot3"
    hold copies the player saves by hand, each with savedAt. Settings stay apart in "brn-settings" (this phone only).
    hydrate(o) checks a save's shape and runs the migrations before it becomes S; it returns false for anything it can't
    load, and leaves S alone then. Every storage call is in try/catch; nothing outside "brn-" is ever touched. */
 const SAVE_V=1,SAVE_KEY="brn-save",SLOTS=3,slotKey=i=>"brn-slot"+i;
-const freshSave=()=>({v:SAVE_V,career:null,free:null,freeN:0,lastBackup:0});
+const freshSave=()=>({v:SAVE_V,career:null,free:null,freeN:0,lastBackup:0,hutT:20});
 let S=freshSave();
 /* MIGRATE[v](o) turns a version-v save into a version v+1 one. None yet: SAVE_V is 1. */
 const MIGRATE={};
 const isObj=o=>!!o&&typeof o==="object"&&!Array.isArray(o);
 const isNum=v=>typeof v==="number"&&isFinite(v);
-function snapshot(){return JSON.parse(JSON.stringify({v:SAVE_V,career:S.career,free:S.free,freeN:S.freeN|0,lastBackup:S.lastBackup||0}));}
+function snapshot(){return JSON.parse(JSON.stringify({v:SAVE_V,career:S.career,free:S.free,freeN:S.freeN|0,lastBackup:S.lastBackup||0,hutT:S.hutT}));}
 /* is this a career object the game can run? (the shape newCareer makes) */
 function careerOk(c){
   if(!isObj(c))return false;
@@ -30,8 +31,8 @@ function hydrate(o){
   for(let v=o.v;v<SAVE_V;v++){if(!MIGRATE[v])return false;o=MIGRATE[v](o);o.v=v+1;}
   if(o.career!=null&&!careerOk(o.career))return false;
   if(!designOk(o.free))return false;
-  if(o.career){o.career.designs=o.career.designs||{};for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
-  S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0});
+  if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
+  S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0,hutT:isNum(o.hutT)?o.hutT:20});
   return true;}
 function readKey(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return isObj(o)?o:null;}catch(e){return null;}}
 function loadSave(){const o=readKey(SAVE_KEY);if(o&&!hydrate(o))toast("The save on this phone couldn't be read. Restore a backup from Saves.",5000);}

@@ -13,9 +13,9 @@
 | `data/propellants.js` | `PROPELLANTS`: the fictional grades, as stat blocks only |
 | `data/materials.js` | `CASES`, `LINERS`, `THROATS`, `CLOSURES`, `IGNITERS` |
 | `data/designs.js` | `GRAIN_SHAPES` (with tiers), `GRAIN_DEFAULTS` and `normDesign`, `DEFAULT_DESIGN` and the `REF_DESIGNS` yardstick motors |
-| `data/variance.js` | `VARIANCE`: how a real firing differs from the prediction; `SLOTS`: dawn, noon, dusk temperatures |
-| `data/contracts.js` | `GRADING`, `STANDS` (with range fees and load cells), `CONTRACTS`: the work orders (tiers 1 and 2) with pay, days, repeats and a solution design |
-| `data/career.js` | `CAREER` (money, prices, pay, reputation, late cut, limits), `FACILITIES` (blockhouse instruments, Stand 2 lease) |
+| `data/variance.js` | `VARIANCE`: how a real firing differs from the prediction; `SLOTS`: dawn, noon, dusk temperatures and the hut; `HUT`: the hut's range |
+| `data/contracts.js` | `GRADING`, `STANDS` (with range fees and load cells), `CONTRACTS`: the work orders (tiers 1 to 3) with pay, days, repeats and a solution design |
+| `data/career.js` | `CAREER` (money, prices, pay, reputation, late cut, limits), `FACILITIES` (blockhouse instruments, Stand 2, the conditioning hut, Stand 1) |
 | `sim/levelset.js` | level-set cross-sections (star, slotted, finocyl fins, moonburner): the port on a grid, a distance transform, then area, perimeter and port tables against web distance |
 | `sim/grain.js` | `buildGrain`: burning area, volume and port against web distance (analytic shapes, or level-set segments) |
 | `sim/nozzle.js` | isentropic nozzle, `thrustCoef` with separation, `chokedFrac`, `nozzleEta` |
@@ -24,7 +24,7 @@
 | `sim/derive.js` | `summarize`, `warnings`, `impulseClass`, `predict` (the designer's one call) |
 | `sim/fire.js` | `fire`: a static firing with seeded variance, failure detection, the incident report's cause and factors |
 | `sim/grade.js` | `SPEC_INFO`, `specCheck`, `grade` (A, B, C or fail), `preFire` (stand fit, load cell, part tiers) |
-| `sim/career.js` | the career's rules, pure: `newCareer`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed` |
+| `sim/career.js` | the career's rules, pure: `newCareer`, `slotTemp`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed` |
 | `sim/close.js` | `return SIM;})();` and `module.exports` for node |
 | `html/ld-sim.html` | loading bar step |
 | `vis/open.js` | opens the drawing `<script>` and `const BURN_VIS=(()=>{` |

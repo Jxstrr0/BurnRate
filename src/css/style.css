@@ -157,6 +157,9 @@ p{margin:0 0 .7em}
   font:inherit;color:var(--ink);cursor:pointer;min-height:48px}
 .opt small{grid-column:1/-1;font-size:.8rem;color:var(--muted)}
 .opt .tag{color:var(--muted)}
+.hut-dial{display:flex;align-items:center;gap:8px;margin:8px 0 0;padding:6px 10px;border:1px dashed var(--line);border-radius:9px}
+.hut-dial span{flex:1}
+.hut-dial .btn{min-width:44px;min-height:40px;font-size:1.1rem}
 .opt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accentBg)}
 #sheetBody .sev{padding:10px 12px;border-left:4px solid var(--warn);background:var(--card);border-radius:8px}
 #sheetBody .sev.crit{border-left-color:var(--crit)}

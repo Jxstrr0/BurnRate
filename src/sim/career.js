@@ -2,13 +2,16 @@
    Pure functions on a career object (the save holds it as JSON; app/save.js keeps it). Nothing random here: the board
    is the contract list in order, filtered by tier and what's done; each firing's dice come from fire()'s seed.
      car = {seed, name, day, money, tier, rep, stands:{s3:true}, bunker, jobs:{id:job}, done:{id:{letter,day,paid,times,again}},
-            log:[entry], no (report counter), broke (tier restarts)}
+            log:[entry], no (report counter), broke (tier restarts), hut (conditioning hut owned: 1)}
      job = {taken, due, pay, n (motors fired)}
-   buildCost / firingCost price a motor; board lists the work orders on offer; takeJob, settle and buy change the career. */
+   buildCost / firingCost price a motor (the hut adds its fee); slotTemp gives a slot's grain temperature; board lists the work orders on offer; takeJob, settle and buy change the career. */
 const CR=v=>Math.round(v);
 function newCareer(seed,name){
   return{seed:String(seed),name:String(name||"").slice(0,28)||"Saltpan Propulsion",day:1,money:CAREER.startMoney[1],tier:1,rep:0,
-    stands:{s3:true},bunker:0,jobs:{},done:{},log:[],no:0,broke:0};}
+    stands:{s3:true},bunker:0,hut:0,jobs:{},done:{},log:[],no:0,broke:0};}
+/* a firing slot's grain temperature: the hut fires at the contract's temperature, or the one the player set (hutT) */
+function slotTemp(slot,c,hutT){const s=SLOTS[slot]||SLOTS.dusk;if(!s.hut)return s.tGrain;
+  if(c&&c.tGrain!=null)return c.tGrain;return Math.max(HUT.min,Math.min(HUT.max,hutT!=null?hutT:s.tGrain));}
 /* the motor's build cost, item by item: [{k, label, cr}] and the total */
 function buildCost(m,d){
   const C=CAREER,M=m.mass,P=PROPELLANTS[d.grain.prop],K=CASES[d.case.mat],L=LINERS[d.case.liner],T=THROATS[d.nozzle.mat],I=IGNITERS[d.igniter];
@@ -21,7 +24,8 @@ function buildCost(m,d){
     {k:"igniter",label:I.name,cr:CR(I.cost)},
     {k:"shop",label:"Machining and closures",cr:CR(C.shopBase+C.shopPerMm*d.case.id+(d.case.closure==="bolts"?C.perBolt*d.case.bolts:0))}];
   return{items,total:items.reduce((s,x)=>s+x.cr,0)};}
-function firingCost(standId,m,d){const st=STANDS[standId],b=buildCost(m,d);return{fee:st.fee,build:b,total:st.fee+b.total};}
+function firingCost(standId,m,d,slot){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
+  return{fee:st.fee,hut,build:b,total:st.fee+hut+b.total};}
 /* what a job pays before the grade: a repeat order pays its share of the first fee */
 const contractById=id=>CONTRACTS.find(c=>c.id===id)||null;
 function basePay(car,c){const d=car.done[c.id];return CR(d&&c.repeat?c.pay*c.repeat.pay:c.pay);}
@@ -36,6 +40,7 @@ function canTake(car,id){
   if(car.jobs[id])return"You already have this job.";
   if(Object.keys(car.jobs).length>=CAREER.maxJobs)return`You can hold ${CAREER.maxJobs} jobs at once. Finish or drop one first.`;
   if(!car.stands[c.stand])return`This job needs ${STANDS[c.stand].name}.`;
+  if(c.slot==="hut"&&!car.hut)return"This job is fired from the conditioning hut. Lease one from Facilities first.";
   if(!board(car).includes(c))return"That work order isn't on the board.";
   return"";}
 function takeJob(car,id){const e=canTake(car,id);if(e)return e;const c=contractById(id);
@@ -71,11 +76,11 @@ function canBuy(car,id){const f=FACILITIES[id];if(!f)return"No such facility.";
   if(car.rep<f.need)return`The range wants reputation ${f.need} first (you have ${car.rep}).`;
   if(car.money<f.cost)return`It costs ${f.cost} cr; you have ${Math.max(0,car.money)} cr.`;
   return"";}
-function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:false;}
+function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:false;}
 function buy(car,id){const e=canBuy(car,id);if(e)return e;const f=FACILITIES[id],g=f.give;car.money-=f.cost;
-  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
+  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.hut)car.hut=Math.max(car.hut|0,g.hut);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
 /* the logbook keeps what's needed to fire the same motor again for its report: the dice come from the seed */
 function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length>CAREER.logMax)car.log.splice(0,car.log.length-CAREER.logMax);return e;}
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}
-Object.assign(SIM,{newCareer,buildCost,firingCost,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
+Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
   restartTier,settle,canBuy,owns,buy,logFiring,fireSeed});

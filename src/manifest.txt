@@ -12,6 +12,7 @@ data/designs.js
 data/variance.js
 data/contracts.js
 data/career.js
+data/flight.js
 sim/levelset.js
 sim/grain.js
 sim/nozzle.js
@@ -20,6 +21,7 @@ sim/ballistics.js
 sim/derive.js
 sim/fire.js
 sim/grade.js
+sim/flight.js
 sim/career.js
 sim/close.js
 html/ld-sim.html
@@ -30,6 +32,7 @@ vis/chart.js
 vis/section.js
 vis/strip.js
 vis/stand.js
+vis/flight.js
 vis/close.js
 # --- the app block: the page glue ---
 app/state.js

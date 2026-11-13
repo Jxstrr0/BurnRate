@@ -10,10 +10,36 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 3. Static fire and incident report (first playable) | 0.4.0.0 | Done |
 | 4. Career and saves | 0.5.0.0 | Done |
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
-| 6. Flight tests | 0.7.0.0 | Next |
-| 7. The test stand in 3D | 0.8.0.0 | |
+| 6. Flight tests | 0.7.0.0 | Done |
+| 7. The test stand in 3D | 0.8.0.0 | Next |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.7.0.0 — Stage 6: flight tests
+
+- **Flight jobs** (decided: launch replaces the stand): four new work orders put the motor in a rocket and fly it from
+  the range's launch rail, graded on apogee. Tier 1: the club's altitude cup (800–1200 m, a 250 g altimeter, G or
+  smaller). Tier 2: a weather sounding flight (2500–3500 m with 1 kg) and the students' H-class altitude record
+  (1700–2300 m on 320 N·s or less). Tier 3: a 4 kg telemetry pack to 6000–8000 m.
+- **The Rocket tab** on a flight job's bench: body tubes (kraft, glass-fibre, carbon by tier), three noses and four fin
+  sets. It shows the predicted apogee, top speed and Mach, rail exit speed, thrust-to-weight, length/diameter against
+  the fins' limit, liftoff mass and the rocket's build cost. The apogee replaces Isp in the bench's numbers. The range
+  refuses a motor that doesn't fit the tube, a rocket too long for its fins and one that can't lift off; a slow rail
+  exit or a weak liftoff is a warning flag.
+- **Launch day**: the slot sheet shows each slot's predicted apogee and the bill (rail fee 250 cr, the rocket, the
+  motor). The firing screen shows the rocket climbing from the rail, drawn to scale, with a height gauge; the coast
+  to apogee plays sped up. The wind (decided: light and seeded) is only known on the day.
+- **The flight report**: height against time, predicted (blue, still air) and flown (red), with apogee, top speed,
+  rail speed, the wind and the drift; then the motor's own curves as the onboard logger's data. A motor that fails
+  loses the rocket: "Rocket lost", an X on the chart, no pay.
+- **Level-set grains, more accurate**: the port's exact distance replaces the grid distance transform, and each cell
+  burns smoothly over its width. A round core's starting burn area was 13% high and is now within 3%. A test helper
+  that compared with an absolute tolerance was letting it through; the level-set tests now use relative tolerances.
+- The board shows up to eight work orders. Glossary: apogee, airframe, nose cone, fins and stability, drag, rail exit
+  speed, thrust-to-weight, wind.
+- Tests: `tools/sim-tests/flight.js` (6 checks: the textbook no-drag apogee, drag and wind and payload effects,
+  determinism, a burst losing the rocket, the launch refusals, grading on apogee). The balance check launches flight
+  jobs across seeds and slots (8/8 each), and the career bot flies them.
 
 ## 0.6.0.0 — Stage 5, part 2: the conditioning hut, Stand 1 and tier 3
 

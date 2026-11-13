@@ -5,7 +5,8 @@
      the client orders again after `every` days for this share of the pay; optional),
      slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id; "hut" with tGrain: conditioned to that
      temperature, which needs the hut), spec (criteria, sim/grade.js),
-     start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
+     flight ({payload} in kg: a flight job, sim/flight.js; the motor flies in a rocket from the launch rail instead of
+     firing on a stand, which then only sets the size class), start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
      tools/sim-tests/fire.js fires it across seeds and slots, so every contract stays solvable). */
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
 /* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
@@ -39,6 +40,10 @@ const CONTRACTS=[
     brief:"Before the range signs off its new stands, R. Abenov wants to see a motor behave on a cold morning. Fired at dawn, whatever the weather: 120 to 160 N on average, and gentle on the case.",
     spec:[{k:"Fav",lo:120,hi:160},{k:"I",lo:320,hi:450},{k:"Pmax",hi:3.0}],start:"38mm 3-seg BATES, Mule",
     solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:55,coreD:12},case:{mat:"al6061",id:35,wall:1.6,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:7.5,exitD:18,half:15},igniter:"s"}},
+  {id:"club-cup",client:"Aqsor Steppe Rocketry Club",title:"Club altitude cup",tier:1,stand:"s3",slot:null,flight:{payload:0.25},pay:1800,days:8,repeat:{pay:0.6,every:5},
+    brief:"The club's altitude cup is on Sunday, and they want a proper entry: a rocket that carries their 250 g altimeter to between 800 and 1200 metres, on a G motor or smaller. Build the motor and the rocket; it flies from the range's launch rail.",
+    spec:[{k:"apogee",lo:800,hi:1200},{k:"I",hi:160}],start:"29mm 2-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:42,coreD:10},case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:6.5,exitD:13,half:15},igniter:"s",airframe:{body:"kraft43",nose:"ogive",fins:"three"}}},
   /* ---- tier 2: Stand 2, tier 2 parts, curve shapes and conditioned firings ---- */
   {id:"dala-j",client:"Dala Hobby Supply",title:"Catalogue J350",tier:2,stand:"s2",slot:null,pay:3500,days:8,repeat:{pay:0.6,every:4},
     brief:"The shop's G sold out in a week. Now they want a J for the club's big rockets: about 350 N on average, and a full J's worth of impulse.",
@@ -68,6 +73,14 @@ const CONTRACTS=[
     brief:"The Range Authority is pitching Site 41 to launch firms and wants a showpiece: a K motor where propellant is most of the weight. 62% of the motor or more, and safe on the case.",
     spec:[{k:"massFrac",lo:62},{k:"I",lo:1300,hi:2200},{k:"Pmax",hi:7}],start:"54mm 4-seg BATES, Dray, steel throat",
     solution:{grain:{prop:"tr5",shape:"bates",segs:4,segLen:83,coreD:22},case:{mat:"phenolic",id:51,wall:2,liner:"paper",linerThk:1.5,closure:"bolts",bolts:14},nozzle:{mat:"graphite",throatD:15.6,exitD:26,half:15},igniter:"l"}},
+  {id:"kumtal-fly",client:"Kumtal Weather Service",title:"First sounding flight",tier:2,stand:"s2",slot:null,flight:{payload:1},pay:5200,days:10,
+    brief:"The weather station's first real sounding flight: a one-kilogram instrument pack to between 2500 and 3500 metres, where it reads the wind on the way down. Build the motor and the rocket; it flies from the range's launch rail.",
+    spec:[{k:"apogee",lo:2500,hi:3500}],start:"54mm 4-seg BATES, Dray, steel throat",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:5,segLen:77,coreD:21.5},case:{mat:"mild",id:51,wall:4.5,liner:"rubber",linerThk:1.7,closure:"bolts",bolts:3},nozzle:{mat:"steel",throatD:18,exitD:34,half:15},igniter:"m",airframe:{body:"kraft68",nose:"ogive",fins:"four"}}},
+  {id:"saryk-cup",client:"Saryk Polytechnic rocket team",title:"The H altitude record",tier:2,stand:"s3",slot:null,flight:{payload:0.2},pay:4600,days:10,
+    brief:"The students want the steppe league's H-class altitude record: 1700 to 2300 metres with their 200 g altimeter, on 320 N·s or less. With the impulse capped, the height comes from a light motor and a slippery rocket.",
+    spec:[{k:"apogee",lo:1700,hi:2300},{k:"I",hi:320}],start:"38mm 3-seg BATES, Mule",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:46,coreD:12},case:{mat:"phenolic",id:35,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},nozzle:{mat:"graphite",throatD:8,exitD:20,half:15},igniter:"s",airframe:{body:"kraft43",nose:"karman",fins:"swept"}}},
   {id:"kokjal-boost",client:"Kökjal Launch Systems",title:"Boost, then sustain",tier:3,stand:"s1",slot:null,pay:14000,days:14,
     brief:"A small-launcher firm wants a first stage that kicks hard off the pad, then settles to a long, gentle push while the rocket climbs out of the thick air. The last third no more than 60% of the first, and at least three and a half seconds.",
     spec:[{k:"prog",hi:0.6},{k:"tb",lo:3.5},{k:"I",lo:5000,hi:9000},{k:"Pmax",hi:7}],start:"98mm 5-seg BATES, Ox, composite",
@@ -91,6 +104,10 @@ const CONTRACTS=[
   {id:"qyran-long",client:"Qyran Display Team",title:"A slow, long climb",tier:3,stand:"s1",slot:null,pay:11000,days:12,
     brief:"For the night show, Qyran wants a big rocket that rises slowly on a long, steady flame the crowd can follow: 250 to 500 newtons for eight seconds or more.",
     spec:[{k:"tb",lo:8},{k:"Fav",lo:250,hi:500},{k:"I",lo:3000}],start:"98mm 5-seg BATES, Ox, composite",
-    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:137.1,coreD:21.3,pts:2,ptLen:29.3,ptW:21.3,finLen:113.6,offset:15.1},case:{mat:"composite",id:95.1,wall:1.5,liner:"paper",linerThk:4.8,closure:"ring",bolts:15},nozzle:{mat:"graphite",throatD:20.7,exitD:84.3,half:15},igniter:"l"}}
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:137.1,coreD:21.3,pts:2,ptLen:29.3,ptW:21.3,finLen:113.6,offset:15.1},case:{mat:"composite",id:95.1,wall:1.5,liner:"paper",linerThk:4.8,closure:"ring",bolts:15},nozzle:{mat:"graphite",throatD:20.7,exitD:84.3,half:15},igniter:"l"}},
+  {id:"burkit-sounder",client:"Bürkit Aerospace",title:"Six kilometres up",tier:3,stand:"s1",slot:null,flight:{payload:4},pay:17000,days:14,
+    brief:"Bürkit wants flight data from a real ascent before it sells its boosters: a four-kilogram telemetry pack to between 6000 and 8000 metres. Past the speed of sound the drag climbs steeply, so the nose, the fins and how long the motor pushes all matter.",
+    spec:[{k:"apogee",lo:6000,hi:8000}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr9",shape:"tube",segs:8,segLen:169.5,coreD:45.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:27,exitD:56,half:15},igniter:"xl",airframe:{body:"glass118",nose:"karman",fins:"swept"}}}
 ];
 Object.assign(SIM,{GRADING,STANDS,CONTRACTS});

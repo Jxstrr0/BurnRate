@@ -24,8 +24,10 @@ function buildCost(m,d){
     {k:"igniter",label:I.name,cr:CR(I.cost)},
     {k:"shop",label:"Machining and closures",cr:CR(C.shopBase+C.shopPerMm*d.case.id+(d.case.closure==="bolts"?C.perBolt*d.case.bolts:0))}];
   return{items,total:items.reduce((s,x)=>s+x.cr,0)};}
-function firingCost(standId,m,d,slot){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
-  return{fee:st.fee,hut,build:b,total:st.fee+hut+b.total};}
+function firingCost(standId,m,d,slot,launch){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
+  /* a launch pays the rail's fee and the rocket's build instead of the stand's fee (sim/flight.js airframeCost) */
+  const fee=launch?FLIGHT.fee:st.fee,air=launch?airframeCost(d,m):0;
+  return{fee,hut,air,build:b,total:fee+hut+air+b.total};}
 /* what a job pays before the grade: a repeat order pays its share of the first fee */
 const contractById=id=>CONTRACTS.find(c=>c.id===id)||null;
 function basePay(car,c){const d=car.done[c.id];return CR(d&&c.repeat?c.pay*c.repeat.pay:c.pay);}

@@ -2,15 +2,24 @@
    A countdown, then the stand and the live strip chart: the measured trace (red) draws over the prediction (blue) as
    the motor burns, with pressure, thrust and time gauges. Burns shorter than 2 s play slowed down and burns longer than
    7 s sped up (the speed shows on screen). Abort works during the countdown; once it's lit, it's lit.
-   With reduced motion on, the countdown is skipped, the burn plays without flicker or shake. */
-const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1};
+   With reduced motion on, the countdown is skipped, the burn plays without flicker or shake.
+   A launch (f.flight) shows the rocket climbing from the rail (vis/flight.js sky) in place of the stand, and plays on
+   past burnout to apogee: the coast is sped up to take about four seconds. The first gauge reads height. */
+const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1};
+const COAST_S=4;   // seconds the coast to apogee takes on screen
+/* sim time at el seconds into the burn phase: the burn at FR.sp, then a launch's coast at FR.spC */
+const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb||!FR.tFly?el*FR.sp:FR.tEnd+(el-tb)*FR.spC;};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
 function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
   showScreen("fire");
-  $("frSite").textContent=`${L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(tG)} grain`;$("frDes").textContent=f.pred.sum.designation;
+  const fly=f.flight||null;
+  $("frSite").textContent=`${fly?"Launch rail":L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
+  $("frPL").textContent=fly?"Height":"Pressure";$("frPU").textContent=fly?"m":"MPa";
+  $("fire").setAttribute("aria-label",fly?"Launch":"Static firing");
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
+  FR.tFly=fly?Math.max(FR.tEnd,fly.lost?fly.tLost:fly.tApo):0;FR.spC=fly?Math.max(1,(FR.tFly-FR.tEnd)/COAST_S):1;
   FR.fPk=Math.max(1,...f.plog.f);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
@@ -27,26 +36,29 @@ function frameFiring(now){
     if(el>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
-  const t=el*FR.sp;
+  const t=frTime(el),tDone=Math.max(FR.tEnd,FR.tFly);
   drawFiring(t,still);
-  if(t<FR.tEnd+AFTER)FR.raf=requestAnimationFrame(frameFiring);
+  if(t<tDone+AFTER*(FR.tFly?FR.spC:1))FR.raf=requestAnimationFrame(frameFiring);
   else FR.phase="done";
-  if(t>=FR.tEnd&&$("frNext").hidden){$("frNext").hidden=false;$("frAbort").hidden=true;$("frNext").focus({preventScroll:true});}}
+  if(t>=tDone&&$("frNext").hidden){$("frNext").hidden=false;$("frAbort").hidden=true;$("frNext").focus({preventScroll:true});}}
 function drawFiring(t,still){
   const L=GAME.last,f=L.f,lg=f.log,m=f.motor,fl=f.failure;
   const i=t<0?0:BURN_VIS.at(lg,Math.min(t,FR.tEnd));
   const failAt=fl&&fl.destructive?fl.t:null;
   const failNow=fl&&(fl.key==="hangfire"?t>=0:failAt!=null&&t>=failAt)?{key:fl.key,age:fl.key==="hangfire"?t:t-failAt}:null;
-  BURN_VIS.stand($("frStand"),{len:m.length,dia:m.diameter,f:t<0?0:lg.f[i]/FR.fPk,t,fail:failNow,still,
+  const fly=f.flight;
+  if(fly)BURN_VIS.sky($("frStand"),{path:fly.samples,t,tBurn:failAt!=null?Math.min(failAt,FR.tEnd):FR.tEnd,apogee:Math.max(fly.apogee,f.fpred?f.fpred.apogee:0),lost:fly.lost?fly.tLost:null,still,
+    h:w=>Math.min(w*0.62,260)});
+  else BURN_VIS.stand($("frStand"),{len:m.length,dia:m.diameter,f:t<0?0:lg.f[i]/FR.fPk,t,fail:failNow,still,
     smoke:t>FR.tEnd?t-FR.tEnd:(failNow&&fl.key!=="hangfire"?failNow.age:-1)});
   BURN_VIS.strip($("frStrip"),{pred:f.plog,meas:lg,upto:t<0?-1:t,now:t>=0&&t<=FR.tEnd,pLine:f.limits.pBurst,
     mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,events:f.events.map(e=>({t:e.t,label:e.key}))});
-  const tt=t<0?0:Math.min(t,FR.tEnd);
-  $("frP").textContent=(t<0?0:lg.p[i]/1e6).toFixed(2);$("frF").textContent=String(Math.round(t<0?0:lg.f[i]));$("frT").textContent=tt.toFixed(2);}
+  const tt=t<0?0:Math.min(t,fly?FR.tFly:FR.tEnd);
+  $("frP").textContent=fly?String(Math.round(t<0?0:BURN_VIS.pathAt(fly.samples,Math.min(t,FR.tFly)).h)):(t<0?0:lg.p[i]/1e6).toFixed(2);$("frF").textContent=String(Math.round(t<0?0:lg.f[i]));$("frT").textContent=tt.toFixed(2);}
 function abortFiring(){
   if(FR.phase==="count"){cancelAnimationFrame(FR.raf);FR.phase="idle";undoFiring();toast("Countdown held. The motor is still on the stand.");showScreen("design");return;}
   toast("Once it's lit, it's lit.");$("frAbort").disabled=true;}
 function initFiring(){
   $("frAbort").addEventListener("click",abortFiring);
   $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";openReport();});
-  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(FR.tEnd+AFTER,reduced());}});}
+  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+AFTER,reduced());}});}

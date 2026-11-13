@@ -4,7 +4,7 @@
    drawn beside the end view (time, pressure...). Drawn to scale; burning surfaces glow. h(width) -> height, optional.
    Level-set grains (star, slotted, finocyl, moonburner) are drawn from their distance maps (sim/levelset.js): the side
    cut follows the grid's centre column (the moonburner's core is moved up, so the cut shows its thin side on top), and
-   the end view paints every cell: propellant, the burning front (where the distance equals x) or open port. */
+   the end view paints every cell by its distance from the port: propellant, the burning front (distance = x) or open port. */
 const LS_IMG=new WeakMap();   // distance map -> {canvas, ctx, img}, so the end view reuses its pixels
 const rgbOf=(()=>{let cx=null;return col=>{if(!cx){const cv=document.createElement("canvas");cv.width=cv.height=1;cx=cv.getContext("2d",{willReadFrequently:true});}
   cx.clearRect(0,0,1,1);cx.fillStyle=col;cx.fillRect(0,0,1,1);return cx.getImageData(0,0,1,1).data.slice(0,4);};})();
@@ -12,17 +12,17 @@ const rgbOf=(()=>{let cx=null;return col=>{if(!cx){const cv=document.createEleme
 function lsImage(tab,x,band,k){
   let e=LS_IMG.get(tab);
   if(!e){const cv=document.createElement("canvas");cv.width=cv.height=tab.N;const ctx=cv.getContext("2d");e={cv,ctx,img:ctx.createImageData(tab.N,tab.N)};LS_IMG.set(tab,e);}
-  const P=rgbOf(k.prop),B=rgbOf(k.burn),O=rgbOf(k.card),d=e.img.data,s=tab.s,N=tab.N,h=tab.c/2;
+  const P=rgbOf(k.prop),B=rgbOf(k.burn),O=rgbOf(k.card),d=e.img.data,s=tab.s,N=tab.N;
   for(let j=0;j<N;j++)for(let i=0;i<N;i++){
     const q=(N-1-j)*N+i,o=(j*N+i)*4,v=s[q];   // grid row 0 is the bottom (y = −R); the image's row 0 is the top
     let C;if(v!==v){d[o+3]=0;continue;}
-    if(v<0)C=O;else{const dd=v+h;C=Math.abs(dd-x)<=band?B:dd<x?O:P;}
+    if(v<0)C=O;else C=Math.abs(v-x)<=band?B:v<x?O:P;
     d[o]=C[0];d[o+1]=C[1];d[o+2]=C[2];d[o+3]=255;}
   e.ctx.putImageData(e.img,0,0);return e.cv;}
 /* the runs of propellant still there along the grid's centre column, as [y0, y1] in metres from the axis (y up) */
 function lsCut(tab,x){
   const N=tab.N,i=N>>1,c=tab.c,R=tab.R,out=[];let a=-1;
-  for(let j=0;j<=N;j++){const v=j<N?tab.s[j*N+i]:NaN,solid=v===v&&v>=0&&v+c/2>x;
+  for(let j=0;j<=N;j++){const v=j<N?tab.s[j*N+i]:NaN,solid=v===v&&v>=0&&v>x;
     if(solid&&a<0)a=j;else if(!solid&&a>=0){out.push([-R+a*c,-R+j*c,a>0&&tab.s[(a-1)*N+i]===tab.s[(a-1)*N+i],j<N&&v===v]);a=-1;}}
   return out;}   // [y0, y1, burning below, burning above]
 function section(cv,m,x,info,h){

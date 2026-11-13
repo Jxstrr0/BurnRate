@@ -16,7 +16,7 @@ const CAREER={
   lateCut:0.1,         // each range day past the deadline takes this share off the pay ...
   lateFloor:0.4,       // ... down to this share at worst
   maxJobs:3,           // jobs in hand at once
-  boardMax:6,          // work orders shown on the board
+  boardMax:8,          // work orders shown on the board
   logMax:120,          // logbook entries kept in the save (the oldest go first)
   logRate:{0:120,1:400} // the data logger's sample rate by blockhouse level, Hz
 };

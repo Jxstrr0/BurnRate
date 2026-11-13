@@ -2,8 +2,12 @@
    Pure functions on a career object (the save holds it as JSON; app/save.js keeps it). Nothing random here: the board
    is the contract list in order, filtered by tier and what's done; each firing's dice come from fire()'s seed.
      car = {seed, name, day, money, tier, rep, stands:{s3:true}, bunker, jobs:{id:job}, done:{id:{letter,day,paid,times,again}},
-            log:[entry], no (report counter), broke (tier restarts), hut (conditioning hut owned: 1)}
+            log:[entry], no (report counter), broke (tier restarts), hut (conditioning hut owned: 1),
+            retender:{id:day} (lost tenders, back on the board from that day)}
      job = {taken, due, pay, n (motors fired)}
+   A tier 4 tender (contract.lot) is delivered by a lot: fireLot fires CAREER.lot.n motors of one design, gradeLot judges
+   them (four of five to pass; one failure cuts the pay; the lot's grade is its worst passing motor's), and settle with
+   {lot:true} pays or loses the tender. A single firing on a tender is a development motor: settle with {dev:true}.
    buildCost / firingCost price a motor (the hut adds its fee); slotTemp gives a slot's grain temperature; board lists the work orders on offer; takeJob, settle and buy change the career. */
 const CR=v=>Math.round(v);
 function newCareer(seed,name){
@@ -24,10 +28,18 @@ function buildCost(m,d){
     {k:"igniter",label:I.name,cr:CR(I.cost)},
     {k:"shop",label:"Machining and closures",cr:CR(C.shopBase+C.shopPerMm*d.case.id+(d.case.closure==="bolts"?C.perBolt*d.case.bolts:0))}];
   return{items,total:items.reduce((s,x)=>s+x.cr,0)};}
-function firingCost(standId,m,d,slot,launch){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
+function firingCost(standId,m,d,slot,launch,count){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
   /* a launch pays the rail's fee and the rocket's build instead of the stand's fee (sim/flight.js airframeCost) */
-  const fee=launch?FLIGHT.fee:st.fee,air=launch?airframeCost(d,m):0;
-  return{fee,hut,air,build:b,total:fee+hut+air+b.total};}
+  const fee=launch?FLIGHT.fee:st.fee,air=launch?airframeCost(d,m):0,n=Math.max(1,count|0);
+  /* a tender's lot: one fee (and one hut fee) for the day, n motors' materials */
+  return{fee,hut,air,build:b,n,motors:b.total*n,total:fee+hut+air+b.total*n};}
+/* a tender's lot: n motors of one design, fired one after another from one seed (motor i rolls seed/m<i>) */
+function fireLot(d,cond,seed,n){const out=[];for(let i=1;i<=(n||CAREER.lot.n);i++)out.push(fire(d,cond,seed+"/m"+i));return out;}
+/* judge a lot: {pass, letter (worst passing motor's), fails, payMul, grades (one per motor)} */
+function gradeLot(c,fires){const L=CAREER.lot,grades=fires.map(f=>grade(c,f)),ok=grades.filter(g=>g.pass);
+  const fails=grades.length-ok.length,pass=ok.length>=L.need;
+  const letter=pass?ok.map(g=>g.letter).sort().pop():"–";
+  return{pass,letter,fails,payMul:pass&&fails?L.failPay:1,grades,why:pass?null:"lot"};}
 /* what a job pays before the grade: a repeat order pays its share of the first fee */
 const contractById=id=>CONTRACTS.find(c=>c.id===id)||null;
 function basePay(car,c){const d=car.done[c.id];return CR(d&&c.repeat?c.pay*c.repeat.pay:c.pay);}
@@ -36,6 +48,7 @@ function basePay(car,c){const d=car.done[c.id];return CR(d&&c.repeat?c.pay*c.rep
 function board(car){
   const rank=c=>car.done[c.id]?2:(c.tier||1)===car.tier?0:1;
   return CONTRACTS.filter(c=>{if((c.tier||1)>car.tier||car.jobs[c.id])return false;const d=car.done[c.id];
+    if(car.retender&&car.retender[c.id]>car.day)return false;
     return!d||(c.repeat&&car.day>=d.again);}).map((c,i)=>[rank(c),i,c]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]).map(x=>x[2]).slice(0,CAREER.boardMax);}
 function canTake(car,id){
   const c=contractById(id);if(!c)return"No such work order.";
@@ -58,14 +71,17 @@ function isBroke(car){const fee=Math.min(...Object.keys(car.stands).filter(s=>ca
 function restartTier(car){car.money=CAREER.startMoney[car.tier]||CAREER.startMoney[1];car.jobs={};car.broke++;}
 /* settle one firing: charge it, then (on a contract pass) pay, earn reputation and finish the job. The day moves on.
    Returns what happened, for the report and the logbook. */
-function settle(car,c,g,cost){
-  const day=car.day,out={day,cost,paid:0,late:0,lateMul:1,gradeMul:0,rep:0,done:false};
-  car.money-=cost;
+function settle(car,c,g,cost,o){
+  const day=car.day,out={day,cost,paid:0,late:0,lateMul:1,gradeMul:0,rep:0,done:false,lost:false};
+  o=o||{};car.money-=cost;
   if(c){const job=car.jobs[c.id];
-    if(job){job.n++;
-      if(g&&g.pass){const ls=lateShare(job,day),prev=car.done[c.id];
+    if(job){job.n+=o.lot?CAREER.lot.n:1;
+      /* a tender: a single motor is development only; a lot that fails loses the tender for now */
+      if(c.lot&&!o.lot)out.dev=true;
+      else if(c.lot&&g&&!g.pass){delete car.jobs[c.id];car.retender=car.retender||{};car.retender[c.id]=day+CAREER.lot.retender;out.lost=true;}
+      else if(g&&g.pass){const ls=lateShare(job,day),prev=car.done[c.id];
         out.late=ls.late;out.lateMul=ls.mul;out.gradeMul=CAREER.gradePay[g.letter];
-        out.paid=CR(job.pay*out.gradeMul*ls.mul);car.money+=out.paid;
+        out.lotMul=g.payMul||1;out.paid=CR(job.pay*out.gradeMul*ls.mul*out.lotMul);car.money+=out.paid;
         out.rep=prev?Math.floor(CAREER.rep[g.letter]/2):CAREER.rep[g.letter];car.rep+=out.rep;
         car.done[c.id]={letter:prev&&"ABC".indexOf(prev.letter)<"ABC".indexOf(g.letter)?prev.letter:g.letter,day,paid:out.paid,
           times:(prev?prev.times:0)+1,again:c.repeat?day+c.repeat.every:null};
@@ -75,14 +91,15 @@ function settle(car,c,g,cost){
 /* facilities: can it be bought, and buy it */
 function canBuy(car,id){const f=FACILITIES[id];if(!f)return"No such facility.";
   if(owns(car,id))return"Already yours.";
+  if(f.after&&!owns(car,f.after))return`Lease ${FACILITIES[f.after].name.replace(/ lease$/,"")} first.`;
   if(car.rep<f.need)return`The range wants reputation ${f.need} first (you have ${car.rep}).`;
   if(car.money<f.cost)return`It costs ${f.cost} cr; you have ${Math.max(0,car.money)} cr.`;
   return"";}
-function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:false;}
+function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:g.tier?car.tier>=g.tier:false;}
 function buy(car,id){const e=canBuy(car,id);if(e)return e;const f=FACILITIES[id],g=f.give;car.money-=f.cost;
   if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.hut)car.hut=Math.max(car.hut|0,g.hut);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
 /* the logbook keeps what's needed to fire the same motor again for its report: the dice come from the seed */
 function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length>CAREER.logMax)car.log.splice(0,car.log.length-CAREER.logMax);return e;}
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}
-Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
+Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,fireLot,gradeLot,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
   restartTier,settle,canBuy,owns,buy,logFiring,fireSeed});

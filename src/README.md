@@ -27,7 +27,7 @@
 | `sim/fire.js` | `fire`: a static firing with seeded variance, failure detection, the incident report's cause and factors |
 | `sim/grade.js` | `SPEC_INFO`, `specCheck`, `grade` (A, B, C or fail; a flight job grades the flown apogee), `preFire` (stand fit, load cell, part tiers) |
 | `sim/flight.js` | flight tests: `rocketOf`, `defaultAirframe`, `airframeCost`, `fly` (point mass, drag, Mach, wind), `predictFlight`, `preLaunch`, `windOf`, `launch` |
-| `sim/career.js` | the career's rules, pure: `newCareer`, `slotTemp`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed` |
+| `sim/career.js` | the career's rules, pure: `newCareer`, `slotTemp`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed`, tier 4 lots: `fireLot`, `gradeLot` |
 | `sim/daily.js` | the Daily Spec, pure: `dailyNo`, `dailySpec` (kit, order, hidden reference motor, spec, all from the date), `kitCheck`, `inKit` |
 | `sim/close.js` | `return SIM;})();` and `module.exports` for node |
 | `html/ld-sim.html` | loading bar step |

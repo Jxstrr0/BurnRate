@@ -11,7 +11,7 @@ function sandboxSheet(){
   const tier=S.career.tier,list=BURN_SIM.CONTRACTS.filter(c=>(c.tier||1)<=tier);
   const byTier=[1,2,3,4].filter(t=>t<=tier).map(t=>{const cs=list.filter(c=>(c.tier||1)===t);if(!cs.length)return"";
     return`<h3 class="dl-h">Tier ${t}</h3>`+cs.map(c=>`<article class="wo card sbx"><header><span class="site">${esc(c.client)}</span>${S.sandbox.designs[c.id]?`<span class="tag">Bench saved</span>`:""}</header>
-      <h3>${esc(c.title)}</h3>${specList(c)}<div class="row"><button type="button" class="btn pri sm" data-sbx="${c.id}">Practise</button></div></article>`).join("");}).join("");
+      <h3>${esc(c.title)}</h3>${specList(c,{practice:true})}<div class="row"><button type="button" class="btn pri sm" data-sbx="${c.id}">Practise</button></div></article>`).join("");}).join("");
   openSheet("Sandbox",`<p class="hint">Any work order up to tier ${tier}, with every part your career has unlocked. No money, no range days, no deadlines: fire as often as you like and see the grade. Nothing here changes your career.</p>${byTier}`);}
 function openSandboxJob(id){
   const c=BURN_SIM.contractById(id);if(!c||!sandboxOpen())return;

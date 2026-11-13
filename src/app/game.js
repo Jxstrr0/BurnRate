@@ -8,7 +8,9 @@
    app/firing.js. In a career each firing costs a range day, the stand's
    fee and the motor's materials; a pass pays and finishes the job (sim/career.js settle).
    A flight job (contract.flight) goes to the launch rail instead: the range's launch checks too (sim/flight.js
-   preLaunch), the rail's fee and the rocket's build on the bill, and sim/flight.js launch() in place of fire(). */
+   preLaunch), the rail's fee and the rocket's build on the bill, and sim/flight.js launch() in place of fire().
+   A tier 4 tender (contract.lot) offers two buttons on the slot sheet: one development motor (costs, pays nothing) or the
+   lot of five (one range day, one stand fee, five motors: sim/career.js fireLot, gradeLot). */
 const GAME={mode:"free",contract:null,slot:"dusk",last:null};
 /* the slots the player can pick: the hut only once it's leased (always on the free bench) */
 const hutOpen=()=>!inCareer()||!!(S.career&&S.career.hut);
@@ -73,8 +75,9 @@ function toStand(){
   if(isFlight()){const pl=flightChecks().crit;if(pl.length){openSheet("The range won't launch it",`<ul class="fixes">${fixList(pl)}</ul>`);return;}}
   slotSheet();}
 /* what this firing costs, and whether the bank will cover it (career only) */
-function firingBill(){const c=GAME.contract,r=DZ.res;if(!inCareer()||!c||!r||!r.ok)return null;
-  const b=BURN_SIM.firingCost(c.stand,r.motor,DZ.d,GAME.slot,!!c.flight);b.ok=BURN_SIM.canAfford(S.career,b.total);return b;}
+function firingBill(lot){const c=GAME.contract,r=DZ.res;if(!inCareer()||!c||!r||!r.ok)return null;
+  const b=BURN_SIM.firingCost(c.stand,r.motor,DZ.d,GAME.slot,!!c.flight,lot?BURN_SIM.CAREER.lot.n:1);b.ok=BURN_SIM.canAfford(S.career,b.total);return b;}
+const isTender=()=>inCareer()&&!!(GAME.contract&&GAME.contract.lot);
 function slotSheet(){
   const c=GAME.contract,slots=c&&c.slot?[c.slot]:slotChoices(),H=BURN_SIM.HUT,fixedT=!!(c&&c.slot);
   if(!slots.includes(GAME.slot))GAME.slot=slots[0];
@@ -86,16 +89,20 @@ function slotSheet(){
       <small>${esc(sl.hut&&fixedT?"Held overnight in the conditioning hut at the client's temperature.":sl.note)}${sl.hut&&inCareer()?` ${fmtCr(BURN_SIM.CAREER.hutFee)} a firing.`:""}</small><small class="mono">${pf?`apogee ${Math.round(pf.apogee)} m · `:""}peak ${(s.Pmax/1e6).toFixed(2)} MPa · ${pf?"":`avg ${Math.round(s.Fav)} N · `}${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
   const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Hut set to <b class="mono">${degC(hutT)}</b></span>
     <button type="button" class="btn sm" data-hut="-1" aria-label="Colder"${hutT<=H.min?" disabled":""}>−</button><button type="button" class="btn sm" data-hut="1" aria-label="Warmer"${hutT>=H.max?" disabled":""}>+</button></div>`:"";
-  const b=firingBill(),car=S.career;
+  const b=firingBill(),car=S.career,tender=isTender(),bl=tender?firingBill(true):null,LT=BURN_SIM.CAREER.lot;
   const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + motor ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
+    ${bl?`<p class="mono">The lot: fee ${fmtCr(bl.fee)}${bl.hut?` + hut ${fmtCr(bl.hut)}`:""} + ${LT.n} motors ${fmtCr(bl.motors)} = <b>${fmtCr(bl.total)}</b></p>`:""}
     <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. ${fly?"A lost rocket still costs.":"A failed motor still costs."}</p>
-    ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}</div>`:"";
+    ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}
+    ${bl&&b.ok&&!bl.ok?`<p class="sev warn">The bank won't cover the whole lot yet. A development motor is still within reach.</p>`:""}</div>`:"";
   const lead=fixedT?(c.slot==="hut"?`This contract is a qualification firing: the motor is held in the conditioning hut at ${degC(slotT("hut"))} overnight.`
       :"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".")
     :`Pick when to ${fly?"launch":"fire"}. The grain sits out overnight, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
   const windNote=fly?` The wind on the rail is light, but it changes every day: you'll only know it on the morning.`:"";
   openSheet(fly?"Launch slot":"Firing slot",`<p class="hint">${lead} Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
-    <div class="pick">${cards}</div>${dial}${bill}<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>${fly?"Clear the range and launch":"Clear the range and fire"}</button>`);}
+    <div class="pick">${cards}</div>${dial}${bill}${tender?`<p class="hint">A tender is delivered as a lot: ${LT.n} motors from this design on one range day, and ${LT.need} must pass. One failure still delivers at ${Math.round(LT.failPay*100)}% of the pay; two or more lose the tender for ${LT.retender} days. A development motor first shows how this design fires, but the client doesn't take it.</p>
+      <button type="button" class="btn pri big wide" data-go="lot"${bl&&!bl.ok?" disabled":""}>Fire the lot of ${LT.n}</button><button type="button" class="btn big wide" data-go="1"${b&&!b.ok?" disabled":""}>Fire one development motor</button>`
+    :`<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>${fly?"Clear the range and launch":"Clear the range and fire"}</button>`}`);}
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   if(b.dataset.take){takeContract(b.dataset.take);return;}
@@ -104,26 +111,28 @@ document.addEventListener("click",e=>{
   if(!b.closest("#sheet"))return;
   if(b.dataset.hut){stepHut(+b.dataset.hut);return;}
   if(b.dataset.slot){const was=GAME.slot;GAME.slot=b.dataset.slot;if(was!==GAME.slot&&(was==="hut"||GAME.slot==="hut")&&firingBill()){slotSheet();return;}document.querySelectorAll("#sheet [data-slot]").forEach(x=>{const on=x.dataset.slot===GAME.slot;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on);});}
-  else if(b.dataset.go){closeSheet();startFiring(GAME.slot);}});
+  else if(b.dataset.go){closeSheet();startFiring(GAME.slot,b.dataset.go==="lot");}});
 
 /* a flight job launches the motor in its rocket; everything else fires on the stand */
 const shoot=(c,d,cond,seed)=>c&&c.flight?BURN_SIM.launch(d,cond,seed,{payload:c.flight.payload}):BURN_SIM.fire(d,cond,seed);
 /* fire one motor: draw it, grade it, charge and pay (career), log it, save, then run the firing screen. undoFiring takes it
    back (an abort during the countdown): the career goes back to how it was, so the next attempt fires the same motor */
-function startFiring(slot){
+function startFiring(slot,lot){
   const c=GAME.contract,tG=slotT(slot),d=clone(DZ.d);
   if(inCareer()&&c){
     const car=S.career,job=car.jobs[c.id];if(!job){toast("This job is finished. Pick another from the work orders.");return;}
     const r=DZ.res;if(!r||!r.ok){toast("This motor can't be built.");return;}
-    const bill=BURN_SIM.firingCost(c.stand,r.motor,d,slot,!!c.flight);
+    lot=!!(lot&&c.lot);
+    const bill=BURN_SIM.firingCost(c.stand,r.motor,d,slot,!!c.flight,lot?BURN_SIM.CAREER.lot.n:1);
     if(!BURN_SIM.canAfford(car,bill.total)){toast("The bank won't cover this firing.");return;}
     const before=clone(car),n=job.n+1,seed=BURN_SIM.fireSeed(car,c.id,n),rate=BURN_SIM.CAREER.logRate[car.bunker]||BURN_SIM.CAREER.logRate[0];
-    const f=shoot(c,d,{tGrain:tG,logRate:rate},seed);if(!f.ok){toast("This motor can't be built.");return;}
-    const g=BURN_SIM.grade(c,f),out=BURN_SIM.settle(car,c,g,bill.total);
+    const fires=lot?BURN_SIM.fireLot(d,{tGrain:tG,logRate:rate},seed):[shoot(c,d,{tGrain:tG,logRate:rate},seed)],f=fires[0];
+    if(!f.ok){toast("This motor can't be built.");return;}
+    const g=lot?BURN_SIM.gradeLot(c,fires):BURN_SIM.grade(c,f),out=BURN_SIM.settle(car,c,g,bill.total,{lot});
     const entry=BURN_SIM.logFiring(car,{day:out.day,key:c.id,n,slot,tGrain:tG,seed,rate,design:d,letter:g.pass?g.letter:null,why:g.pass?null:g.why,
-      fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late});
+      fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late,lot:lot?BURN_SIM.CAREER.lot.n:undefined,fails:lot?g.fails:undefined,dev:out.dev?1:undefined});
     save(true);
-    GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker};
+    GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker,lot:lot?lotView(fires,g):null};
   }else if(isSandbox()){
     /* the Sandbox: no money, no deadline, graded (app/sandbox.js) */
     const n=(S.sandbox.n|0)+1,f=shoot(c,d,{tGrain:tG},"sandbox/"+n);if(!f.ok){toast("This motor can't be built.");return;}
@@ -147,8 +156,13 @@ function undoFiring(){const L=GAME.last;if(!L)return;
     if(b.hist)S.dailyHist[b.daily.date]=b.hist;else delete S.dailyHist[b.daily.date];}
   else S.freeN=Math.max(0,(S.freeN|0)-1);
   save(true);GAME.last=null;}
+/* a lot on the report: the five firings, their grades, and which one the report's details show (the first failure, or
+   the first motor) */
+function lotView(fires,gl){const i=gl.grades.findIndex(g=>!g.pass);return{fires,gl,sel:i<0?0:i};}
 /* a logbook entry's report: the same motor, conditions and seed fire the same, so the report comes back exactly */
 function replayFiring(e){
-  const c=BURN_SIM.contractById(e.key),tG=e.tGrain??BURN_SIM.SLOTS[e.slot].tGrain,f=shoot(c,e.design,{tGrain:tG,logRate:e.rate},e.seed);if(!f.ok)return;
-  GAME.last={f,g:c?BURN_SIM.grade(c,f):null,c,slot:e.slot,tGrain:tG,n:e.n,key:e.key,no:e.no,design:e.design,entry:e,replay:true,bunker:e.rate>=BURN_SIM.CAREER.logRate[1]?1:0};
+  const c=BURN_SIM.contractById(e.key),tG=e.tGrain??BURN_SIM.SLOTS[e.slot].tGrain,cond={tGrain:tG,logRate:e.rate};
+  const fires=e.lot&&c?BURN_SIM.fireLot(e.design,cond,e.seed,e.lot):[shoot(c,e.design,cond,e.seed)],f=fires[0];if(!f.ok)return;
+  const gl=e.lot&&c?BURN_SIM.gradeLot(c,fires):null;
+  GAME.last={f,g:gl||(c?BURN_SIM.grade(c,f):null),lot:gl?lotView(fires,gl):null,c,slot:e.slot,tGrain:tG,n:e.n,key:e.key,no:e.no,design:e.design,entry:e,replay:true,bunker:e.rate>=BURN_SIM.CAREER.logRate[1]?1:0};
   openReport();}

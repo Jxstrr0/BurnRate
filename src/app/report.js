@@ -7,10 +7,11 @@
    the basic instruments only the batch and the case show (the Blockhouse instruments facility shows the rest).
    In a career the bill follows: the stand's fee, the motor's materials, the client's pay (grade and lateness) and the
    money left. A logbook entry's report (GAME.last.replay) is read-only.
-   A Sandbox firing (GAME.last.sandbox) is graded but has no bill. A Daily Spec firing (GAME.last.daily) shows today's best and offers Share (app/daily.js).
+   A tender's lot (GAME.last.lot) adds the lot card: every motor's result, all five traces on the chart, and the details
+   below for the motor picked (the first failure to start with). A Sandbox firing (GAME.last.sandbox) is graded but has no bill. A Daily Spec firing (GAME.last.daily) shows today's best and offers Share (app/daily.js).
    A launch (f.flight) adds the flight: height against time, predicted (no wind) and real, with apogee, top speed, the
    day's wind and where it landed; the motor's own curves follow as the onboard logger's data. */
-const STAMP={cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
+const STAMP={lot:"Tender lost",cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
 const RSO_LINES={
   A:["Clean curve. Write it up and go home early.","It did what you said it would. Rare. Signed.","Textbook. I'll pin the trace on the blockhouse wall."],
   B:["Close enough for the customer. Not for me.","A good motor. Next time, a better one."],
@@ -24,6 +25,8 @@ const RSO_LINES={
   yield:["The tube came off the stand wider than it went on.","Stretched cases don't fly. Thicker wall."],
   free:["Data logged. Nobody's paying for this one, so make it count.","Free firing. The range fee is not free."],
   lost:["The recovery team brought back a bag of bits. That was the rocket.","It came apart at a height I'd rather not write down.","The motor went before the rocket did. Then the rocket went too."],
+  lot:["Two out of five went wrong. The agency wanted four out of five, and so did I.","A tender is won on the worst motor, not the best one.","They'll put it out again. Bring a design with more margin."],
+  lotA:["Five motors, one curve. That's what a supplier looks like.","I couldn't tell them apart on the plot. Good."],
   flyA:["Straight up, straight down, right where they wanted it. Signed.","The altimeter agrees with you. So do I."]};
 const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
 const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
@@ -31,10 +34,12 @@ const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
 function openReport(){renderReport();showScreen("report");}
 function renderReport(){
   const L=GAME.last;if(!L)return;
-  const f=L.f,g=L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain,fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
+  /* a lot: the details below are for the selected motor; the stamp is the lot's */
+  const LT=L.lot,f=LT?LT.fires[LT.sel]:L.f,g=LT?LT.gl.grades[LT.sel]:L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain,fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
   const fly=f.flight||null,lost=!!(fly&&fly.lost);
-  const pass=c?g.pass:!fl,key=lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");
-  const stamp=lost?"Rocket lost":c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
+  let pass=c?g.pass:!fl,key=lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");
+  let stamp=lost?"Rocket lost":c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
+  if(LT){const G=LT.gl;pass=G.pass;key=G.pass?(G.letter==="A"&&!G.fails?"lotA":G.letter):"lot";stamp=G.pass?`Lot accepted · ${G.letter}`:"Tender lost";}
   /* the spec, line by line: band, predicted at this temperature, measured */
   const checks=c?g.checks.length?g.checks:BURN_SIM.specCheck(c.spec,ms,m):[];
   const predChecks=c?BURN_SIM.specCheck(c.spec,fly&&f.fpred?Object.assign({},ps,{apogee:f.fpred.apogee}):ps,m):[];
@@ -64,9 +69,11 @@ function renderReport(){
     bill=`<section class="card rp-bill"><h3>The bill</h3><table class="dtab mono">
       <tr><th>${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
       ${b.hut?`<tr><th>Conditioning hut</th><td>−${fmtCr(b.hut)}</td></tr>`:""}${b.air?`<tr><th>The rocket (${esc(fly?fly.rocket.body.name:"airframe")})</th><td>−${fmtCr(b.air)}</td></tr>`:""}
-      <tr><th><details><summary>Motor materials</summary><ul>${b.build.items.filter(x=>x.cr>0).map(x=>`<li>${esc(x.label)}: ${fmtCr(x.cr)}</li>`).join("")}</ul></details></th><td>−${fmtCr(b.build.total)}</td></tr>
-      ${o.paid?`<tr><th>${esc(c.client)} pays (grade ${g.letter} ×${o.gradeMul}${o.late?`, ${o.late} day${o.late>1?"s":""} late ×${o.lateMul.toFixed(1)}`:""})</th><td class="good">+${fmtCr(o.paid)}</td></tr>`:""}
+      <tr><th><details><summary>Motor materials${b.n>1?`, ${b.n} motors`:""}</summary><ul>${b.build.items.filter(x=>x.cr>0).map(x=>`<li>${esc(x.label)}: ${fmtCr(x.cr)}${b.n>1?" each":""}</li>`).join("")}</ul></details></th><td>−${fmtCr(b.motors||b.build.total)}</td></tr>
+      ${o.paid?`<tr><th>${esc(c.client)} pays (grade ${L.lot?L.lot.gl.letter:g.letter} ×${o.gradeMul}${o.lotMul<1?`, one failure ×${o.lotMul}`:""}${o.late?`, ${o.late} day${o.late>1?"s":""} late ×${o.lateMul.toFixed(1)}`:""})</th><td class="good">+${fmtCr(o.paid)}</td></tr>`:""}
       <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>
+      ${o.dev?`<p class="hint">A development motor: it shows how this design fires, but the client only takes a lot of ${BURN_SIM.CAREER.lot.n}.</p>`:""}
+      ${o.lost?`<p class="sev crit">Tender lost: ${L.lot.gl.fails} of the ${L.lot.fires.length} motors failed. The range puts it out again on day ${(car.retender||{})[c.id]}.</p>`:""}
       ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
   else if(L.replay&&L.entry){const e=L.entry;bill=`<p class="rp-note mono">Day ${e.day} · cost ${fmtCr(e.cost)}${e.paid?` · paid ${fmtCr(e.paid)}`:""}${e.late?` · ${e.late} day${e.late>1?"s":""} late`:""}</p>`;}
   const broke=L.out&&S.career&&BURN_SIM.isBroke(S.career)?`<section class="card broke"><h3 class="sign">Out of money</h3><p>The bank won't pay for another motor. The work orders offer a restart of the tier.</p></section>`:"";
@@ -82,9 +89,9 @@ function renderReport(){
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
       <span class="site">Aqsor Range · Site 41 · ${esc(fly?"Launch rail":c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
       <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. ${L.sandbox?`S-${L.n}`:L.daily?`D${c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`}</span></h2>
-      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${fly?"launch":"motor"} ${L.n}${c?` · ${esc(c.client)}`:""}</p>
+      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${LT?`lot of ${LT.fires.length}, motor ${LT.sel+1} below`:`${fly?"launch":"motor"} ${L.n}`}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
-    ${broke}${dl}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
+    ${broke}${dl}${LT?lotCard(L):""}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
@@ -96,6 +103,15 @@ function renderReport(){
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
     <div class="rp-act">${act}</div>`;
   drawReportChart();}
+/* a tender's lot: one row per motor (tap one to read its details below), and the rule it was judged by */
+function lotCard(L){const LT=L.lot,G=LT.gl,R=BURN_SIM.CAREER.lot;
+  const rows=LT.fires.map((f,i)=>{const g=G.grades[i],s=f.meas.sum,res=g.pass?`Pass ${g.letter}`:(STAMP[g.why]||"Fail");
+    return`<tr${i===LT.sel?` class="on"`:""}><th><button type="button" class="btn sm" data-lotsel="${i}" aria-pressed="${i===LT.sel}">Motor ${i+1}</button></th>
+      <td class="mono">${s.I.toFixed(0)}</td><td class="mono">${(s.Pmax/1e6).toFixed(2)}</td><td><b class="${g.pass?"good":"crit"}">${esc(res)}</b></td></tr>`;}).join("");
+  return`<section class="card rp-lot"><h3><button type="button" class="gl" data-g="lotTest">The lot</button></h3>
+    <p class="hint">${R.n} motors from one design; ${R.need} must pass. ${G.pass?G.fails?`One failed: the lot is accepted at ${Math.round(R.failPay*100)}% of the pay.`:"Every motor passed.":`${G.fails} failed: the tender is lost.`} The lot's grade is its worst passing motor's.</p>
+    <table class="dtab rp-tab"><thead><tr><th></th><th>N·s</th><th>MPa</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="hint">The chart shows all ${LT.fires.length} motors: the selected one bold, the others faint.</p></section>`;}
 /* the flight's card: the altitude chart and the numbers that made it */
 function flightCard(f,tG){
   const fl=f.flight,fp=f.fpred,R=fl.rocket,row=(g,k,a,b)=>`<tr><th><button type="button" class="gl" data-g="${g}">${k}</button></th><td class="mono">${a}</td><td class="mono"><b>${b}</b></td></tr>`;
@@ -113,10 +129,10 @@ function flightCard(f,tG){
     </tbody></table>
     <p class="hint">${esc(R.body.name)}, ${esc(R.nose.name.toLowerCase())} nose, ${esc(R.fins.name.toLowerCase())} · ${R.mass0.toFixed(2)} kg at liftoff${R.payload?`, ${R.payload} kg of it payload`:""}.</p></section>`;}
 function drawReportChart(){
-  const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.f,fl=f.failure,fly=f.flight;
+  const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.lot?L.lot.fires[L.lot.sel]:L.f,fl=f.failure,fly=f.flight;
   if(fly&&$("rpFly"))BURN_VIS.altitude($("rpFly"),{pred:f.fpred.samples,meas:fly.samples,apoP:f.fpred.apogee,apoM:fly.apogee,lost:fly.lost?{t:fly.tLost,h:fly.hLost}:null});
   BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
-    events:f.events.map(e=>({t:e.t,label:e.key}))});}
+    events:f.events.map(e=>({t:e.t,label:e.key})),others:L.lot?L.lot.fires.filter(x=>x!==f).map(x=>x.log):null});}
 function initReport(){
   $("rpBody").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
     if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);}
@@ -126,5 +142,6 @@ function initReport(){
     else if(b.id==="rpLog")openLogbook();
     else if(b.id==="rpShare")shareDaily();
     else if(b.id==="rpSbx")sandboxSheet();
+    else if(b.dataset.lotsel!=null&&GAME.last&&GAME.last.lot){GAME.last.lot.sel=+b.dataset.lotsel;const y=window.scrollY;renderReport();window.scrollTo(0,y);}
     else if(b.id==="rpTitle"){renderTitle();showScreen("title");}});
   addEventListener("resize",()=>{if(!$("report").hidden)drawReportChart();});}

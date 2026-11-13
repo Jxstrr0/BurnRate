@@ -81,15 +81,16 @@ module.exports = ({ SIM, check, near }) => {
     if (!SIM.preFire(Object.assign({}, k, { stand: SIM.STANDS.s2 }), d, p.motor, { tier: 1, sum: p.sum }).some(x => /tier 2/.test(x.text))) throw new Error("tier 2 parts allowed at tier 1");
   });
 
-  check("career bot: every contract's solution delivers, tiers 2 and 3 open, money stays inside the overdraft", () => {
+  check("career bot: every contract's solution delivers, tiers 2, 3 and 4 open, money stays inside the overdraft", () => {
     const car = SIM.newCareer("bot", "Bot"), slotFor = c => c.slot || "dusk";
     let fired = 0, low = car.money, fails = 0;
     const fireJob = c => {
-      const d = c.solution, m = SIM.motorFromDesign(d), bill = SIM.firingCost(c.stand, m, d, slotFor(c), !!c.flight);
+      const d = c.solution, m = SIM.motorFromDesign(d), bill = SIM.firingCost(c.stand, m, d, slotFor(c), !!c.flight, c.lot ? C.lot.n : 1);
       if (!SIM.canAfford(car, bill.total)) throw new Error(`day ${car.day}: can't afford ${c.id}`);
       const n = car.jobs[c.id].n + 1, cond = { tGrain: SIM.slotTemp(slotFor(c), c, 20), logRate: C.logRate[car.bunker] }, seed = SIM.fireSeed(car, c.id, n);
-      const f = c.flight ? SIM.launch(d, cond, seed, { payload: c.flight.payload }) : SIM.fire(d, cond, seed);
-      const g = SIM.grade(c, f); SIM.settle(car, c, g, bill.total); fired++; if (!g.pass) fails++;
+      /* a tender delivers by a lot of five */
+      const g = c.lot ? SIM.gradeLot(c, SIM.fireLot(d, cond, seed)) : SIM.grade(c, c.flight ? SIM.launch(d, cond, seed, { payload: c.flight.payload }) : SIM.fire(d, cond, seed));
+      SIM.settle(car, c, g, bill.total, { lot: !!c.lot }); fired++; if (!g.pass) fails++;
       SIM.logFiring(car, { day: car.day - 1, key: c.id, n, slot: slotFor(c), seed: "x", design: d });
       low = Math.min(low, car.money);
     };
@@ -111,9 +112,60 @@ module.exports = ({ SIM, check, near }) => {
     for (const id of ["hut", "s1"]) { const why = SIM.canBuy(car, id); if (why) throw new Error(`can't get ${id} after tier 2: ${why}`); SIM.buy(car, id); }
     if (car.tier !== 3 || !car.stands.s1 || car.hut !== 1) throw new Error("buying Stand 1 and the hut didn't open tier 3");
     runTier(3);
+    { const why = SIM.canBuy(car, "tenders"); if (why) throw new Error(`can't join the tender register after tier 3: ${why}`); SIM.buy(car, "tenders"); }
+    if (car.tier !== 4) throw new Error("the tender register didn't open tier 4");
+    runTier(4);
     if (low < -C.overdraft) throw new Error("money went past the overdraft");
     if (car.log.length > C.logMax) throw new Error("logbook not capped");
     return `${fired} firings (${fails} failed), day ${car.day}, ${Math.round(car.money)} cr, reputation ${car.rep}, lowest ${Math.round(low)} cr`;
+  });
+
+  check("tenders: a lot is one fee for five motors; four of five pass; one failure cuts the pay; two lose the tender for a while", () => {
+    const L = C.lot, c = SIM.CONTRACTS.find(x => x.lot), d = c.solution, m = SIM.motorFromDesign(d);
+    if (!c || !SIM.CONTRACTS.filter(x => x.lot).every(x => x.tier === 4 && !x.flight)) throw new Error("tenders should be tier 4 stand jobs");
+    const one = SIM.firingCost(c.stand, m, d, "dusk"), lot = SIM.firingCost(c.stand, m, d, "dusk", false, L.n);
+    if (lot.total !== one.fee + one.build.total * L.n || lot.fee !== one.fee) throw new Error("a lot's bill isn't one fee plus five motors");
+    const cond = { tGrain: SIM.SLOTS.dusk.tGrain }, fires = SIM.fireLot(d, cond, "lot-test");
+    if (fires.length !== L.n || JSON.stringify(SIM.fireLot(d, cond, "lot-test").map(f => f.meas.sum.I)) !== JSON.stringify(fires.map(f => f.meas.sum.I))) throw new Error("a lot isn't five repeatable motors");
+    if (new Set(fires.map(f => f.meas.sum.I.toFixed(3))).size < 2) throw new Error("the five motors of a lot are identical");
+    const gl = SIM.gradeLot(c, fires), worst = gl.grades.filter(g => g.pass).map(g => g.letter).sort().pop();
+    if (!gl.pass || gl.letter !== worst) throw new Error("the solution's lot should pass with its worst motor's grade");
+    /* a design far too thin-walled fails every motor */
+    const bad = JSON.parse(JSON.stringify(d)); bad.case.wall = 0.2; bad.case.mat = "phenolic";
+    const gb = SIM.gradeLot(c, SIM.fireLot(bad, cond, "lot-bad"));
+    if (gb.pass || gb.fails < 2 || gb.why !== "lot") throw new Error("a lot of bursting motors passed");
+    const car = SIM.newCareer("tender", "T"); Object.assign(car, { tier: 4, rep: 99, money: 1e6 }); car.stands.s1 = true; car.hut = 1;
+    if (SIM.takeJob(car, c.id)) throw new Error("couldn't take a tender");
+    /* a development motor: costs, counts, pays nothing, leaves the job in hand */
+    let out = SIM.settle(car, c, { pass: true, letter: "A" }, 100, {});
+    if (!out.dev || out.paid || !car.jobs[c.id] || car.jobs[c.id].n !== 1) throw new Error("a single firing on a tender delivered it");
+    /* a lot with one failure: delivered at a cut */
+    const pay = car.jobs[c.id].pay; out = SIM.settle(car, c, { pass: true, letter: "B", payMul: L.failPay }, 100, { lot: true });
+    if (!out.done || out.paid !== Math.round(pay * C.gradePay.B * L.failPay)) throw new Error(`one failure should pay ${L.failPay} of a B (${out.paid})`);
+    /* a lost lot: the job goes, and the tender only comes back after the wait */
+    const c2 = SIM.CONTRACTS.filter(x => x.lot)[1]; SIM.takeJob(car, c2.id);
+    out = SIM.settle(car, c2, { pass: false, letter: "–", why: "lot" }, 100, { lot: true });
+    if (!out.lost || car.jobs[c2.id] || out.paid) throw new Error("a failed lot didn't lose the tender");
+    if (SIM.board(car).includes(c2)) throw new Error("a lost tender is straight back on the board");
+    car.day += L.retender; if (!SIM.board(car).includes(c2)) throw new Error("a lost tender never came back");
+    /* the register needs Stand 1 */
+    const early = SIM.newCareer("early", "E"); Object.assign(early, { rep: 99, money: 1e6 });
+    if (!/Stand 1/.test(SIM.canBuy(early, "tenders"))) throw new Error("the tender register opened without Stand 1");
+  });
+
+  check("tenders: each solution's lot passes at some slot, 5 lots of 5", () => {
+    const out = [], N = 5;
+    for (const c of SIM.CONTRACTS.filter(x => x.lot)) {
+      let best = 0, bestSlot = "";
+      for (const slot of c.slot ? [c.slot] : ["dusk", "noon", "dawn"]) {
+        let ok = 0; for (let i = 0; i < N; i++) if (SIM.gradeLot(c, SIM.fireLot(c.solution, { tGrain: SIM.slotTemp(slot, c, null) }, c.id + "/lot" + i)).pass) ok++;
+        if (ok > best) { best = ok; bestSlot = slot; }
+        if (best === N) break;
+      }
+      if (best < N) throw new Error(`${c.id}: only ${best}/${N} lots pass at ${bestSlot}`);
+      out.push(`${c.id} ${bestSlot}`);
+    }
+    return out.join(", ");
   });
 
   check("hut: fires at the job's temperature or the player's setting (clamped), costs its fee, and hut jobs need the hut", () => {

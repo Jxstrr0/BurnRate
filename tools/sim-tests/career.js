@@ -1,7 +1,7 @@
 /* Burn Rate: career checks (sim/career.js, data/career.js; plan sections 4 and 5).
    Money, deadlines, reputation, the board, facilities and going broke, the curve-shape number tier 2 contracts grade on,
-   and a bot that plays a whole career with each contract's solution: every job can be delivered, tier 2 opens, and the
-   money never runs past the overdraft. */
+   the conditioning hut, and a bot that plays a whole career with each contract's solution: every job can be delivered,
+   tiers 2 and 3 open, and the money never runs past the overdraft. */
 module.exports = ({ SIM, check, near }) => {
   const clone = o => JSON.parse(JSON.stringify(o));
   const C = SIM.CAREER, byId = SIM.contractById;
@@ -81,13 +81,13 @@ module.exports = ({ SIM, check, near }) => {
     if (!SIM.preFire(Object.assign({}, k, { stand: SIM.STANDS.s2 }), d, p.motor, { tier: 1, sum: p.sum }).some(x => /tier 2/.test(x.text))) throw new Error("tier 2 parts allowed at tier 1");
   });
 
-  check("career bot: every contract's solution delivers, tier 2 opens, money stays inside the overdraft", () => {
+  check("career bot: every contract's solution delivers, tiers 2 and 3 open, money stays inside the overdraft", () => {
     const car = SIM.newCareer("bot", "Bot"), slotFor = c => c.slot || "dusk";
     let fired = 0, low = car.money, fails = 0;
     const fireJob = c => {
-      const d = c.solution, m = SIM.motorFromDesign(d), bill = SIM.firingCost(c.stand, m, d);
+      const d = c.solution, m = SIM.motorFromDesign(d), bill = SIM.firingCost(c.stand, m, d, slotFor(c));
       if (!SIM.canAfford(car, bill.total)) throw new Error(`day ${car.day}: can't afford ${c.id}`);
-      const n = car.jobs[c.id].n + 1, f = SIM.fire(d, { tGrain: SIM.SLOTS[slotFor(c)].tGrain, logRate: C.logRate[car.bunker] }, SIM.fireSeed(car, c.id, n));
+      const n = car.jobs[c.id].n + 1, f = SIM.fire(d, { tGrain: SIM.slotTemp(slotFor(c), c, 20), logRate: C.logRate[car.bunker] }, SIM.fireSeed(car, c.id, n));
       const g = SIM.grade(c, f); SIM.settle(car, c, g, bill.total); fired++; if (!g.pass) fails++;
       SIM.logFiring(car, { day: car.day - 1, key: c.id, n, slot: slotFor(c), seed: "x", design: d });
       low = Math.min(low, car.money);
@@ -107,8 +107,29 @@ module.exports = ({ SIM, check, near }) => {
     SIM.buy(car, "s2");
     if (!SIM.canBuy(car, "bunker")) SIM.buy(car, "bunker");
     runTier(2);
+    for (const id of ["hut", "s1"]) { const why = SIM.canBuy(car, id); if (why) throw new Error(`can't get ${id} after tier 2: ${why}`); SIM.buy(car, id); }
+    if (car.tier !== 3 || !car.stands.s1 || car.hut !== 1) throw new Error("buying Stand 1 and the hut didn't open tier 3");
+    runTier(3);
     if (low < -C.overdraft) throw new Error("money went past the overdraft");
     if (car.log.length > C.logMax) throw new Error("logbook not capped");
     return `${fired} firings (${fails} failed), day ${car.day}, ${Math.round(car.money)} cr, reputation ${car.rep}, lowest ${Math.round(low)} cr`;
+  });
+
+  check("hut: fires at the job's temperature or the player's setting (clamped), costs its fee, and hut jobs need the hut", () => {
+    const H = SIM.HUT, hutJob = SIM.CONTRACTS.find(c => c.slot === "hut");
+    if (!hutJob) throw new Error("no hut job in the contracts");
+    if (SIM.slotTemp("dawn", hutJob, 40) !== SIM.SLOTS.dawn.tGrain) throw new Error("a weather slot used the hut's setting");
+    if (SIM.slotTemp("hut", hutJob, 0) !== hutJob.tGrain) throw new Error("a hut job didn't fire at its own temperature");
+    if (SIM.slotTemp("hut", null, 35) !== 35 || SIM.slotTemp("hut", null, 99) !== H.max || SIM.slotTemp("hut", null, -99) !== H.min) throw new Error("the hut's setting isn't clamped to its range");
+    const d = SIM.REF_DESIGNS["38mm 3-seg BATES, Mule"], m = SIM.motorFromDesign(d);
+    const a = SIM.firingCost("s3", m, d, "dusk"), b = SIM.firingCost("s3", m, d, "hut");
+    if (b.total - a.total !== C.hutFee || a.hut !== 0) throw new Error("the hut's fee isn't on the bill");
+    const hot = SIM.predict(d, { tGrain: SIM.slotTemp("hut", null, H.max) }).sum, cold = SIM.predict(d, { tGrain: SIM.slotTemp("hut", null, H.min) }).sum;
+    if (!(hot.Pmax > cold.Pmax && hot.tb < cold.tb)) throw new Error("a hot hut didn't burn faster than a cold one");
+    const car = SIM.newCareer("hut", "Hut"); car.tier = hutJob.tier; car.stands[hutJob.stand] = true; car.rep = 99;
+    if (!/hut/.test(SIM.canTake(car, hutJob.id) || "")) throw new Error("a hut job was taken without the hut");
+    car.money = 1e6; SIM.buy(car, "hut");
+    if (SIM.canTake(car, hutJob.id)) throw new Error("a hut job was refused with the hut: " + SIM.canTake(car, hutJob.id));
+    return `hot ${(hot.Pmax / 1e6).toFixed(2)} MPa ${hot.tb.toFixed(2)} s, cold ${(cold.Pmax / 1e6).toFixed(2)} MPa ${cold.tb.toFixed(2)} s`;
   });
 };

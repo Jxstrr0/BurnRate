@@ -31,10 +31,14 @@ const VARIANCE={
   ventTau:0.04,        // after a burst, an ejected nozzle or a burn-through, the chamber empties with this time constant, s
   chuffHz:7            // the puffing rate drawn on a chuffing trace, Hz
 };
-/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. */
+/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. The hut slot
+   (a facility) fires at whatever temperature the player sets, or the one a contract asks for (sim/career.js slotTemp). */
 const SLOTS={
   dawn:{name:"Dawn",tGrain:-6,note:"Cold grain: slower burn, lower pressure, more cracks."},
   noon:{name:"Noon",tGrain:31,note:"Hot grain: faster burn, higher pressure."},
-  dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."}
+  dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."},
+  hut:{name:"Hut",tGrain:20,hut:true,note:"Held overnight in the conditioning hut at the temperature you set."}
 };
-Object.assign(SIM,{VARIANCE,SLOTS});
+/* the conditioning hut's range, °C, and its step */
+const HUT={min:-20,max:50,step:5};
+Object.assign(SIM,{VARIANCE,SLOTS,HUT});

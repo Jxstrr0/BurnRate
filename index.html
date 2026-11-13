@@ -193,6 +193,9 @@ p{margin:0 0 .7em}
   font:inherit;color:var(--ink);cursor:pointer;min-height:48px}
 .opt small{grid-column:1/-1;font-size:.8rem;color:var(--muted)}
 .opt .tag{color:var(--muted)}
+.hut-dial{display:flex;align-items:center;gap:8px;margin:8px 0 0;padding:6px 10px;border:1px dashed var(--line);border-radius:9px}
+.hut-dial span{flex:1}
+.hut-dial .btn{min-width:44px;min-height:40px;font-size:1.1rem}
 .opt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accentBg)}
 #sheetBody .sev{padding:10px 12px;border-left:4px solid var(--warn);background:var(--card);border-radius:8px}
 #sheetBody .sev.crit{border-left-color:var(--crit)}
@@ -612,26 +615,32 @@ const VARIANCE={
   ventTau:0.04,        // after a burst, an ejected nozzle or a burn-through, the chamber empties with this time constant, s
   chuffHz:7            // the puffing rate drawn on a chuffing trace, Hz
 };
-/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. */
+/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. The hut slot
+   (a facility) fires at whatever temperature the player sets, or the one a contract asks for (sim/career.js slotTemp). */
 const SLOTS={
   dawn:{name:"Dawn",tGrain:-6,note:"Cold grain: slower burn, lower pressure, more cracks."},
   noon:{name:"Noon",tGrain:31,note:"Hot grain: faster burn, higher pressure."},
-  dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."}
+  dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."},
+  hut:{name:"Hut",tGrain:20,hut:true,note:"Held overnight in the conditioning hut at the temperature you set."}
 };
-Object.assign(SIM,{VARIANCE,SLOTS});
+/* the conditioning hut's range, °C, and its step */
+const HUT={min:-20,max:50,step:5};
+Object.assign(SIM,{VARIANCE,SLOTS,HUT});
 /* ===================== data/contracts.js: the stands and the work orders (stages 3 and 4) =====================
    The career's board (sim/career.js) offers these in list order, tier by tier. Each contract:
      id, client, title, brief (the work order's text), tier (the career tier it appears at), stand (where it fires),
      pay (cr, before the grade), days (range days from taking it to the deadline), repeat ({pay, every}: once delivered,
      the client orders again after `every` days for this share of the pay; optional),
-     slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id), spec (criteria, sim/grade.js),
+     slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id; "hut" with tGrain: conditioned to that
+     temperature, which needs the hut), spec (criteria, sim/grade.js),
      start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
      tools/sim-tests/fire.js fires it across seeds and slots, so every contract stays solvable). */
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
 /* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
 const STANDS={
   s3:{name:"Stand 3",len:420,dia:64,cell:2000,fee:150,note:"The smallest stand: a concrete pad, a load cell rated 2 kN, one camera."},
-  s2:{name:"Stand 2",len:900,dia:110,cell:10000,fee:400,note:"The medium stand: a thrust frame in a blast bay, a 10 kN load cell, two cameras."}};
+  s2:{name:"Stand 2",len:900,dia:110,cell:10000,fee:400,note:"The medium stand: a thrust frame in a blast bay, a 10 kN load cell, two cameras."},
+  s1:{name:"Stand 1",len:2000,dia:170,cell:40000,fee:1200,note:"The old state booster stand: a horizontal thrust frame in a bunkered bay, a 40 kN load cell."}};
 const CONTRACTS=[
   {id:"first-light",client:"Aqsor Steppe Rocketry Club",title:"A G for field day",tier:1,stand:"s3",slot:null,pay:800,days:6,repeat:{pay:0.6,every:5},
     brief:"The club flies on Saturday and their usual supplier has sold out. Any G motor that burns for a second or more. They will fly whatever passes.",
@@ -686,7 +695,31 @@ const CONTRACTS=[
   {id:"range-frac",client:"Aqsor Range Authority",title:"Lean and strong",tier:2,stand:"s2",slot:null,pay:5500,days:12,
     brief:"The Range Authority is pitching Site 41 to launch firms and wants a showpiece: a K motor where propellant is most of the weight. 62% of the motor or more, and safe on the case.",
     spec:[{k:"massFrac",lo:62},{k:"I",lo:1300,hi:2200},{k:"Pmax",hi:7}],start:"54mm 4-seg BATES, Dray, steel throat",
-    solution:{grain:{prop:"tr5",shape:"bates",segs:4,segLen:83,coreD:22},case:{mat:"phenolic",id:51,wall:2,liner:"paper",linerThk:1.5,closure:"bolts",bolts:14},nozzle:{mat:"graphite",throatD:15.6,exitD:26,half:15},igniter:"l"}}
+    solution:{grain:{prop:"tr5",shape:"bates",segs:4,segLen:83,coreD:22},case:{mat:"phenolic",id:51,wall:2,liner:"paper",linerThk:1.5,closure:"bolts",bolts:14},nozzle:{mat:"graphite",throatD:15.6,exitD:26,half:15},igniter:"l"}},
+  {id:"kokjal-boost",client:"Kökjal Launch Systems",title:"Boost, then sustain",tier:3,stand:"s1",slot:null,pay:14000,days:14,
+    brief:"A small-launcher firm wants a first stage that kicks hard off the pad, then settles to a long, gentle push while the rocket climbs out of the thick air. The last third no more than 60% of the first, and at least three and a half seconds.",
+    spec:[{k:"prog",hi:0.6},{k:"tb",lo:3.5},{k:"I",lo:5000,hi:9000},{k:"Pmax",hi:7}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"finocyl",segs:3,segLen:134.2,coreD:40.9,pts:8,ptLen:11.2,ptW:4.5,finLen:56.9,offset:24},case:{mat:"mild",id:95.3,wall:1.5,liner:"ablative",linerThk:2,closure:"bolts",bolts:14},nozzle:{mat:"steel",throatD:22,exitD:54.4,half:15},igniter:"l"}},
+  {id:"range-m",client:"Aqsor Range Authority",title:"The M showpiece",tier:3,stand:"s1",slot:null,pay:15000,days:14,
+    brief:"The Range Authority's launch-firm pitch needs a headline: an M-class motor that is four-fifths propellant by weight. Every gram of case and nozzle counts. Keep the pressure inside 7.5 MPa.",
+    spec:[{k:"massFrac",lo:80},{k:"I",lo:6000,hi:10000},{k:"Pmax",hi:7.5}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:174.9,coreD:40.2,pts:8,ptLen:19.6,ptW:1.2,finLen:156.2,offset:13.8},case:{mat:"composite",id:97.4,wall:0.4,liner:"ablative",linerThk:0.9,closure:"bolts",bolts:16},nozzle:{mat:"graphite",throatD:28.1,exitD:28.1,half:15},igniter:"xl"}},
+  {id:"burkit-hot",client:"Bürkit Aerospace",title:"Desert qualification",tier:3,stand:"s1",slot:"hut",tGrain:45,pay:13000,days:12,
+    brief:"Bürkit is selling boosters to a launch site in the southern desert. Qualify one with the grain at 45 °C, held overnight in the conditioning hut: about two kilonewtons, and the peak pressure no higher than 6.5 MPa when it's hot.",
+    spec:[{k:"Fav",lo:1500,hi:2500},{k:"I",lo:3000,hi:5000},{k:"Pmax",hi:6.5}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:166.1,coreD:82,pts:3,ptLen:5.9,ptW:4.9,finLen:122.2,offset:6.8},case:{mat:"composite",id:100.2,wall:0.4,liner:"rubber",linerThk:0.7,closure:"bolts",bolts:14},nozzle:{mat:"insert",throatD:26.1,exitD:54.7,half:15},igniter:"xl"}},
+  {id:"ozen-arctic",client:"Ozen Survey Instruments",title:"Arctic qualification",tier:3,stand:"s1",slot:"hut",tGrain:-20,pay:13000,days:12,
+    brief:"Ozen is taking its survey rockets north of the tree line. Prove a motor that lights and burns steadily with the grain at −20 °C: held overnight in the conditioning hut, then a long, moderate burn.",
+    spec:[{k:"Fav",lo:800,hi:1400},{k:"I",lo:4000,hi:7000},{k:"tb",lo:4}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:148.4,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:32.5,exitD:62.1,half:15},igniter:"xl"}},
+  {id:"kumtal-booster",client:"Kumtal Weather Service",title:"Sounding booster",tier:3,stand:"s1",slot:null,pay:18000,days:14,
+    brief:"The weather service wants its sondes higher than any model rocket goes: a real booster stage. An N-class motor, three to five kilonewtons, and done in five seconds.",
+    spec:[{k:"I",lo:12000,hi:18000},{k:"Fav",lo:3000,hi:5000},{k:"tb",hi:5}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr9",shape:"tube",segs:8,segLen:169.5,coreD:45.5,pts:7,ptLen:13.2,ptW:1.9,finLen:139.2,offset:7.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:27,exitD:56,half:15},igniter:"xl"}},
+  {id:"qyran-long",client:"Qyran Display Team",title:"A slow, long climb",tier:3,stand:"s1",slot:null,pay:11000,days:12,
+    brief:"For the night show, Qyran wants a big rocket that rises slowly on a long, steady flame the crowd can follow: 250 to 500 newtons for eight seconds or more.",
+    spec:[{k:"tb",lo:8},{k:"Fav",lo:250,hi:500},{k:"I",lo:3000}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:137.1,coreD:21.3,pts:2,ptLen:29.3,ptW:21.3,finLen:113.6,offset:15.1},case:{mat:"composite",id:95.1,wall:1.5,liner:"paper",linerThk:4.8,closure:"ring",bolts:15},nozzle:{mat:"graphite",throatD:20.7,exitD:84.3,half:15},igniter:"l"}}
 ];
 Object.assign(SIM,{GRADING,STANDS,CONTRACTS});
 /* ===================== data/career.js: money, range days, reputation and facilities (plan section 5) =====================
@@ -695,12 +728,13 @@ Object.assign(SIM,{GRADING,STANDS,CONTRACTS});
    part tables, plus machining). A pass pays the job's fee times the grade's share, cut for each day past the deadline
    (Kelbo: a late delivery still pays, a little less each day). */
 const CAREER={
-  startMoney:{1:2500,2:6000},   // what a new career (or a restarted tier) starts with, cr
+  startMoney:{1:2500,2:6000,3:15000},   // what a new career (or a restarted tier) starts with, cr
   overdraft:1500,      // the bank lets the money go this far below zero before it stops a firing
   matMul:6,            // build cost = mass x the part's cost per kg x this (the part tables' costs are raw stock prices)
   shopBase:30,         // machining a motor: a flat charge, cr
   shopPerMm:0.8,       // ... plus this per mm of case bore (bigger cases, bigger lathe time), cr
   perBolt:2,           // ... plus this per closure bolt, cr
+  hutFee:60,           // holding a motor in the conditioning hut overnight, per firing, cr
   gradePay:{A:1.2,B:1,C:0.8},   // a pass pays the job's fee times this
   rep:{A:3,B:2,C:1},   // reputation for a first delivery (repeat orders earn half, rounded down)
   lateCut:0.1,         // each range day past the deadline takes this share off the pay ...
@@ -715,7 +749,11 @@ const FACILITIES={
   bunker:{name:"Blockhouse instruments",cost:2200,need:4,give:{bunker:1},
     note:"A faster data logger and the full blockhouse readout: 400 samples a second instead of 120, and every deviation the motor rolled shows on the report."},
   s2:{name:"Stand 2 lease",cost:5000,need:10,give:{stand:"s2",tier:2},
-    note:"The medium stand: motors up to 900 mm long and 110 mm across, a 10 kN load cell. Opens tier 2 work and tier 2 parts."}
+    note:"The medium stand: motors up to 900 mm long and 110 mm across, a 10 kN load cell. Opens tier 2 work and tier 2 parts."},
+  hut:{name:"Conditioning hut",cost:3500,need:14,give:{hut:1},
+    note:"An insulated hut that holds a motor at the temperature you set, −20 to 50 °C, overnight before it fires. Some qualification jobs need it. 60 cr a firing."},
+  s1:{name:"Stand 1 lease",cost:16000,need:24,give:{stand:"s1",tier:3},
+    note:"The old state booster stand: motors up to 2 m long and 170 mm across, a 40 kN load cell. Opens tier 3 work and tier 3 parts."}
 };
 Object.assign(SIM,{CAREER,FACILITIES});
 /* ===================== sim/levelset.js: level-set grain cross-sections (plan section 6.2) =====================
@@ -1353,13 +1391,16 @@ Object.assign(SIM,{SPEC_INFO,specValue,specCheck,grade,preFire});
    Pure functions on a career object (the save holds it as JSON; app/save.js keeps it). Nothing random here: the board
    is the contract list in order, filtered by tier and what's done; each firing's dice come from fire()'s seed.
      car = {seed, name, day, money, tier, rep, stands:{s3:true}, bunker, jobs:{id:job}, done:{id:{letter,day,paid,times,again}},
-            log:[entry], no (report counter), broke (tier restarts)}
+            log:[entry], no (report counter), broke (tier restarts), hut (conditioning hut owned: 1)}
      job = {taken, due, pay, n (motors fired)}
-   buildCost / firingCost price a motor; board lists the work orders on offer; takeJob, settle and buy change the career. */
+   buildCost / firingCost price a motor (the hut adds its fee); slotTemp gives a slot's grain temperature; board lists the work orders on offer; takeJob, settle and buy change the career. */
 const CR=v=>Math.round(v);
 function newCareer(seed,name){
   return{seed:String(seed),name:String(name||"").slice(0,28)||"Saltpan Propulsion",day:1,money:CAREER.startMoney[1],tier:1,rep:0,
-    stands:{s3:true},bunker:0,jobs:{},done:{},log:[],no:0,broke:0};}
+    stands:{s3:true},bunker:0,hut:0,jobs:{},done:{},log:[],no:0,broke:0};}
+/* a firing slot's grain temperature: the hut fires at the contract's temperature, or the one the player set (hutT) */
+function slotTemp(slot,c,hutT){const s=SLOTS[slot]||SLOTS.dusk;if(!s.hut)return s.tGrain;
+  if(c&&c.tGrain!=null)return c.tGrain;return Math.max(HUT.min,Math.min(HUT.max,hutT!=null?hutT:s.tGrain));}
 /* the motor's build cost, item by item: [{k, label, cr}] and the total */
 function buildCost(m,d){
   const C=CAREER,M=m.mass,P=PROPELLANTS[d.grain.prop],K=CASES[d.case.mat],L=LINERS[d.case.liner],T=THROATS[d.nozzle.mat],I=IGNITERS[d.igniter];
@@ -1372,7 +1413,8 @@ function buildCost(m,d){
     {k:"igniter",label:I.name,cr:CR(I.cost)},
     {k:"shop",label:"Machining and closures",cr:CR(C.shopBase+C.shopPerMm*d.case.id+(d.case.closure==="bolts"?C.perBolt*d.case.bolts:0))}];
   return{items,total:items.reduce((s,x)=>s+x.cr,0)};}
-function firingCost(standId,m,d){const st=STANDS[standId],b=buildCost(m,d);return{fee:st.fee,build:b,total:st.fee+b.total};}
+function firingCost(standId,m,d,slot){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
+  return{fee:st.fee,hut,build:b,total:st.fee+hut+b.total};}
 /* what a job pays before the grade: a repeat order pays its share of the first fee */
 const contractById=id=>CONTRACTS.find(c=>c.id===id)||null;
 function basePay(car,c){const d=car.done[c.id];return CR(d&&c.repeat?c.pay*c.repeat.pay:c.pay);}
@@ -1387,6 +1429,7 @@ function canTake(car,id){
   if(car.jobs[id])return"You already have this job.";
   if(Object.keys(car.jobs).length>=CAREER.maxJobs)return`You can hold ${CAREER.maxJobs} jobs at once. Finish or drop one first.`;
   if(!car.stands[c.stand])return`This job needs ${STANDS[c.stand].name}.`;
+  if(c.slot==="hut"&&!car.hut)return"This job is fired from the conditioning hut. Lease one from Facilities first.";
   if(!board(car).includes(c))return"That work order isn't on the board.";
   return"";}
 function takeJob(car,id){const e=canTake(car,id);if(e)return e;const c=contractById(id);
@@ -1422,13 +1465,13 @@ function canBuy(car,id){const f=FACILITIES[id];if(!f)return"No such facility.";
   if(car.rep<f.need)return`The range wants reputation ${f.need} first (you have ${car.rep}).`;
   if(car.money<f.cost)return`It costs ${f.cost} cr; you have ${Math.max(0,car.money)} cr.`;
   return"";}
-function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:false;}
+function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:false;}
 function buy(car,id){const e=canBuy(car,id);if(e)return e;const f=FACILITIES[id],g=f.give;car.money-=f.cost;
-  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
+  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.hut)car.hut=Math.max(car.hut|0,g.hut);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
 /* the logbook keeps what's needed to fire the same motor again for its report: the dice come from the seed */
 function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length>CAREER.logMax)car.log.splice(0,car.log.length-CAREER.logMax);return e;}
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}
-Object.assign(SIM,{newCareer,buildCost,firingCost,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
+Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
   restartTier,settle,canBuy,owns,buy,logFiring,fireSeed});
 return SIM;
 })();
@@ -1701,7 +1744,7 @@ return VIS;})();
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.5.1.0";
+const VERSION="0.6.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -1809,7 +1852,8 @@ const GLOSS={
   motorMass:{t:"Motor mass",d:"Everything on the scale: propellant, case, liner, closures and nozzle. A thinner wall or a lighter case material saves the most; check the safety factor when you do."},
   massFrac:{t:"Mass fraction",d:"Propellant mass divided by the whole motor's mass. Flight motors want it high: every gram of case is a gram the rocket has to lift."},
   grainTemp:{t:"Grain temperature",d:"Burn rate rises with the grain's temperature. A motor fired on a cold dawn burns slower, at lower pressure and for longer than the same motor at a hot noon. High-exponent grades feel it most. The predictor's reference is 20 °C; tap the temperature on the bench to predict at a firing slot."},
-  firingSlot:{t:"Firing slot",d:"Dawn, noon or dusk. The motors sit out on the range overnight, so the grain is at the air's temperature when it fires."},
+  firingSlot:{t:"Firing slot",d:"Dawn, noon or dusk. The motors sit out on the range overnight, so the grain is at the air's temperature when it fires. Once you lease the conditioning hut you can hold a motor at a temperature you set instead."},
+  hut:{t:"Conditioning hut",d:"An insulated hut where a motor waits overnight at a set temperature, from −20 to 50 °C, so it fires exactly that warm or cold. Qualification jobs use it to prove a motor at the edges of the weather it will fly in: hot grain burns faster at higher pressure, cold grain slower and longer."},
   variance:{t:"Prediction and reality",d:"Every real motor is a little different from its numbers: the propellant batch burns a touch fast or slow, the case tube is a little stronger or weaker, the igniter gives a little more or less. Margins are what keep a motor safe through all of it."},
   castingVoid:{t:"Casting void",d:"A hidden bubble inside the grain. When the flame front reaches it, the cavity's surface burns too: a sudden jump in burning area and a pressure bump. Bigger grains and more segments make one more likely."},
   grainCrack:{t:"Grain crack",d:"A crack in the propellant adds a lot of burning area at once and keeps it for the rest of the burn. A cold grain and a harsh, fast start make cracks more likely. A gentler igniter and a warmer slot help."},
@@ -1830,19 +1874,20 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-g]");if(!
 /* ===================== app/save.js: the save, the autosave and the three slots (plan section 11.3) =====================
    S is everything Burn Rate keeps for a player:
      S = {v, career (sim/career.js's object, plus career.designs: the bench's design per job) | null,
-          free (the free bench's design) | null, freeN (free firings so far, so each one rolls new dice), lastBackup (ms)}
+          free (the free bench's design) | null, freeN (free firings so far, so each one rolls new dice), lastBackup (ms),
+          hutT (the conditioning hut's setting, °C)}
    save() writes it to "brn-save" (debounced, and at once when the page hides). The three slots "brn-slot1".."brn-slot3"
    hold copies the player saves by hand, each with savedAt. Settings stay apart in "brn-settings" (this phone only).
    hydrate(o) checks a save's shape and runs the migrations before it becomes S; it returns false for anything it can't
    load, and leaves S alone then. Every storage call is in try/catch; nothing outside "brn-" is ever touched. */
 const SAVE_V=1,SAVE_KEY="brn-save",SLOTS=3,slotKey=i=>"brn-slot"+i;
-const freshSave=()=>({v:SAVE_V,career:null,free:null,freeN:0,lastBackup:0});
+const freshSave=()=>({v:SAVE_V,career:null,free:null,freeN:0,lastBackup:0,hutT:20});
 let S=freshSave();
 /* MIGRATE[v](o) turns a version-v save into a version v+1 one. None yet: SAVE_V is 1. */
 const MIGRATE={};
 const isObj=o=>!!o&&typeof o==="object"&&!Array.isArray(o);
 const isNum=v=>typeof v==="number"&&isFinite(v);
-function snapshot(){return JSON.parse(JSON.stringify({v:SAVE_V,career:S.career,free:S.free,freeN:S.freeN|0,lastBackup:S.lastBackup||0}));}
+function snapshot(){return JSON.parse(JSON.stringify({v:SAVE_V,career:S.career,free:S.free,freeN:S.freeN|0,lastBackup:S.lastBackup||0,hutT:S.hutT}));}
 /* is this a career object the game can run? (the shape newCareer makes) */
 function careerOk(c){
   if(!isObj(c))return false;
@@ -1859,8 +1904,8 @@ function hydrate(o){
   for(let v=o.v;v<SAVE_V;v++){if(!MIGRATE[v])return false;o=MIGRATE[v](o);o.v=v+1;}
   if(o.career!=null&&!careerOk(o.career))return false;
   if(!designOk(o.free))return false;
-  if(o.career){o.career.designs=o.career.designs||{};for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
-  S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0});
+  if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
+  S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0,hutT:isNum(o.hutT)?o.hutT:20});
   return true;}
 function readKey(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return isObj(o)?o:null;}catch(e){return null;}}
 function loadSave(){const o=readKey(SAVE_KEY);if(o&&!hydrate(o))toast("The save on this phone couldn't be read. Restore a backup from Saves.",5000);}
@@ -2361,10 +2406,16 @@ window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.b
    bench's design for each job) or, in free mode, S.free.
    The bench's bottom bar checks the prediction against the spec and leads to the stand: pre-fire checks (does it fit,
    is the load cell rated for it, are the parts open to you), then the firing slot (dawn, noon or dusk sets the grain
-   temperature) with what the firing will cost, then app/firing.js. In a career each firing costs a range day, the stand's
+   temperature; the conditioning hut, once leased, fires at a temperature you set) with what the firing will cost, then
+   app/firing.js. In a career each firing costs a range day, the stand's
    fee and the motor's materials; a pass pays and finishes the job (sim/career.js settle). */
 const GAME={mode:"free",contract:null,slot:"dusk",last:null};
-const PRED_TEMPS=[["ref",null],["dawn","dawn"],["noon","noon"],["dusk","dusk"]];
+/* the slots the player can pick: the hut only once it's leased (always on the free bench) */
+const hutOpen=()=>!inCareer()||!!(S.career&&S.career.hut);
+const slotChoices=()=>["dawn","noon","dusk"].concat(hutOpen()?["hut"]:[]);
+/* a slot's grain temperature for the job on the bench: the hut fires at the contract's temperature or the hut's setting */
+const slotT=id=>BURN_SIM.slotTemp(id,GAME.contract,S.hutT);
+const slotLabel=id=>id==="hut"?`Hut ${degC(slotT(id))}`:`${BURN_SIM.SLOTS[id].name} ${degC(slotT(id))}`;
 const inCareer=()=>GAME.mode==="career"&&!!S.career;
 const gameKey=()=>GAME.contract?GAME.contract.id:"free";
 const withStand=c=>c?Object.assign({},c,{stand:BURN_SIM.STANDS[c.stand]}):null;
@@ -2383,13 +2434,13 @@ function takeContract(id){
   const car=S.career,c=BURN_SIM.contractById(id);if(!car||!c)return;
   if(!car.jobs[id]){const e=BURN_SIM.takeJob(car,id);if(e){toast(e,3600);return;}save();}
   car.designs[id]=car.designs[id]||startDesign(c);
-  benchOpen(c,car.designs[id],c.slot?BURN_SIM.SLOTS[c.slot].tGrain:20,c.slot||"ref");}
+  GAME.contract=c;benchOpen(c,car.designs[id],c.slot?slotT(c.slot):20,c.slot||"ref");}
 function freeDesign(){GAME.mode="free";S.free=S.free||clone(BURN_SIM.DEFAULT_DESIGN);benchOpen(null,S.free,20,"ref");}
 
 /* ---- the bench's bottom bar: the spec against the prediction, the predictor's temperature, the way to the stand ---- */
 function drawGo(){
   const c=GAME.contract,r=DZ.res,locked=!!(c&&c.slot);
-  const tl=DZ.predSlot==="ref"?degC(20):`${BURN_SIM.SLOTS[DZ.predSlot].name} ${degC(BURN_SIM.SLOTS[DZ.predSlot].tGrain)}`;
+  const tl=DZ.predSlot==="ref"?degC(20):slotLabel(DZ.predSlot);
   let checks="";
   if(c&&r&&r.ok)checks=BURN_SIM.specCheck(c.spec,r.sum,r.motor).map(k=>`<span class="ck ${k.ok?"ok":"no"}"><i aria-hidden="true">${k.ok?"✓":"✗"}</i>${esc(k.info.short)} <b class="mono">${fmtSpec(k.k,k.v)}</b><span class="vh">${k.ok?" in spec":" out of spec"}</span></span>`).join("");
   else if(c)checks=`<span class="ck no">Can't be built</span>`;
@@ -2398,9 +2449,14 @@ function drawGo(){
     <button type="button" class="btn pri" id="dzFire">${c?"To the stand":"Test fire"} ›</button>`;
   $("dzSite").textContent=c?c.title:"Stand 3 · Design bench";}
 function cycleTemp(){
-  const i=PRED_TEMPS.findIndex(p=>p[0]===DZ.predSlot),nx=PRED_TEMPS[(i+1)%PRED_TEMPS.length];
-  DZ.predSlot=nx[0];DZ.tGrain=nx[1]?BURN_SIM.SLOTS[nx[1]].tGrain:20;schedule(false);
-  toast(nx[1]?`Predicting at ${BURN_SIM.SLOTS[nx[1]].name.toLowerCase()}: ${degC(DZ.tGrain)} grain`:"Predicting at the reference 20 °C");}
+  const list=["ref"].concat(slotChoices()),i=list.indexOf(DZ.predSlot),nx=list[(i+1)%list.length];
+  DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
+  toast(nx==="ref"?"Predicting at the reference 20 °C":nx==="hut"?`Predicting at the hut's setting: ${degC(DZ.tGrain)} grain`
+    :`Predicting at ${BURN_SIM.SLOTS[nx].name.toLowerCase()}: ${degC(DZ.tGrain)} grain`);}
+/* the hut's dial in the slot sheet: −/+ one step, which also moves the bench's prediction if it's on the hut */
+function stepHut(dir){const H=BURN_SIM.HUT;S.hutT=Math.max(H.min,Math.min(H.max,(S.hutT??20)+dir*H.step));save();
+  if(DZ.predSlot==="hut"){DZ.tGrain=slotT("hut");schedule(false);}
+  GAME.slot="hut";slotSheet();}
 
 /* ---- to the stand: pre-fire checks, then the slot ---- */
 function toStand(){
@@ -2412,57 +2468,63 @@ function toStand(){
   slotSheet();}
 /* what this firing costs, and whether the bank will cover it (career only) */
 function firingBill(){const c=GAME.contract,r=DZ.res;if(!inCareer()||!c||!r||!r.ok)return null;
-  const b=BURN_SIM.firingCost(c.stand,r.motor,DZ.d);b.ok=BURN_SIM.canAfford(S.career,b.total);return b;}
+  const b=BURN_SIM.firingCost(c.stand,r.motor,DZ.d,GAME.slot);b.ok=BURN_SIM.canAfford(S.career,b.total);return b;}
 function slotSheet(){
-  const c=GAME.contract,slots=c&&c.slot?[c.slot]:["dawn","noon","dusk"];
+  const c=GAME.contract,slots=c&&c.slot?[c.slot]:slotChoices(),H=BURN_SIM.HUT,fixedT=!!(c&&c.slot);
   if(!slots.includes(GAME.slot))GAME.slot=slots[0];
-  const cards=slots.map(id=>{const sl=BURN_SIM.SLOTS[id],p=BURN_SIM.predict(DZ.d,{tGrain:sl.tGrain});if(!p.ok)return"";
+  const cards=slots.map(id=>{const sl=BURN_SIM.SLOTS[id],t=slotT(id),p=BURN_SIM.predict(DZ.d,{tGrain:t});if(!p.ok)return"";
     const s=p.sum,crit=s.warnings.filter(w=>w.sev==="crit").length,ok=c?BURN_SIM.specCheck(c.spec,s,p.motor).filter(k=>k.ok).length:null;
-    return`<button type="button" class="opt${id===GAME.slot?" on":""}" data-slot="${id}" aria-pressed="${id===GAME.slot}"><b>${sl.name} · ${degC(sl.tGrain)}</b>${crit?`<span class="tag crit">${crit} critical</span>`:""}
-      <small>${esc(sl.note)}</small><small class="mono">peak ${(s.Pmax/1e6).toFixed(2)} MPa · avg ${Math.round(s.Fav)} N · ${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
+    return`<button type="button" class="opt${id===GAME.slot?" on":""}" data-slot="${id}" aria-pressed="${id===GAME.slot}"><b>${sl.name} · ${degC(t)}</b>${crit?`<span class="tag crit">${crit} critical</span>`:""}
+      <small>${esc(sl.hut&&fixedT?"Held overnight in the conditioning hut at the client's temperature.":sl.note)}${sl.hut&&inCareer()?` ${fmtCr(BURN_SIM.CAREER.hutFee)} a firing.`:""}</small><small class="mono">peak ${(s.Pmax/1e6).toFixed(2)} MPa · avg ${Math.round(s.Fav)} N · ${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
+  const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Hut set to <b class="mono">${degC(hutT)}</b></span>
+    <button type="button" class="btn sm" data-hut="-1" aria-label="Colder"${hutT<=H.min?" disabled":""}>−</button><button type="button" class="btn sm" data-hut="1" aria-label="Warmer"${hutT>=H.max?" disabled":""}>+</button></div>`:"";
   const b=firingBill(),car=S.career;
-  const bill=b?`<div class="bill"><p class="mono">${esc(BURN_SIM.STANDS[c.stand].name)} fee ${fmtCr(b.fee)} + motor ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
+  const bill=b?`<div class="bill"><p class="mono">${esc(BURN_SIM.STANDS[c.stand].name)} fee ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""} + motor ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
     <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. A failed motor still costs.</p>
     ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}</div>`:"";
-  openSheet("Firing slot",`<p class="hint">${c&&c.slot?"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".":"Pick when to fire. The grain sits out overnight, so it fires at the air's temperature."} Each line is the predictor at that temperature; the real motor won't match it exactly.</p>
-    <div class="pick">${cards}</div>${bill}<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>Clear the range and fire</button>`);}
+  const lead=fixedT?(c.slot==="hut"?`This contract is a qualification firing: the motor is held in the conditioning hut at ${degC(slotT("hut"))} overnight.`
+      :"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".")
+    :`Pick when to fire. The grain sits out overnight, so it fires at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
+  openSheet("Firing slot",`<p class="hint">${lead} Each line is the predictor at that temperature; the real motor won't match it exactly.</p>
+    <div class="pick">${cards}</div>${dial}${bill}<button type="button" class="btn pri big wide" data-go="1"${b&&!b.ok?" disabled":""}>Clear the range and fire</button>`);}
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   if(b.dataset.take){takeContract(b.dataset.take);return;}
   if(b.id==="dzFire"){toStand();return;}
   if(b.id==="dzTemp"){cycleTemp();return;}
   if(!b.closest("#sheet"))return;
-  if(b.dataset.slot){GAME.slot=b.dataset.slot;document.querySelectorAll("#sheet [data-slot]").forEach(x=>{const on=x.dataset.slot===GAME.slot;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on);});}
+  if(b.dataset.hut){stepHut(+b.dataset.hut);return;}
+  if(b.dataset.slot){const was=GAME.slot;GAME.slot=b.dataset.slot;if(was!==GAME.slot&&(was==="hut"||GAME.slot==="hut")&&firingBill()){slotSheet();return;}document.querySelectorAll("#sheet [data-slot]").forEach(x=>{const on=x.dataset.slot===GAME.slot;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on);});}
   else if(b.dataset.go){closeSheet();startFiring(GAME.slot);}});
 
 /* fire one motor: draw it, grade it, charge and pay (career), log it, save, then run the firing screen. undoFiring takes it
    back (an abort during the countdown): the career goes back to how it was, so the next attempt fires the same motor */
 function startFiring(slot){
-  const c=GAME.contract,sl=BURN_SIM.SLOTS[slot],d=clone(DZ.d);
+  const c=GAME.contract,tG=slotT(slot),d=clone(DZ.d);
   if(inCareer()&&c){
     const car=S.career,job=car.jobs[c.id];if(!job){toast("This job is finished. Pick another from the work orders.");return;}
     const r=DZ.res;if(!r||!r.ok){toast("This motor can't be built.");return;}
-    const bill=BURN_SIM.firingCost(c.stand,r.motor,d);
+    const bill=BURN_SIM.firingCost(c.stand,r.motor,d,slot);
     if(!BURN_SIM.canAfford(car,bill.total)){toast("The bank won't cover this firing.");return;}
     const before=clone(car),n=job.n+1,seed=BURN_SIM.fireSeed(car,c.id,n),rate=BURN_SIM.CAREER.logRate[car.bunker]||BURN_SIM.CAREER.logRate[0];
-    const f=BURN_SIM.fire(d,{tGrain:sl.tGrain,logRate:rate},seed);if(!f.ok){toast("This motor can't be built.");return;}
+    const f=BURN_SIM.fire(d,{tGrain:tG,logRate:rate},seed);if(!f.ok){toast("This motor can't be built.");return;}
     const g=BURN_SIM.grade(c,f),out=BURN_SIM.settle(car,c,g,bill.total);
-    const entry=BURN_SIM.logFiring(car,{day:out.day,key:c.id,n,slot,seed,rate,design:d,letter:g.pass?g.letter:null,why:g.pass?null:g.why,
+    const entry=BURN_SIM.logFiring(car,{day:out.day,key:c.id,n,slot,tGrain:tG,seed,rate,design:d,letter:g.pass?g.letter:null,why:g.pass?null:g.why,
       fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late});
     save(true);
-    GAME.last={f,g,c,slot,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker};
+    GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker};
   }else{
     const n=(S.freeN|0)+1;S.freeN=n;save();
-    const f=BURN_SIM.fire(d,{tGrain:sl.tGrain},"free/"+n);if(!f.ok){S.freeN=n-1;toast("This motor can't be built.");return;}
-    GAME.last={f,g:null,c:null,slot,n,key:"free",no:n,design:d,bunker:1};}
+    const f=BURN_SIM.fire(d,{tGrain:tG},"free/"+n);if(!f.ok){S.freeN=n-1;toast("This motor can't be built.");return;}
+    GAME.last={f,g:null,c:null,slot,tGrain:tG,n,key:"free",no:n,design:d,bunker:1};}
   openFiring();}
 function undoFiring(){const L=GAME.last;if(!L)return;
   if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;}else S.freeN=Math.max(0,(S.freeN|0)-1);
   save(true);GAME.last=null;}
 /* a logbook entry's report: the same motor, conditions and seed fire the same, so the report comes back exactly */
 function replayFiring(e){
-  const c=BURN_SIM.contractById(e.key),f=BURN_SIM.fire(e.design,{tGrain:BURN_SIM.SLOTS[e.slot].tGrain,logRate:e.rate},e.seed);if(!f.ok)return;
-  GAME.last={f,g:c?BURN_SIM.grade(c,f):null,c,slot:e.slot,n:e.n,key:e.key,no:e.no,design:e.design,entry:e,replay:true,bunker:e.rate>=BURN_SIM.CAREER.logRate[1]?1:0};
+  const c=BURN_SIM.contractById(e.key),tG=e.tGrain??BURN_SIM.SLOTS[e.slot].tGrain,f=BURN_SIM.fire(e.design,{tGrain:tG,logRate:e.rate},e.seed);if(!f.ok)return;
+  GAME.last={f,g:c?BURN_SIM.grade(c,f):null,c,slot:e.slot,tGrain:tG,n:e.n,key:e.key,no:e.no,design:e.design,entry:e,replay:true,bunker:e.rate>=BURN_SIM.CAREER.logRate[1]?1:0};
   openReport();}
 /* ===================== app/career.js: the title, the work orders, facilities, the logbook and saves (stage 4) =====================
    The title offers Continue (the career on this phone), New career, Free design and Saves. The board shows the startup's
@@ -2505,9 +2567,9 @@ function openBoard(){GAME.contract=null;renderBoard();showScreen("board");}
 function dueText(car,job){const left=job.due-car.day;
   if(left>1)return`${left} range days left`;if(left===1)return"due tomorrow";if(left===0)return"due today";
   const ls=BURN_SIM.lateShare(job,car.day);return`${ls.late} day${ls.late>1?"s":""} late · pay ${Math.round(ls.mul*100)}%`;}
-function specList(c){const sl=c.slot&&BURN_SIM.SLOTS[c.slot];
+function specList(c){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
   return`<ul class="wo-spec">${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
-    ${sl?`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(sl.tGrain)})</span></li>`:""}
+    ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
     ${c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
@@ -2533,7 +2595,7 @@ function renderBoard(){
       <h3>${esc(c.title)}</h3><p>${esc(c.brief)}</p>${specList(c)}
       <p class="hint mono">Pays ${fmtCr(S_.basePay(car,c))} · ${c.days} range days to deliver</p>
       <div class="row"><button type="button" class="btn pri" data-take="${c.id}"${why?" disabled":""}>Take the job</button>${why?`<span class="hint">${esc(why)}</span>`:""}</div></article>`;}).join("")
-    :`<p class="hint">Nothing new on the board today.${car.tier<2?" Build your reputation and lease Stand 2 for bigger work.":" More clients arrive in a coming update; repeat orders come back after a few days."}</p>`;
+    :`<p class="hint">Nothing new on the board today.${car.tier<2?" Build your reputation and lease Stand 2 for bigger work.":car.tier<3?" Build your reputation and lease Stand 1 for the big boosters.":" More clients arrive in a coming update; repeat orders come back after a few days."}</p>`;
   $("bdList").innerHTML=h;}
 function initBoard(){
   $("bdBack").addEventListener("click",()=>{renderTitle();showScreen("title");});
@@ -2555,14 +2617,16 @@ function facilitiesSheet(){
         ${own?`<span class="stamp pass">Yours</span>`:`<button type="button" class="btn pri" data-buy="${id}"${why?" disabled":""}>Buy</button>${why?` <span class="hint">${esc(why)}</span>`:""}`}</article>`;}).join(""));}
 document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-buy]");if(!b)return;const car=S.career,id=b.dataset.buy;
   const err=BURN_SIM.buy(car,id);if(err){toast(err);return;}save(true);closeSheet();renderBoard();
-  toast(id==="s2"?"Stand 2 is yours: tier 2 parts and work are open.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
+  const g=BURN_SIM.FACILITIES[id].give;
+  toast(g.stand?`${BURN_SIM.STANDS[g.stand].name} is yours: tier ${g.tier} parts and work are open.`
+    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
 
 /* ---- the logbook ---- */
 function openLogbook(){
   const car=S.career,L=car.log.slice().reverse();
   $("lgList").innerHTML=L.length?L.map(e=>{const c=BURN_SIM.contractById(e.key),res=e.letter?`Pass ${e.letter}`:(STAMP[e.why]||"Fail");
     return`<button type="button" class="lg-row" data-log="${e.no}"><span class="mono lg-no">41-${String(e.no).padStart(3,"0")}</span>
-      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())} · motor ${e.n}</small></span>
+      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · motor ${e.n}</small></span>
       <span class="lg-end"><span class="stamp ${e.letter?"pass":"fail"}">${esc(res)}</span><small class="mono">${e.paid?"+"+fmtCr(e.paid):"−"+fmtCr(e.cost)}</small></span></button>`;}).join("")
     :`<p class="hint">No firings yet. Every motor you fire is written up here, and you can read its report again.</p>`;
   showScreen("logbook");}
@@ -2594,9 +2658,9 @@ const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
 function openFiring(){
-  const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot];
+  const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
   showScreen("fire");
-  $("frSite").textContent=`${L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(sl.tGrain)} grain`;$("frDes").textContent=f.pred.sum.designation;
+  $("frSite").textContent=`${L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(tG)} grain`;$("frDes").textContent=f.pred.sum.designation;
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
   FR.fPk=Math.max(1,...f.plog.f);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;
@@ -2665,7 +2729,7 @@ const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
 function openReport(){renderReport();showScreen("report");}
 function renderReport(){
   const L=GAME.last;if(!L)return;
-  const f=L.f,g=L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
+  const f=L.f,g=L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain,fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
   const pass=c?g.pass:!fl,key=c?(g.pass?g.letter:g.why):(fl?fl.key:"free");
   const stamp=c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
   /* the spec, line by line: band, predicted at this temperature, measured */
@@ -2709,10 +2773,10 @@ function renderReport(){
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
       <span class="site">Aqsor Range · Site 41 · ${esc(c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
       <h2 class="sign">${fl&&fl.destructive?"Incident report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
-      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(sl.tGrain)} grain · motor ${L.n}${c?` · ${esc(c.client)}`:""}</p>
+      <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · motor ${L.n}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
     ${broke}<section class="card rp-chart"><canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
-      <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(sl.tGrain)}<span class="k-me"></span>Measured</p></section>
+      <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
       ${fixes.length?`<h3>Where to fix it</h3><div class="row">${fixes.map(fd=>`<button type="button" class="btn" data-goto="${fd}">${esc(ctlSpec(fd).label)} ›</button>`).join("")}</div>`:""}</section>`:""}

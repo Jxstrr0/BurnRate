@@ -39,9 +39,9 @@ function openBoard(){GAME.contract=null;renderBoard();showScreen("board");}
 function dueText(car,job){const left=job.due-car.day;
   if(left>1)return`${left} range days left`;if(left===1)return"due tomorrow";if(left===0)return"due today";
   const ls=BURN_SIM.lateShare(job,car.day);return`${ls.late} day${ls.late>1?"s":""} late · pay ${Math.round(ls.mul*100)}%`;}
-function specList(c){const sl=c.slot&&BURN_SIM.SLOTS[c.slot];
+function specList(c){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
   return`<ul class="wo-spec">${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
-    ${sl?`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(sl.tGrain)})</span></li>`:""}
+    ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
     ${c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
@@ -67,7 +67,7 @@ function renderBoard(){
       <h3>${esc(c.title)}</h3><p>${esc(c.brief)}</p>${specList(c)}
       <p class="hint mono">Pays ${fmtCr(S_.basePay(car,c))} · ${c.days} range days to deliver</p>
       <div class="row"><button type="button" class="btn pri" data-take="${c.id}"${why?" disabled":""}>Take the job</button>${why?`<span class="hint">${esc(why)}</span>`:""}</div></article>`;}).join("")
-    :`<p class="hint">Nothing new on the board today.${car.tier<2?" Build your reputation and lease Stand 2 for bigger work.":" More clients arrive in a coming update; repeat orders come back after a few days."}</p>`;
+    :`<p class="hint">Nothing new on the board today.${car.tier<2?" Build your reputation and lease Stand 2 for bigger work.":car.tier<3?" Build your reputation and lease Stand 1 for the big boosters.":" More clients arrive in a coming update; repeat orders come back after a few days."}</p>`;
   $("bdList").innerHTML=h;}
 function initBoard(){
   $("bdBack").addEventListener("click",()=>{renderTitle();showScreen("title");});
@@ -89,14 +89,16 @@ function facilitiesSheet(){
         ${own?`<span class="stamp pass">Yours</span>`:`<button type="button" class="btn pri" data-buy="${id}"${why?" disabled":""}>Buy</button>${why?` <span class="hint">${esc(why)}</span>`:""}`}</article>`;}).join(""));}
 document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-buy]");if(!b)return;const car=S.career,id=b.dataset.buy;
   const err=BURN_SIM.buy(car,id);if(err){toast(err);return;}save(true);closeSheet();renderBoard();
-  toast(id==="s2"?"Stand 2 is yours: tier 2 parts and work are open.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
+  const g=BURN_SIM.FACILITIES[id].give;
+  toast(g.stand?`${BURN_SIM.STANDS[g.stand].name} is yours: tier ${g.tier} parts and work are open.`
+    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
 
 /* ---- the logbook ---- */
 function openLogbook(){
   const car=S.career,L=car.log.slice().reverse();
   $("lgList").innerHTML=L.length?L.map(e=>{const c=BURN_SIM.contractById(e.key),res=e.letter?`Pass ${e.letter}`:(STAMP[e.why]||"Fail");
     return`<button type="button" class="lg-row" data-log="${e.no}"><span class="mono lg-no">41-${String(e.no).padStart(3,"0")}</span>
-      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())} · motor ${e.n}</small></span>
+      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · motor ${e.n}</small></span>
       <span class="lg-end"><span class="stamp ${e.letter?"pass":"fail"}">${esc(res)}</span><small class="mono">${e.paid?"+"+fmtCr(e.paid):"−"+fmtCr(e.cost)}</small></span></button>`;}).join("")
     :`<p class="hint">No firings yet. Every motor you fire is written up here, and you can read its report again.</p>`;
   showScreen("logbook");}

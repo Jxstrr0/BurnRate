@@ -7,9 +7,9 @@ const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
 function openFiring(){
-  const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot];
+  const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
   showScreen("fire");
-  $("frSite").textContent=`${L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(sl.tGrain)} grain`;$("frDes").textContent=f.pred.sum.designation;
+  $("frSite").textContent=`${L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(tG)} grain`;$("frDes").textContent=f.pred.sum.designation;
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
   FR.fPk=Math.max(1,...f.plog.f);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;

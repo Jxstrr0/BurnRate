@@ -9,8 +9,11 @@
    2D drawings. A motor that fails destructively gets a slow-motion replay of the moment it went (0.3x, from half a second
    before), once on its own and again from the "Watch it again" button.
    Sound and vibration (sound/synth.js) run off the same clock: countdown beeps, the relay's click, a roar that follows
-   the measured thrust and crackles when the pressure gets rough, a bang when it goes. The speaker button mutes both. */
-const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false};
+   the measured thrust and crackles when the pressure gets rough, a bang when it goes. The speaker button mutes both.
+   Ruslan's voice (1.3, Settings: English, Russian or off): once his range calls are loaded the countdown opens with
+   "Stand is armed. Range is clear." and he calls three, two, one, fire over the tannoy in place of the beeps; a hold
+   during the countdown gets "Hold, hold, hold" and "Countdown held", and the end of a run "Range is safe". */
+const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false,pre:0};
 const SND={n:-1,lit:false,boom:false,out:false,saved:false};   // which sounds this run has made
 const REPLAY_SP=0.3,REPLAY_PRE=0.5,REPLAY_POST=1.4;   // replay speed, and seconds shown before and after the failure
 const COAST_S=4;   // seconds the coast to apogee takes on screen
@@ -18,6 +21,10 @@ const COAST_S=4;   // seconds the coast to apogee takes on screen
    static burn (so a slowed short burn doesn't leave the stand idling in slow motion afterwards) */
 const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb?el*FR.sp:FR.tEnd+(el-tb)*(FR.tFly?FR.spC:1);};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
+const ARMED_S=2.4;   // seconds before "3" while Ruslan says the stand is armed (only when his voice is on and loaded)
+const VOICE_CALLS=["armed","count-3","count-2","count-1","fire","hold","held","safe"];
+/* load his range calls ahead, so the countdown never waits on the network */
+const voicePrep=()=>{if(SETTINGS.sound&&SETTINGS.voice!=="off")BURN_SOUND.voice.preload(VOICE_CALLS);};
 /* AFTER in sim seconds at the speed the end of the run plays (real time, or a launch's sped-up coast) */
 const frAfter=()=>AFTER*(FR.tFly?FR.spC:1);
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
@@ -41,6 +48,7 @@ function openFiring(){
   if(FR.d3)setup3d(L);
   const fl=f.failure;FR.replayed=false;FR.rp0=fl&&fl.destructive?Math.max(0,fl.t-REPLAY_PRE):-1;FR.rp1=fl&&fl.destructive?fl.t+REPLAY_POST:-1;
   FR.phase=reduced()?"burn":"count";FR.t0=performance.now();
+  voicePrep();FR.pre=FR.phase==="count"&&BURN_SOUND.voice.ready("armed")?ARMED_S:0;
   cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
 /* hand the firing to the 3D stand: motor size, nozzle, thrust curve, and for a launch the rocket and its path */
 function setup3d(L){
@@ -56,11 +64,15 @@ function frameFiring(now){
   if(FR.phase==="replay"){const t=FR.rp0+el*REPLAY_SP;drawFiring(Math.min(t,FR.rp1),still);sndAt(Math.min(t,FR.rp1),true);
     if(t<FR.rp1)FR.raf=requestAnimationFrame(frameFiring);else endReplay();return;}
   if(FR.phase==="count"){
-    const left=FIRE_COUNT-Math.floor(el/COUNT_STEP);
+    const ec=el-FR.pre,V=BURN_SOUND.voice;
+    if(ec<0){$("frCount").textContent="Armed";$("frCount").hidden=false;
+      if(SND.n!=="armed"){SND.n="armed";V.say("armed",{pa:true,now:true});}
+      drawFiring(-1,still);FR.raf=requestAnimationFrame(frameFiring);return;}
+    const left=FIRE_COUNT-Math.floor(ec/COUNT_STEP);
     $("frCount").textContent=left>0?String(left):"Fire";$("frCount").hidden=false;
-    if(left!==SND.n){SND.n=left;BURN_SOUND.beep(left<=0);}
+    if(left!==SND.n){SND.n=left;if(!V.say(left>0?"count-"+left:"fire",{pa:true,now:true}))BURN_SOUND.beep(left<=0);}
     drawFiring(-1,still);
-    if(el>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
+    if(ec>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
   const t=frTime(el),tDone=Math.max(FR.tEnd,FR.tFly);
@@ -95,7 +107,7 @@ function sndAt(t,slow){
     B.bang(k==="cato"?1:k==="eject"?0.45:k==="burnthrough"?0.3:0.7);if(!slow)B.buzz(k);}
   if(!burning&&!SND.out){SND.out=true;if(!slow&&!(fl&&fl.destructive))B.click();}}
 /* the run is over: the roar stops and, the first time, the logger chirps that it has saved the data */
-function sndDone(){BURN_SOUND.motor.stop();if(!SND.saved){SND.saved=true;BURN_SOUND.chirp(true);}}
+function sndDone(){BURN_SOUND.motor.stop();if(!SND.saved){SND.saved=true;BURN_SOUND.chirp(true);BURN_SOUND.voice.say("safe",{pa:true});}}
 /* the speaker button: one switch for sound and vibration together (Kelbo, 13 November 2026) */
 const SPK_ON='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const SPK_OFF='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -120,14 +132,15 @@ function drawFiring(t,still){
   const tt=t<0?0:Math.min(t,fly?FR.tFly:FR.tEnd);
   $("frP").textContent=fly?String(Math.round(t<0?0:BURN_VIS.pathAt(fly.samples,Math.min(t,FR.tFly)).h)):(t<0?0:lg.p[i]/1e6).toFixed(2);$("frF").textContent=String(Math.round(t<0?0:lg.f[i]));$("frT").textContent=tt.toFixed(2);}
 function abortFiring(){
-  if(FR.phase==="count"){cancelAnimationFrame(FR.raf);FR.phase="idle";undoFiring();toast("Countdown held. The motor is still on the stand.");showScreen("design");return;}
+  if(FR.phase==="count"){cancelAnimationFrame(FR.raf);FR.phase="idle";undoFiring();toast("Countdown held. The motor is still on the stand.");showScreen("design");
+    if(BURN_SOUND.voice.say("hold",{pa:true,now:true}))BURN_SOUND.voice.say("held",{pa:true});return;}
   toast("Once it's lit, it's lit.");$("frAbort").disabled=true;}
 function initFiring(){
   $("frAbort").addEventListener("click",abortFiring);
   $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";playing3d(false);BURN_SOUND.stop();openReport();});
   $("frMute").addEventListener("click",toggleMute);muteUI();
   /* phones only start audio from a tap: wake the audio on any tap or key while sound is on */
-  const wake=()=>{if(SETTINGS.sound)BURN_SOUND.unlock();};
+  const wake=()=>{if(SETTINGS.sound){BURN_SOUND.unlock();voicePrep();}};
   document.addEventListener("pointerdown",wake,{capture:true,passive:true});document.addEventListener("keydown",wake,{capture:true});
   $("frReplay").addEventListener("click",startReplay);
   addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+frAfter(),reduced());}});}

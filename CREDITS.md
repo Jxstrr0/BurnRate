@@ -35,8 +35,19 @@ Blender's `bpy`), with no outside models or textures.
 
 ## Sound
 
-Every sound is made while the game runs (`src/sound/synth.js`, WebAudio): the
-motor's roar, the crackle, the countdown and the relay. There are no recordings.
+Every sound effect is made while the game runs (`src/sound/synth.js`, WebAudio):
+the motor's roar, the crackle, the countdown beeps and the relay. There are no
+recorded effects.
+
+## Ruslan's voice (`sounds/voice/`)
+
+**AI-generated.** Ruslan Abenov's range calls and report sign-offs, in English
+(`sounds/voice/en/`) and Russian (`sounds/voice/ru/`), were generated with
+ElevenLabs text-to-speech (the Multilingual v2 model, the stock voice
+"Wladimir") from the script in `tools/voice-lines.json`, written for this game.
+The clips were then trimmed, levelled and re-encoded (ffmpeg).
+Ruslan is a fictional character; the voice is not a recording of a real person
+speaking these lines.
 
 ## Code shared with other Longlight Interactive games
 

@@ -35,10 +35,11 @@ weapons.
 node build.js              # rebuild index.html and sw.js from src/
 node build.js --check      # exit 1 if either is stale, a script block does not compile, or a function is declared twice
 node tools/sim-test.js     # sim invariants + banned-call scan (--brief prints the reference motors)
+node tools/balance-bot.js  # every contract delivered from its start design (about 2 min; an id filter runs fewer)
 node tools/make-icons.js   # re-render icons/ (Playwright; output committed)
 ```
 
-CI (`.github/workflows/ci.yml`) runs the first three on every PR (plus `node check-savecode.js` from stage 4). To play a
+CI (`.github/workflows/ci.yml`) runs the first four on every PR (plus `node check-savecode.js` from stage 4). To play a
 local copy: `python3 -m http.server` in the repo root. The service worker only registers on a real host (or `?sw=1`).
 
 ## Source and build

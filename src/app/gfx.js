@@ -26,12 +26,16 @@ function gfxLoad(){
       GFX.state="ready";})
     .catch(e=>{GFX.state="failed";console.warn("3D stand unavailable:",e&&e.message);});
   return GFX.p;}
-/* the settings sheet (title screen): graphics, sound and vibration */
+/* the settings sheet (title screen): theme, graphics, sound and vibration */
 function settingsSheet(){
   const g=SETTINGS.gfx||"auto",st=GFX.state==="failed"?`<p class="hint">This phone couldn't start the 3D stand, so the 2D one is used.</p>`:"";
   const onOff=(key,label,note)=>`<fieldset class="seg-f"><legend>${label}</legend><div class="seg two" role="radiogroup" aria-label="${label}">${[[true,"On"],[false,"Off"]].map(([v,n])=>
       `<button type="button" role="radio" aria-checked="${SETTINGS[key]===v}" data-set="${key}" data-v="${v}" class="btn sm${SETTINGS[key]===v?" on":""}">${n}</button>`).join("")}</div>${note}</fieldset>`;
-  openSheet("Settings",`<fieldset class="seg-f"><legend>Graphics</legend><div class="seg" role="radiogroup" aria-label="Graphics">${GFX_OPTS.map(([k,n])=>
+  const th=SETTINGS.theme||"light";
+  openSheet("Settings",`<fieldset class="seg-f"><legend>Theme</legend><div class="seg three" role="radiogroup" aria-label="Theme">${THEME_OPTS.map(([k,n])=>
+      `<button type="button" role="radio" aria-checked="${k===th}" data-theme-set="${k}" class="btn sm${k===th?" on":""}">${n}</button>`).join("")}</div>
+    <p class="hint">Night shift is the blockhouse after dark. Match phone follows your phone's dark mode.</p></fieldset>`+
+    `<fieldset class="seg-f"><legend>Graphics</legend><div class="seg" role="radiogroup" aria-label="Graphics">${GFX_OPTS.map(([k,n])=>
       `<button type="button" role="radio" aria-checked="${k===g}" data-gfx="${k}" class="btn sm${k===g?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`+
     onOff("sound","Sound",`<p class="hint">The motor, the countdown and the stand's relays. The speaker button on the stand mutes sound and vibration together.</p>`)+
@@ -39,6 +43,9 @@ function settingsSheet(){
     onOff("coach","Coach cards",`<p class="hint">Short tips on your first job, each shown once. <button type="button" class="btn sm" id="coachAgain">Show them again</button></p>`));
   $("sheetBody").addEventListener("click",e=>{
     if(e.target.closest("#coachAgain")){SETTINGS.seen={};SETTINGS.coach=true;saveSettings();closeSheet();toast("Coach cards will show again on your first job.");return;}
+    const th=e.target.closest("[data-theme-set]");
+    if(th){SETTINGS.theme=th.dataset.themeSet;saveSettings();applyTheme();
+      $("sheetBody").querySelectorAll("[data-theme-set]").forEach(x=>{const on=x===th;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});return;}
     const t=e.target.closest("[data-set]");
     if(t){const k=t.dataset.set,v=t.dataset.v==="true";SETTINGS[k]=v;saveSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
       if(k==="sound"&&v)BURN_SOUND.unlock();if(k==="haptics"&&v)BURN_SOUND.buzz("ignite");

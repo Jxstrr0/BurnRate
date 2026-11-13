@@ -35,6 +35,40 @@
   --mono:"Martian Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
   --safeB:env(safe-area-inset-bottom,0px);--safeT:env(safe-area-inset-top,0px);
   color-scheme:light;
+  --sheen:rgba(255,255,255,.55);   /* the concrete's highlight */
+  --veil:rgba(251,250,247,.45);    /* behind the countdown numbers */
+}
+/* "night shift" (Settings, Theme): the blockhouse after dark. Unlit concrete, sodium-lamp amber, the old paint still
+   legible; the same names, so every screen and canvas follows. Every text colour is at least 4.5:1 on every ground. */
+:root[data-theme="dark"]{
+  --ground:#16181A;
+  --ground2:#111314;
+  --panel:#1D2023;
+  --card:#23272A;
+  --line:#3A3F44;
+  --line2:#545A60;
+  --ink:#E9E5DB;           /* lamp-lit paper */
+  --muted:#A7ABA6;
+  --state:#6F9581;
+  --stateD:#93BBA5;
+  --stencil:#EE776B;
+  --hazard:#E0A526;
+  --hazardD:#E6B54E;
+  --meas:#F2674E;
+  --pred:#6FA6EC;
+  --accent:#3B62D4;
+  --accentD:#9DB5F6;
+  --onAccent:#FFFFFF;
+  --accentBg:#1D2846;--critBg:#3A201D;
+  --good:#63C185;--warn:#E3A84A;--crit:#F27368;
+  --prop:#A9835C;--propD:#C49A6C;
+  --linerC:#8C7F62;
+  --metal:#6E767F;--metalL:#AAB1B9;
+  --burn:#F06A3E;
+  --shadow:0 1px 0 rgba(0,0,0,.35),0 6px 18px -10px rgba(0,0,0,.8);
+  color-scheme:dark;
+  --sheen:rgba(255,255,255,.035);
+  --veil:rgba(22,24,26,.5);
 }
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{font-family:var(--ui);background:var(--ground);color:var(--ink);min-height:100vh;min-height:100dvh;overscroll-behavior-y:none}
@@ -51,7 +85,7 @@ p{margin:0 0 .7em}
 /* concrete: two soft noise-free gradients and faint shuttering lines, cheap on any phone */
 .concrete{background:
   repeating-linear-gradient(0deg,transparent 0 119px,rgba(35,38,42,.05) 119px 120px),
-  radial-gradient(120% 80% at 20% 0%,rgba(255,255,255,.55),transparent 60%),
+  radial-gradient(120% 80% at 20% 0%,var(--sheen),transparent 60%),
   radial-gradient(90% 70% at 100% 100%,rgba(120,110,90,.12),transparent 70%),var(--ground)}
 .hazard{background:repeating-linear-gradient(-45deg,var(--hazard) 0 14px,var(--ink) 14px 28px)}
 
@@ -85,6 +119,8 @@ p{margin:0 0 .7em}
 #title .note{font-size:.85rem;color:var(--muted);margin:2px 0 0}
 #title .studio{margin-top:26px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 #title .studio a{display:block;width:150px}#title .studio img{width:100%;height:auto;display:block}
+/* the studio's own logo files: the ivory one on night shift (never recoloured) */
+#title .studio .lg-night,:root[data-theme="dark"] #title .studio .lg-day{display:none}:root[data-theme="dark"] #title .studio .lg-night{display:block}
 #title .credit{font-size:.78rem;color:var(--muted);text-align:right}
 #title .ver{font-family:var(--mono);font-size:.72rem}
 
@@ -104,7 +140,7 @@ p{margin:0 0 .7em}
 .segbar{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--card)}
 .segbar button{flex:1;min-height:44px;border:0;background:none;font:600 .95rem/1.1 var(--ui);color:var(--ink);padding:4px 8px;cursor:pointer}
 .segbar button+button{border-left:1px solid var(--line2)}
-.segbar button.on{background:var(--ink);color:var(--onAccent)}
+.segbar button.on{background:var(--ink);color:var(--card)}
 .segbar.mini button{min-height:32px;font-size:.85rem}
 .dtab{width:100%;border-collapse:collapse;font-size:.8rem}.dtab th{text-align:left;font-weight:400;color:var(--muted);padding:6px 8px 6px 0;font-family:var(--ui);font-size:.92rem}
 .dtab td{text-align:right;padding:6px 0}.dtab tr+tr{border-top:1px solid var(--line)}
@@ -214,7 +250,7 @@ p{margin:0 0 .7em}
 .fr-mute{margin-left:8px;min-width:44px;min-height:44px;padding:0;color:var(--ink)}.fr-mute[aria-pressed="true"]{color:var(--muted)}
 .fr-stand{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
 .fr-stand canvas{display:block;width:100%}
-.fr-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--stencil);background:rgba(251,250,247,.45)}
+.fr-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--stencil);background:var(--veil)}
 .fr-gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
 .fr-gauges div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;display:grid;grid-template-columns:1fr auto;align-items:baseline}
 .fr-gauges span{grid-column:1/-1;font-size:.7rem;color:var(--muted)}
@@ -224,10 +260,10 @@ p{margin:0 0 .7em}
 .fr-act{display:grid;gap:8px;margin-top:12px}
 /* settings (app/gfx.js): a row of choices */
 .seg-f{border:0;padding:0;margin:0 0 14px}.seg-f legend{font-weight:600;margin-bottom:6px;padding:0}
-.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.seg.two{grid-template-columns:repeat(2,1fr)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.seg.two{grid-template-columns:repeat(2,1fr)}.seg.three{grid-template-columns:repeat(3,1fr)}
 .seg .btn.on{background:var(--accent);border-color:var(--accent);color:var(--onAccent)}
 /* the 3D stand (vis/stand3d.js): the shot's name flashes up when it changes; the white flash of a burst */
-#frStand3{background:#E9E4D8;cursor:grab;outline-offset:-3px}
+#frStand3{background:var(--ground2);cursor:grab;outline-offset:-3px}
 .s3-shot{position:absolute;left:8px;top:8px;padding:3px 8px;border-radius:6px;background:rgba(35,38,42,.72);color:#FBFAF7;font:600 .72rem/1.3 var(--mono);opacity:0;transition:opacity .3s;pointer-events:none}
 .s3-shot.on{opacity:1}
 .s3-flash{position:absolute;inset:0;background:#FFFBEF;opacity:0;pointer-events:none}
@@ -268,7 +304,7 @@ p{margin:0 0 .7em}
 #sheet header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 6px;border-bottom:1px solid var(--line)}
 #sheet header h2{margin:0;font-size:1.15rem}
 #sheetBody{overflow:auto;padding:14px 16px calc(18px + var(--safeB));-webkit-overflow-scrolling:touch}
-#toast{position:fixed;left:50%;bottom:calc(18px + var(--safeB));transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:.92rem;
+#toast{position:fixed;left:50%;bottom:calc(18px + var(--safeB));transform:translate(-50%,20px);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:8px;font-size:.92rem;
   opacity:0;transition:opacity .2s,transform .2s;z-index:80;max-width:min(92vw,460px);pointer-events:none}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 #pwaBar{position:fixed;left:12px;right:12px;bottom:calc(12px + var(--safeB));display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);

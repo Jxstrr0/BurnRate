@@ -14,6 +14,19 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 7. The test stand in 3D | 0.8.0.0 | Done |
 | 8. Polish and modes | 0.9.0.0 | Done |
 | 9. Release and studio listing | 1.0.0.0 | Done |
+| After 1.0: night shift, voice, tier 3+ clients | 1.1.0.0 | In progress |
+
+## 1.1.0.0 — After 1.0: the night shift theme, and the voice script
+
+- **Night shift**: a dark theme. Settings, Theme: Day (the default, unchanged), Night shift, or Match phone (follows
+  the phone's dark mode, live). Every colour token is redefined under `:root[data-theme="dark"]`, so the bench,
+  stand, charts, report and share card all follow; every text colour is at least 4.5:1 on every ground. A tiny script in
+  the page head sets the theme before the first paint (no light flash), the phone's bar colour follows, and the title
+  shows the studio's own ivory logo file at night. The 3D range stays in daylight. No new storage key (`theme` was
+  already in `brn-settings`).
+- **Voice script**: `tools/voice-lines.json` holds Ruslan's 8 range calls and 34 report sign-offs in English and
+  Russian, ready for the two ElevenLabs runs Kelbo approved (plan section 0; 3,622 characters, 6,000-credit cap). Nothing
+  generated yet: the ElevenLabs connector was down this session.
 
 ## 1.0.0.0 — Stage 9: release (Stage 9 done)
 

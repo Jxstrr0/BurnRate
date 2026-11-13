@@ -3,7 +3,7 @@
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="1.0.0.0";
+const VERSION="1.1.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -15,6 +15,14 @@ const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,gfx:
 let SETTINGS=Object.assign({},SET_DEF);
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem(SET_KEY)||"null");if(o&&typeof o==="object"&&!Array.isArray(o))SETTINGS=Object.assign({},SET_DEF,o);}catch(e){}}
 function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS));}catch(e){}}
+/* the theme: "light" (Day, the default), "dark" (Night shift) or "auto" (match the phone). head.html sets it early from
+   the same setting so a night-shift phone never flashes light; this keeps it right afterwards and repaints the bar colour */
+const THEME_OPTS=[["light","Day"],["dark","Night shift"],["auto","Match phone"]];
+const darkQ=window.matchMedia?matchMedia("(prefers-color-scheme: dark)"):null;
+function applyTheme(){const t=SETTINGS.theme==="dark"||(SETTINGS.theme==="auto"&&darkQ&&darkQ.matches)?"dark":"light";
+  document.documentElement.dataset.theme=t;
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=getComputedStyle(document.documentElement).getPropertyValue("--ground").trim()||"#E6E3DC";}
+if(darkQ&&darkQ.addEventListener)darkQ.addEventListener("change",()=>{if(SETTINGS.theme==="auto")applyTheme();});
 
 /* ---- toast ---- */
 function toast(msg,ms){const t=$("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),ms||2600);}

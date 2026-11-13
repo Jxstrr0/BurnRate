@@ -49,6 +49,23 @@ module.exports = ({ SIM, check, near }) => {
     if (!SIM.canTake(car, ids[C.maxJobs])) throw new Error("more than maxJobs in hand");
   });
 
+  check("career: an empty board can wait, free, for the next repeat order; tier 1 always has repeat work", () => {
+    const car = SIM.newCareer("w", "Wait"), m0 = car.money;
+    for (const c of SIM.CONTRACTS.filter(x => (x.tier || 1) === 1)) { SIM.takeJob(car, c.id); SIM.settle(car, c, pass("B"), 0); }
+    car.day = 0; /* rewind the clock so every repeat order is still away */
+    if (SIM.board(car).length) throw new Error("the board isn't empty after every tier 1 job");
+    const due = Math.min(...Object.keys(car.done).map(id => car.done[id].again).filter(x => x != null));
+    if (SIM.nextWork(car) !== due) throw new Error(`next work on day ${SIM.nextWork(car)}, expected ${due}`);
+    const day = car.day, money = car.money, n = SIM.waitForWork(car);
+    if (n !== due - day || car.day !== due) throw new Error("waiting didn't land on the repeat order's day");
+    if (car.money !== money) throw new Error("waiting cost money");
+    if (!SIM.board(car).length) throw new Error("the board is still empty after waiting");
+    if (SIM.waitForWork(SIM.newCareer("w0", "Fresh")) !== 0) throw new Error("a fresh career waited with work on the board");
+    /* the board shows older tiers' work too, so repeat orders at tier 1 keep every tier from running dry */
+    if (!SIM.CONTRACTS.some(c => (c.tier || 1) === 1 && c.repeat)) throw new Error("no tier 1 repeat order to wait for");
+    return `waited ${n} days (money ${m0} at start)`;
+  });
+
   check("career: facilities need reputation and money; Stand 2 opens tier 2; going broke offers a tier restart", () => {
     const car = SIM.newCareer("f", "Fac");
     if (!SIM.canBuy(car, "s2")) throw new Error("bought Stand 2 with no reputation");

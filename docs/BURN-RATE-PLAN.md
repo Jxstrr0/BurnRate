@@ -22,6 +22,7 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 13 Nov 2026 | An empty board | **A free "Wait for orders" button**: when nothing is on the board, skip ahead to the day the next repeat order (or a lost tender) comes back, at no cost, so a player short of money for the next lease is never stuck |
 | 13 Nov 2026 | Daily Spec tries | **Unlimited, best kept**: fire the day's spec as often as you like; the phone keeps the best grade of the day and how many firings it took |
 | 13 Nov 2026 | Daily Spec parts | **A fixed kit per day**: each day's spec comes with its own parts list, the same for everyone and independent of the career |
 | 13 Nov 2026 | Tender development firings | **Singles first**: on a tender, the stand offers a single development motor (costs money and a range day, pays nothing, shows its grade) or the full lot, which is the delivery |

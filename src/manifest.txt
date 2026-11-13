@@ -12,6 +12,7 @@ data/designs.js
 data/variance.js
 data/contracts.js
 data/career.js
+sim/levelset.js
 sim/grain.js
 sim/nozzle.js
 sim/motor.js

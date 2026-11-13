@@ -114,6 +114,8 @@ function fire(design,cond,seed){
       addF("temp",predSum.Pmax/pred20.Pmax-1,`${slotTxt}: ${pct(predSum.Pmax/pred20.Pmax-1)} pressure against the 20 °C prediction.`);
       addF("batch",peak(base.p)/predSum.Pmax-1,`This propellant batch burned ${vs(d.aMul,"faster","slower")} than the grade's rate: ${pct(peak(base.p)/predSum.Pmax-1)} pressure.`);
       if(hook)addF(d.crack?"crack":"void",peak(run.p.slice(0,f.i+1))/peak(base.p)-1,(d.crack?"The crack":"The void")+` added ${pct(peak(run.p.slice(0,f.i+1))/peak(base.p)-1)} pressure.`);
+      if(pred.eroPeak>TUNING.eroWarn)addF("erosive",Math.pow(pred.eroPeak,1/(1-m.prop.n))-1,`Erosive burning in the narrow port sped the burn up to ${Math.round((pred.eroPeak-1)*100)}% at ${pred.tEro.toFixed(2)} s: up to ${pct(Math.pow(pred.eroPeak,1/(1-m.prop.n))-1)} pressure.`);
+      if(pred.eroPeak>TUNING.eroWarn&&!f.fix.includes("grain.coreD"))f.fix.push("grain.coreD");
       if(k==="cato")addF("case",1-d.caseMul,`This case tube tested ${vs(d.caseMul,"stronger","weaker")} than its rating.`);
       else addF("closure",1-d.retMul,`These closures held ${vs(d.retMul,"more","less")} than their rating.`);
     }else if(k==="burnthrough"){

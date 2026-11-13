@@ -35,7 +35,7 @@ function summarize(m,r){
     pt0:m.grain.minPort(0)/m.At0,massFrac:mp/m.mass.total,mass:m.mass,
     hoop,sf:m.caseMat.yield*1e6/hoop,sfUlt:m.caseMat.ult*1e6/hoop,closureLoad,closureSf:m.retention/closureLoad,
     linerRating:m.linerRating,burnAll:r.t[n-1],sep:r.sepAny,chuff:r.chuffAny,ign:r.ign,rtEnd:r.rtEnd,
-    throatGrowth:r.rtEnd/m.rt0-1};
+    throatGrowth:r.rtEnd/m.rt0-1,eroPeak:r.eroPeak||1,tEro:r.tEro||0};
   s.warnings=warnings(m,s);
   return s;
 }
@@ -50,6 +50,7 @@ function warnings(m,s){
   else if(s.closureSf<T.sfWarn)add("closure","warn",`Closure retention margin ${s.closureSf.toFixed(2)}. Aim for ${T.sfWarn} or more.`,"case.closure","retention");
   if(s.pLow>0&&s.pLow<m.prop.pMin*1e6)add("chuff","warn",`Pressure falls to ${mpa(s.pLow)}, under ${m.prop.name}'s stable minimum of ${m.prop.pMin} MPa. Expect chuffing.`,"nozzle.throatD","chuffing");
   if(s.pt0<T.ptWarn)add("pt","warn",`Port-to-throat ratio ${s.pt0.toFixed(2)} at ignition. Under ${T.ptWarn}, expect an erosive spike.`,"grain.coreD","portThroat");
+  if(s.eroPeak>T.eroWarn)add("ero",s.eroPeak>1.25?"crit":"warn",`Erosive burning: gas scouring the narrow port speeds the burn by up to ${Math.round((s.eroPeak-1)*100)}% at ${s.tEro.toFixed(2)} s, and the pressure with it.`,"grain.coreD","erosive");
   if(s.gMax>T.gWarn)add("flux","warn",`Peak mass flux ${Math.round(s.gMax)} kg/m²s. Over ${T.gWarn}, the port scours the grain.`,"grain.coreD","massFlux");
   if(s.tb>m.linerRating)add("liner","crit",`The burn lasts ${s.tb.toFixed(1)} s; the liner protects the case for ${m.linerRating.toFixed(1)} s. Expect a burn-through.`,"case.linerThk","liner");
   else if(s.tb>T.linerWarn*m.linerRating)add("liner","warn",`The burn (${s.tb.toFixed(1)} s) uses most of the liner's ${m.linerRating.toFixed(1)} s.`,"case.linerThk","liner");

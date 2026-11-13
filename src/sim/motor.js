@@ -6,7 +6,7 @@
 const mm=v=>v/1000;
 function designErrors(d){
   const e=[],add=(field,text)=>e.push({field,text});
-  const g=d.grain,c=d.case,z=d.nozzle;
+  const g=Object.assign({},GRAIN_DEFAULTS,d.grain),c=d.case,z=d.nozzle,sh=GRAIN_SHAPES[g.shape];
   if(!PROPELLANTS[g.prop])add("grain.prop","Pick a propellant grade.");
   if(!CASES[c.mat])add("case.mat","Pick a case material.");
   if(!LINERS[c.liner])add("case.liner","Pick a liner.");
@@ -19,12 +19,22 @@ function designErrors(d){
   const od=c.id-2*c.linerThk;
   if(!(g.segs>=1&&g.segs<=12&&Math.round(g.segs)===g.segs))add("grain.segs","1 to 12 segments.");
   if(!(g.segLen>=5&&g.segLen<=2000))add("grain.segLen","Segment length must be 5 to 2000 mm.");
-  if(!["bates","tube","end"].includes(g.shape))add("grain.shape","Pick a grain shape.");
+  if(!sh)add("grain.shape","Pick a grain shape.");
   if(g.shape!=="end"){
     if(!(g.coreD>=2))add("grain.coreD","The core needs to be at least 2 mm across.");
     else if(g.coreD>od-2)add("grain.coreD",`The core (${g.coreD} mm) leaves no propellant in a ${od.toFixed(1)} mm grain.`);
     if(z.throatD>=g.coreD)add("nozzle.throatD",`The throat (${z.throatD} mm) is as wide as the core (${g.coreD} mm): the port would choke instead of the nozzle.`);
   }
+  if(sh&&sh.ls&&g.coreD>=2&&g.coreD<=od-2){
+    const room=(od-g.coreD)/2-TUNING.lsWebMin;   // mm of propellant outside the core, less the thinnest web allowed
+    const u=f=>sh.uses.includes(f);
+    if(u("pts")&&!(g.pts>=(g.shape==="star"?3:2)&&g.pts<=12&&Math.round(g.pts)===g.pts))add("grain.pts",g.shape==="star"?"3 to 12 points.":"2 to 12 slots.");
+    if(u("ptLen")&&!(g.ptLen>=1))add("grain.ptLen","The points need to reach at least 1 mm past the core.");
+    else if(u("ptLen")&&g.ptLen>room)add("grain.ptLen",`The points reach ${g.ptLen} mm past the core; this grain has room for ${Math.max(0,room).toFixed(1)} mm.`);
+    if(u("ptW")&&!(g.ptW>=1&&g.ptW<=g.coreD))add("grain.ptW",`Slot width must be 1 mm to the core's ${g.coreD} mm.`);
+    if(u("finLen")&&!(g.finLen>=5&&g.finLen<=g.segLen))add("grain.finLen","The fins run 5 mm up to the whole segment.");
+    if(u("offset")&&!(g.offset>=0))add("grain.offset","The offset can't be negative.");
+    else if(u("offset")&&g.offset>room)add("grain.offset",`The core moved ${g.offset} mm leaves under ${TUNING.lsWebMin} mm of propellant at the wall.`);}
   if(!(z.throatD>=1&&z.throatD<od))add("nozzle.throatD","Throat must be at least 1 mm and narrower than the grain.");
   if(!(z.exitD>=z.throatD))add("nozzle.exitD","The exit can't be narrower than the throat.");
   else if(z.exitD>c.id+2*c.wall+20)add("nozzle.exitD","The exit is much wider than the motor.");
@@ -37,7 +47,9 @@ function motorFromDesign(d){
   if(errors.length)return{ok:false,errors};
   const prop=PROPELLANTS[d.grain.prop],cm=CASES[d.case.mat],ln=LINERS[d.case.liner],th=THROATS[d.nozzle.mat],cl=CLOSURES[d.case.closure],ig=IGNITERS[d.igniter];
   const id=mm(d.case.id),wall=mm(d.case.wall),lin=mm(d.case.linerThk),od=id-2*lin;
-  const grain=buildGrain({shape:d.grain.shape,segs:d.grain.segs,segLen:mm(d.grain.segLen),coreD:mm(d.grain.coreD),od});
+  const gd=Object.assign({},GRAIN_DEFAULTS,d.grain);
+  const grain=buildGrain({shape:gd.shape,segs:gd.segs,segLen:mm(gd.segLen),coreD:mm(gd.coreD),od,
+    pts:gd.pts,ptLen:mm(gd.ptLen),ptW:mm(gd.ptW),finLen:mm(gd.finLen),offset:mm(gd.offset)});
   const rt0=mm(d.nozzle.throatD)/2,re=mm(d.nozzle.exitD)/2,At0=PI*rt0*rt0,Ae=PI*re*re;
   const chamberLen=grain.len+TUNING.headSpace*od,Vch=PI*(od/2)*(od/2)*chamberLen;
   const clThk=TUNING.closureThk*id,caseLen=chamberLen+2*clThk;

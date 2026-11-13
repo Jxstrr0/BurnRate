@@ -46,7 +46,7 @@ function preFire(contract,design,m,o){
     if(m.length*1000>st.len)add("grain.segLen",`The motor is ${Math.round(m.length*1000)} mm long; ${st.name} takes ${st.len} mm.`);
     if(m.diameter*1000>st.dia)add("case.id",`The motor is ${Math.round(m.diameter*1000)} mm across; ${st.name}'s clamps take ${st.dia} mm.`);
     if(o.sum&&st.cell&&o.sum.Fmax>st.cell)add("nozzle.throatD",`The motor peaks at ${(o.sum.Fmax/1000).toFixed(2)} kN; ${st.name}'s load cell is rated ${(st.cell/1000).toFixed(1)} kN.`);}
-  const tier=o.tier||contract.tier||1,parts=[["grain.prop",PROPELLANTS[design.grain.prop],"grade"],["case.mat",CASES[design.case.mat],"case material"],
+  const tier=o.tier||contract.tier||1,parts=[["grain.prop",PROPELLANTS[design.grain.prop],"grade"],["grain.shape",GRAIN_SHAPES[design.grain.shape],"grain shape"],["case.mat",CASES[design.case.mat],"case material"],
     ["case.liner",LINERS[design.case.liner],"liner"],["nozzle.mat",THROATS[design.nozzle.mat],"throat material"]];
   for(const[f,p,what]of parts)if(p&&(p.tier||1)>tier)add(f,`${p.name} is a tier ${p.tier} ${what}. You have tier ${tier} parts${o.tier?" so far":" on this job"}.`);
   return out;}

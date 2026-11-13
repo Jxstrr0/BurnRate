@@ -13,6 +13,10 @@ const TUNING={
   sepRatio:0.4,        // flow separates where nozzle wall pressure would fall under this x ambient (Summerfield)
   eroExp:0.8,          // throat erosion grows as (P/pRef)^eroExp
   headSpace:0.25,      // empty chamber ahead of the grain, as a fraction of grain diameter
+  lsGrid:256,          // level-set grains: grid cells across the grain's diameter
+  lsSmooth:4,          // level-set grains: the burning area is the port's growth measured over this many cells
+  lsWebMin:1.0,        // level-set grains: the thinnest propellant left at the wall, mm
+  eroMax:1.5,          // erosive burning: the burn rate gain never goes past this (plan section 6.5)
   segGap:2,            // gap between segments, mm
   closureThk:0.14,     // each closure's thickness as a fraction of bore diameter (for mass)
   closureRho:2700,     // closures are aluminium by default, kg/m³
@@ -23,6 +27,7 @@ const TUNING={
   ignWeak:0.45,        // strength under this: hang-fire risk (stage 3)
   sfWarn:1.5,          // case safety factor under this: warning
   ptWarn:2.0,          // port-to-throat area ratio under this: erosive-spike warning
+  eroWarn:1.05,        // an erosive gain on the burn rate over this: warning
   gWarn:1500,          // peak mass flux over this, kg/(m²·s): warning
   linerWarn:0.85,      // burn time over this x liner rating: warning
   spikeWarn:1.3,       // a start-up peak over this x the steady peak: the igniter is too big (warning)

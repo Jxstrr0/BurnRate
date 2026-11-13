@@ -15,13 +15,19 @@
    spreads over the grain, both slower for a weaker igniter (strength = igniter gas / gas the chamber needs). Burning area
    is scaled by the lit fraction while the flame spreads.
    Temperature (6.6): a = a20 · exp(sigmaP · (T − 20)). Throat erosion (6.4): the throat radius grows at the material's
-   rate · (P / 5 MPa)^0.8. Erosive burning (6.5) arrives in stage 5.
+   rate · (P / 5 MPa)^0.8.
+   Erosive burning (6.5): gas rushing down a narrow port scours the grain and speeds its burn, r_e = r·(1 + kE·(G − gTh))
+   where the mass flux G passes the grade's threshold. The chamber is lumped (one x for the whole grain), so the flux is
+   taken as rising evenly from nothing at the head end to mdot / port area at the aft end, and the grain burns at the
+   gain averaged along its length: 1 + kE·(Gaft − gTh)² / (2·Gaft) when Gaft > gTh, capped at TUNING.eroMax. It is
+   biggest at the start of a narrow-port motor, which is the erosive spike; opts.noErosive turns it off (tests).
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
-   opts (all optional): steps (regression steps over the web; fewer = faster, for live dragging), and the variance
+   opts (all optional): noErosive, steps (regression steps over the web; fewer = faster, for live dragging), and the variance
    model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight (strength under which the grain never lights),
    areaAdd(t, x) -> extra burning area in m² (a void or a crack; its propellant comes out of the grain's web)}
-   Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit, ...}. */
+   Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit,
+   eroPeak (the biggest erosive gain on the burn rate, 1 = none), tEro (when), ...}. */
 function propCoef(prop,tGrain){return prop.rRef/1000/Math.pow(TUNING.pRef,prop.n)*Math.exp(prop.sigmaP*(tGrain-TUNING.tRef));}
 function simulate(motor,cond,opts){
   cond=cond||{};opts=opts||{};
@@ -37,6 +43,7 @@ function simulate(motor,cond,opts){
   const igIn=(t0,t1)=>igGas*Math.max(0,Math.min(t1,ig.burn)-Math.min(t0,ig.burn))/ig.burn;
   /* outputs */
   const o={t:[],p:[],f:[],kn:[],x:[],mdot:[],at:[],cf:[]};
+  const noEro=!!opts.noErosive;let eroPeak=1,tEro=0;
   let t=0,x=0,P=Pa,rt=motor.rt0,mg=P*(Vch-G.V(0))/RT,rLast=0,sepAny=false,chuffAny=false,mOut=0,mBurn=0,mIgn=0,steps=0;
   const m0=mg;
   let thrustCache={at:-1};
@@ -58,7 +65,10 @@ function simulate(motor,cond,opts){
     /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain, and the
        propellant it burns comes out of the grain: the web is used up faster by (A + extra) / A, so mass still balances */
     const extra=areaAdd&&burning?areaAdd(t1,x):0,Ax=G.A(x),boost=extra>0&&Ax>1e-12?1+extra/Ax:1;
-    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*boost*a*Math.pow(Pn,n)*dt):x;
+    const portX=G.port(x);
+    const eroOf=Pn=>{if(noEro)return 1;const Gf=Pn*At/cs*chokedFrac(Pn,Pa,g)/portX;
+      return Gf>prop.gTh?Math.min(T.eroMax,1+prop.kE*(Gf-prop.gTh)*(Gf-prop.gTh)/(2*Gf)):1;};
+    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*boost*eroOf(Pn)*a*Math.pow(Pn,n)*dt):x;
     const resid=Pn=>{const xn=xOf(Pn),Vn=G.V(xn);
       const gen=rho*(V0-Vn);
       const out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
@@ -76,7 +86,8 @@ function simulate(motor,cond,opts){
       Pn=m;if((hi-lo)<1e-9*hi)break;}
     const xn=xOf(Pn),gen=rho*(V0-G.V(xn)),out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
     x=xn;t=t1;P=Pn;mg=(Vch-G.V(x))*P/RT;mOut+=out;mBurn+=gen;mIgn+=ign;
-    rLast=fl*boost*a*Math.pow(P,n);
+    const ero=burning?eroOf(P):1;if(burning&&ero>eroPeak){eroPeak=ero;tEro=t;}
+    rLast=fl*boost*ero*a*Math.pow(P,n);
     if(burning&&fl>=1&&P<prop.pMin*1e6&&x<web*0.98)chuffAny=true;
     rt+=eroRate*Math.pow(P/T.pRef,T.eroExp)*dt;
     const th=thrust(P,At);if(th.sep&&burning&&fl>=1&&x<web*0.97)sepAny=true;   // separation in the steady burn, not the start-up or tail
@@ -84,7 +95,7 @@ function simulate(motor,cond,opts){
     if(!burning&&P<T.tailEnd*Pa)break;
     if(notLit&&t>ig.burn+0.3&&P<T.tailEnd*Pa)break;
   }
-  return{ok:true,...o,ign:{strength:S,delay,spread,notLit},sepAny,chuffAny,notLit,
+  return{ok:true,...o,ign:{strength:S,delay,spread,notLit},sepAny,chuffAny,notLit,eroPeak,tEro,
     a,tGrain,pAmb:Pa,steps,web,mass:{out:mOut,burned:mBurn,ign:mIgn,gas0:m0,gasEnd:mg},rtEnd:rt};
 }
 Object.assign(SIM,{propCoef,simulate});

@@ -25,7 +25,7 @@ function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
   showScreen("fire");
   const fly=f.flight||null;
-  $("frSite").textContent=`${fly?"Launch rail":L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
+  $("frSite").textContent=`${fly?"Launch rail":L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"}${L.lot?` · motor 1 of ${L.lot.fires.length}`:""} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
   $("frPL").textContent=fly?"Height":"Pressure";$("frPU").textContent=fly?"m":"MPa";
   $("fire").setAttribute("aria-label",fly?"Launch":"Static firing");
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];

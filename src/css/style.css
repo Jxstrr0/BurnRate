@@ -200,6 +200,8 @@ p{margin:0 0 .7em}
 .wo p{font-size:.95rem}
 .wo-spec{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:4px;font-size:.92rem}
 .wo-spec b{font-weight:600;color:var(--ink)}
+/* a tender's lot on the report (app/report.js lotCard): the selected motor's row */
+.rp-lot tr.on th,.rp-lot tr.on td{background:var(--accentBg)}.rp-lot td b{white-space:nowrap}
 /* the Daily Spec's order sheet (app/daily.js) */
 .dl-h{font-size:1rem;margin:4px 0 4px}
 .dl-kit{list-style:none;padding:0;margin:0 0 10px;display:grid;gap:3px;font-size:.9rem}

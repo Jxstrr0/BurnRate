@@ -40,6 +40,8 @@ function strip(cv,o){
     let lx=-9,last=-1;for(let i=0;i<n&&s.t[i]<=lim;i++){const x=X(s.t[i]);if(i&&x-lx<0.5&&i<n-1)continue;lx=x;last=i;const y=pn.Y(pn.get(s,i));i?c.lineTo(x,y):c.moveTo(x,y);}
     c.stroke();c.restore();return last;};
   for(const pn of panels){
+    /* o.others: more measured traces (a tender's lot), drawn faint under the main one */
+    if(o.others){c.globalAlpha=0.3;for(const s of o.others)trace(s,s.t.length,pn,k.meas,1.2,upto);c.globalAlpha=1;}
     c.globalAlpha=0.85;trace(P,nP,pn,k.pred,1.5,Infinity);c.globalAlpha=1;
     const last=trace(M,nM,pn,k.meas,2.4,upto);
     if(o.now&&last>=0){const x=X(M.t[last]),y=Math.max(pn.y0,pn.Y(pn.get(M,last)));c.fillStyle=k.meas;c.beginPath();c.arc(x,y,3.5,0,7);c.fill();}}

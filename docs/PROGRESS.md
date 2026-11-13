@@ -12,8 +12,25 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
 | 6. Flight tests | 0.7.0.0 | Done |
 | 7. The test stand in 3D | 0.8.0.0 | Done |
-| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0 Daily Spec, 0.8.2.0 Sandbox) |
+| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0 Daily Spec, 0.8.2.0 Sandbox, 0.8.3.0 tenders) |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.8.3.0 — Stage 8, part 3: tier 4 range tenders
+
+- **Tier 4 opens** with a new facility, the **Range tender register** (reputation 45, 30 000 cr, after Stand 1). Four
+  tenders on Stand 1: the range's sounding booster lot, Kökjal's strap-on boosters, Ozen's cold northern lot (held in
+  the hut at −10 °C) and the Altyn Space Agency's upper stage. Reliability work: boosters and sounding rockets only.
+- **Lot testing** (decided: 4 of 5 must pass): a tender is delivered by a lot of five motors from one design, fired on
+  one range day for one stand fee plus five motors' materials (decided). Four must pass; one failure still delivers at
+  70% of the pay; two or more lose the tender, which the range puts out again 6 days later (decided). The lot's grade
+  is its worst passing motor's.
+- **Development motors** (decided): the stand offers "Fire one development motor" (costs a day and the motor, pays
+  nothing, shows how the design fires) or "Fire the lot of 5".
+- **The report** for a lot: a lot card with each motor's impulse, peak pressure and result; all five traces on the
+  chart (the picked one bold); tap a motor to read its details. It opens on the first failure, if there is one. The
+  logbook keeps lots and development motors, and replays a lot exactly.
+- Tests: lot rules (one fee, repeatable motors, worst-motor grade, pay cut, lost and re-tendered), every tender's
+  solution passes 5 lots of 5, and the career bot now plays through tier 4.
 
 ## 0.8.2.0 — Stage 8, part 2: the Sandbox
 

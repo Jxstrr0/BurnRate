@@ -6,7 +6,8 @@
      slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id; "hut" with tGrain: conditioned to that
      temperature, which needs the hut), spec (criteria, sim/grade.js),
      flight ({payload} in kg: a flight job, sim/flight.js; the motor flies in a rocket from the launch rail instead of
-     firing on a stand, which then only sets the size class), start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
+     firing on a stand, which then only sets the size class), lot (true: a tier 4 tender, delivered as a lot of
+     CAREER.lot.n motors; sim/career.js gradeLot), start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
      tools/sim-tests/fire.js fires it across seeds and slots, so every contract stays solvable). */
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
 /* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
@@ -108,6 +109,24 @@ const CONTRACTS=[
   {id:"burkit-sounder",client:"Bürkit Aerospace",title:"Six kilometres up",tier:3,stand:"s1",slot:null,flight:{payload:4},pay:17000,days:14,
     brief:"Bürkit wants flight data from a real ascent before it sells its boosters: a four-kilogram telemetry pack to between 6000 and 8000 metres. Past the speed of sound the drag climbs steeply, so the nose, the fins and how long the motor pushes all matter.",
     spec:[{k:"apogee",lo:6000,hi:8000}],start:"98mm 5-seg BATES, Ox, composite",
-    solution:{grain:{prop:"tr9",shape:"tube",segs:8,segLen:169.5,coreD:45.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:27,exitD:56,half:15},igniter:"xl",airframe:{body:"glass118",nose:"karman",fins:"swept"}}}
+    solution:{grain:{prop:"tr9",shape:"tube",segs:8,segLen:169.5,coreD:45.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:27,exitD:56,half:15},igniter:"xl",airframe:{body:"glass118",nose:"karman",fins:"swept"}}},
+  /* ---- tier 4: range tenders. lot: delivered as a lot of five motors from one design, four of which must pass
+     (CAREER.lot). Single firings before the lot are development motors: they cost, and pay nothing. ---- */
+  {id:"range-lot",client:"Aqsor Range Authority",title:"Sounding booster lot",tier:4,stand:"s1",slot:null,lot:true,pay:48000,days:18,
+    brief:"The range is restocking its own weather-rocket boosters and wants a supplier it can rely on. Five motors from one design go on the stand; four must meet the spec, or the tender goes to someone else.",
+    spec:[{k:"I",lo:12000,hi:14500},{k:"Fav",lo:3000,hi:4200},{k:"tb",hi:4.2}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr9",shape:"tube",segs:7,segLen:169.5,coreD:45.5,pts:7,ptLen:13.2,ptW:1.9,finLen:139.2,offset:7.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:25.5,exitD:54,half:15},igniter:"xl"}},
+  {id:"kokjal-lot",client:"Kökjal Launch Systems",title:"Strap-on booster lot",tier:4,stand:"s1",slot:null,lot:true,pay:30000,days:16,
+    brief:"Kökjal's small launcher straps boosters to its first stage, and they must all behave alike. A hard kick, then a long tail: the last third no more than half the first. A lot of five, four to pass.",
+    spec:[{k:"prog",hi:0.5},{k:"I",lo:6000,hi:7400},{k:"Pmax",hi:6}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"finocyl",segs:3,segLen:120,coreD:40.9,pts:8,ptLen:11.2,ptW:4.5,finLen:56.9,offset:24},case:{mat:"mild",id:95.3,wall:1.5,liner:"ablative",linerThk:2,closure:"bolts",bolts:14},nozzle:{mat:"steel",throatD:21,exitD:46,half:15},igniter:"l"}},
+  {id:"ozen-lot",client:"Ozen Survey Instruments",title:"Northern survey lot",tier:4,stand:"s1",slot:"hut",tGrain:-10,lot:true,pay:40000,days:18,
+    brief:"Ozen's northern survey season needs a lot of motors that light and burn alike in the cold. Each is held overnight in the hut at −10 °C. Long burns, and the pressure kept low: four of the five must pass.",
+    spec:[{k:"I",lo:5600,hi:7000},{k:"tb",lo:3.6},{k:"Pmax",hi:3}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:160,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:31,exitD:60,half:15},igniter:"xl"}},
+  {id:"agency-lot",client:"Altyn Space Agency",title:"Upper stage qualification",tier:4,stand:"s1",slot:null,lot:true,pay:36000,days:18,
+    brief:"The republic's space agency is choosing a supplier for a sounding rocket's upper stage. Light above all: at least 78% propellant by weight. Five from one design, at least four inside the spec.",
+    spec:[{k:"massFrac",lo:78},{k:"I",lo:9400,hi:11200},{k:"Pmax",hi:4}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:165,coreD:40.2,pts:8,ptLen:19.6,ptW:1.2,finLen:156.2,offset:13.8},case:{mat:"composite",id:97.4,wall:0.4,liner:"ablative",linerThk:0.9,closure:"bolts",bolts:16},nozzle:{mat:"graphite",throatD:27,exitD:40,half:15},igniter:"xl"}}
 ];
 Object.assign(SIM,{GRADING,STANDS,CONTRACTS});

@@ -43,8 +43,8 @@ function openBoard(){GAME.contract=null;renderBoard();showScreen("board");}
 function dueText(car,job){const left=job.due-car.day;
   if(left>1)return`${left} range days left`;if(left===1)return"due tomorrow";if(left===0)return"due today";
   const ls=BURN_SIM.lateShare(job,car.day);return`${ls.late} day${ls.late>1?"s":""} late · pay ${Math.round(ls.mul*100)}%`;}
-function specList(c){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
-  return`<ul class="wo-spec">${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
+function specList(c,o){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
+  return`<ul class="wo-spec">${c.lot&&!(o&&o.practice)?`<li><button type="button" class="gl" data-g="lotTest">Delivered as a lot</button> <b>${BURN_SIM.CAREER.lot.n} motors, ${BURN_SIM.CAREER.lot.need} must pass</b></li>`:""}${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
     ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
     ${c.flight?`<li>Flies from the <b>launch rail</b> with a <b class="mono">${c.flight.payload} kg</b> payload</li>`:c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
 function renderBoard(){
@@ -100,9 +100,9 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-buy
 /* ---- the logbook ---- */
 function openLogbook(){
   const car=S.career,L=car.log.slice().reverse();
-  $("lgList").innerHTML=L.length?L.map(e=>{const c=BURN_SIM.contractById(e.key),res=e.letter?`Pass ${e.letter}`:(STAMP[e.why]||"Fail");
+  $("lgList").innerHTML=L.length?L.map(e=>{const c=BURN_SIM.contractById(e.key),res=e.letter?`${e.lot?"Lot":"Pass"} ${e.letter}`:(STAMP[e.why]||"Fail");
     return`<button type="button" class="lg-row" data-log="${e.no}"><span class="mono lg-no">41-${String(e.no).padStart(3,"0")}</span>
-      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · ${c&&c.flight?"launch":"motor"} ${e.n}</small></span>
+      <span class="lg-mid"><b>${esc(c?c.title:e.key)}</b><small>Day ${e.day} · ${esc(BURN_SIM.SLOTS[e.slot].name.toLowerCase())}${e.tGrain!=null?" "+degC(e.tGrain):""} · ${e.lot?`lot of ${e.lot}${e.fails?`, ${e.fails} failed`:""}`:`${c&&c.flight?"launch":"motor"} ${e.n}${e.dev?" (development)":""}`}</small></span>
       <span class="lg-end"><span class="stamp ${e.letter?"pass":"fail"}">${esc(res)}</span><small class="mono">${e.paid?"+"+fmtCr(e.paid):"−"+fmtCr(e.cost)}</small></span></button>`;}).join("")
     :`<p class="hint">No firings yet. Every motor you fire is written up here, and you can read its report again.</p>`;
   showScreen("logbook");}

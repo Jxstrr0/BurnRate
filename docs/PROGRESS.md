@@ -12,8 +12,26 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
 | 6. Flight tests | 0.7.0.0 | Done |
 | 7. The test stand in 3D | 0.8.0.0 | Done |
-| 8. Polish and modes | 0.9.0.0 | Next |
+| 8. Polish and modes | 0.9.0.0 | In progress (0.8.1.0: Daily Spec) |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.8.1.0 — Stage 8, part 1: the Daily Spec
+
+- **The Daily Spec**, a new button on the title: one work order a day, the same on every phone, built from the date
+  alone (Daily Spec No. 1 is 13 November 2026). Decided: **fire as often as you like, the best grade is kept**, and
+  **a fixed kit of parts per day** (two grades, BATES plus two more grain shapes, two case materials, the tier 1-2 liners
+  and throats, every closure and igniter), so a brand-new player and a tier 4 career play the same puzzle.
+- The order sheet shows the client, the brief, the spec, the firing slot and today's kit. Parts outside the kit carry a
+  "Not in today's kit" tag on the bench, and the stand turns away a motor that uses one, with a button to the part.
+- Firings are free (no money, no range days) and keep the full blockhouse data. The report shows today's best, and
+  **Share** sends a short text (the number, the best grade, a run of marks like `✗ B A`) through the phone's share
+  sheet, or copies it. The title button shows how today is going; the order sheet shows the streak (days in a row
+  with a pass).
+- Every day is solvable: the generator builds a hidden reference motor from the day's kit, tunes it to fit Stand 3
+  with no warnings, and centres the spec on its prediction. The tests build 60 days and fire 20 of them three times
+  each; the reference passes its own spec at least 85% of the time (about 95% in practice).
+- The save gains `daily` (today's run and bench) and `dailyHist` (the last 60 days' best grades) inside `brn-save`; no
+  new storage key.
 
 ## 0.8.0.0 — Stage 7, part 2: sound and vibration
 

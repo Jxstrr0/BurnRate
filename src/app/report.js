@@ -7,6 +7,7 @@
    the basic instruments only the batch and the case show (the Blockhouse instruments facility shows the rest).
    In a career the bill follows: the stand's fee, the motor's materials, the client's pay (grade and lateness) and the
    money left. A logbook entry's report (GAME.last.replay) is read-only.
+   A Daily Spec firing (GAME.last.daily) shows today's best and offers Share (app/daily.js).
    A launch (f.flight) adds the flight: height against time, predicted (no wind) and real, with apogee, top speed, the
    day's wind and where it landed; the motor's own curves follow as the onboard logger's data. */
 const STAMP={cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
@@ -69,16 +70,20 @@ function renderReport(){
       ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
   else if(L.replay&&L.entry){const e=L.entry;bill=`<p class="rp-note mono">Day ${e.day} · cost ${fmtCr(e.cost)}${e.paid?` · paid ${fmtCr(e.paid)}`:""}${e.late?` · ${e.late} day${e.late>1?"s":""} late`:""}</p>`;}
   const broke=L.out&&S.career&&BURN_SIM.isBroke(S.career)?`<section class="card broke"><h3 class="sign">Out of money</h3><p>The bank won't pay for another motor. The work orders offer a restart of the tier.</p></section>`:"";
+  /* the Daily Spec: how today stands, and sharing it */
+  const dl=L.daily?`<section class="card rp-daily"><h3>Daily Spec No. ${c.no}</h3><p>${L.daily.isBest&&L.daily.bestN>1?"<b>A new best.</b> ":""}${L.daily.best?`Today's best: <b>${L.daily.best}</b>, on firing ${L.daily.bestN}.`:"No pass yet today. Fire again: only the best counts."}</p>
+    <p class="hint">${L.daily.best==="A"?"An A is as good as it gets. Share it, or keep firing for the fun of it.":"Fire as often as you like; the best grade is kept."}</p></section>`:"";
   const act=L.replay?`<button type="button" class="btn pri" id="rpLog">Back to the logbook</button>`
+    :L.daily?`<button type="button" class="btn pri" id="rpBench">Back to the bench</button><button type="button" class="btn" id="rpAgain">Fire another</button><button type="button" class="btn" id="rpShare">Share</button><button type="button" class="btn" id="rpTitle">Title</button>`
     :L.out&&L.out.done?`<button type="button" class="btn pri" id="rpBoard">Work orders</button><button type="button" class="btn" id="rpBench">Back to the bench</button>`
     :`<button type="button" class="btn pri" id="rpBench">Back to the bench</button>${!c||S.career&&S.career.jobs[c.id]?`<button type="button" class="btn" id="rpAgain">Fire another</button>`:""}${c?`<button type="button" class="btn" id="rpBoard">Work orders</button>`:""}`;
   $("rpBody").innerHTML=`
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
       <span class="site">Aqsor Range · Site 41 · ${esc(fly?"Launch rail":c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
-      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
+      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. ${L.daily?`D${c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`}</span></h2>
       <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${fly?"launch":"motor"} ${L.n}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
-    ${broke}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
+    ${broke}${dl}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
@@ -117,5 +122,7 @@ function initReport(){
     else if(b.id==="rpBench"){showScreen("design");drawAll();}
     else if(b.id==="rpAgain"){showScreen("design");drawAll();toStand();}
     else if(b.id==="rpBoard")openBoard();
-    else if(b.id==="rpLog")openLogbook();});
+    else if(b.id==="rpLog")openLogbook();
+    else if(b.id==="rpShare")shareDaily();
+    else if(b.id==="rpTitle"){renderTitle();showScreen("title");}});
   addEventListener("resize",()=>{if(!$("report").hidden)drawReportChart();});}

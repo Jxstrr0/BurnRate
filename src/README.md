@@ -17,6 +17,7 @@
 | `data/contracts.js` | `GRADING`, `STANDS` (with range fees and load cells), `CONTRACTS`: the work orders (tiers 1 to 3) with pay, days, repeats and a solution design |
 | `data/career.js` | `CAREER` (money, prices, pay, reputation, late cut, limits), `FACILITIES` (blockhouse instruments, Stand 2, the conditioning hut, Stand 1) |
 | `data/flight.js` | `FLIGHT` (the launch rail, wind, air and drag numbers), `BODIES`, `NOSES`, `FINS`: the rocket parts for flight jobs |
+| `data/daily.js` | `DAILY`: the Daily Spec's epoch, kit pool, reference motor ranges, spec band widths, orders and clients |
 | `sim/levelset.js` | level-set cross-sections (star, slotted, finocyl fins, moonburner): the port's exact signed distance on a grid, then area, perimeter and port tables against web distance |
 | `sim/grain.js` | `buildGrain`: burning area, volume and port against web distance (analytic shapes, or level-set segments) |
 | `sim/nozzle.js` | isentropic nozzle, `thrustCoef` with separation, `chokedFrac`, `nozzleEta` |
@@ -27,6 +28,7 @@
 | `sim/grade.js` | `SPEC_INFO`, `specCheck`, `grade` (A, B, C or fail; a flight job grades the flown apogee), `preFire` (stand fit, load cell, part tiers) |
 | `sim/flight.js` | flight tests: `rocketOf`, `defaultAirframe`, `airframeCost`, `fly` (point mass, drag, Mach, wind), `predictFlight`, `preLaunch`, `windOf`, `launch` |
 | `sim/career.js` | the career's rules, pure: `newCareer`, `slotTemp`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed` |
+| `sim/daily.js` | the Daily Spec, pure: `dailyNo`, `dailySpec` (kit, order, hidden reference motor, spec, all from the date), `kitCheck`, `inKit` |
 | `sim/close.js` | `return SIM;})();` and `module.exports` for node |
 | `html/ld-sim.html` | loading bar step |
 | `vis/open.js` | opens the drawing `<script>` and `const BURN_VIS=(()=>{` |
@@ -49,6 +51,7 @@
 | `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control; `showScreen` |
 | `app/game.js` | `GAME` (what's on the bench), taking a job, the bench's bottom bar, pre-fire checks, the slot sheet and bill, `startFiring` (fire, grade, settle, log), `replayFiring` |
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |
+| `app/daily.js` | the Daily Spec's app side: today's order sheet, best grade and marks, the streak, sharing, the title button |
 | `app/firing.js` | the stand screen: countdown, live strip chart and gauges, the Abort button, the 3D or 2D stand, the slow-motion replay |
 | `app/report.js` | the range report / incident report: cause, factors, where-to-fix, the bill, Ruslan Abenov's sign-off |
 | `app/debug.js` | the `?debug=1` bench: reference motors, predicted curves, data sheet |

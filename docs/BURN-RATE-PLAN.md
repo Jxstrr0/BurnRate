@@ -22,6 +22,9 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 13 Nov 2026 | Daily Spec tries | **Unlimited, best kept**: fire the day's spec as often as you like; the phone keeps the best grade of the day and how many firings it took |
+| 13 Nov 2026 | Daily Spec parts | **A fixed kit per day**: each day's spec comes with its own parts list, the same for everyone and independent of the career |
+| 13 Nov 2026 | Tier 4 lot testing | **4 of 5 must pass**: a tender fires five motors from one design; one failure is allowed but cuts the pay, two lose the tender |
 | 13 Nov 2026 | 3D launches | **Full 3D flight**: a launch plays in the 3D range too. The rocket stands on the launch rail, lifts off with its plume and smoke trail, and the camera chases it all the way to apogee over the salt flat. The 2D sky view stays as the fallback for phones without WebGL |
 | 13 Nov 2026 | 3D camera | **Both**: set shots by default (tap to switch: blockhouse window, side on, nozzle close-up; for a launch: pad, chase, downrange), and dragging orbits the camera round the stand until the next tap |
 | 13 Nov 2026 | Sound default | **On, with a mute**: sound and vibration start on; a speaker button on the firing screen mutes both, remembered in `brn-settings` |

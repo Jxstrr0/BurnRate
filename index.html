@@ -236,6 +236,9 @@ p{margin:0 0 .7em}
 .wo p{font-size:.95rem}
 .wo-spec{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:4px;font-size:.92rem}
 .wo-spec b{font-weight:600;color:var(--ink)}
+/* the Daily Spec's order sheet (app/daily.js) */
+.dl-h{font-size:1rem;margin:4px 0 4px}
+.dl-kit{list-style:none;padding:0;margin:0 0 10px;display:grid;gap:3px;font-size:.9rem}
 .stamp{display:inline-block;font:400 1rem/1 var(--sign);letter-spacing:.06em;text-transform:uppercase;padding:5px 9px 4px;border:2px solid currentColor;border-radius:4px;transform:rotate(-4deg);flex:none}
 .stamp.pass{color:var(--good)}.stamp.fail{color:var(--stencil)}
 .stamp.big{font-size:1.5rem;padding:7px 12px 5px;border-width:3px}
@@ -838,6 +841,36 @@ const FINS={
   long:{name:"Four long-chord fins",cd:0.24,maxLD:30,mass:0.14,cost:60,tier:3,note:"For long, thin boosters."}
 };
 Object.assign(SIM,{FLIGHT,BODIES,NOSES,FINS});
+/* ===================== data/daily.js: the Daily Spec's tables (stage 8) =====================
+   The Daily Spec is one work order a day, the same on every phone, built by sim/daily.js from the date alone. Kelbo's
+   rules (13 November 2026): unlimited firings with the best grade kept, and a fixed kit of parts per day that doesn't
+   depend on the career. These tables say what a day can be:
+     epoch     the date of Daily Spec No. 1
+     kit       the parts a kit draws from: how many grades, extra grain shapes and case materials it offers (BATES is in
+               every kit; liners, throats, closures and igniters are all open)
+     size      the reference motor's ranges: bores (mm) with the wall per case material, segments and lengths, the peak
+               pressure (MPa) it is tuned to, the expansion ratio, and how far past the weak-igniter line its igniter sits
+     band      each criterion's half-width as a share of the reference's value (a two-sided band) or the margin for a
+               one-sided limit, and what to round the numbers to
+     orders    the kinds of order: which criteria, and the brief's wording ({client} is filled in)
+     clients   who orders it */
+const DAILY={
+  epoch:"2026-11-13",
+  kit:{props:["tr2","swift9","tr5","clearsky"],nProps:2,shapes:["tube","end","star","slots"],nShapes:2,cases:["phenolic","mild","al6061","cromo"],nCases:2},
+  size:{bores:[29,35,44],wall:{phenolic:2.6,mild:1.6,al6061:1.6,cromo:1.4},segs:[1,4],segLen:[38,70],tubeLen:[70,160],endLen:[30,70],
+    core:[0.32,0.48],ignMargin:1.4,pMPa:[2.6,4.6],eps:[3.5,6],stand:"s3",tries:40},
+  band:{I:{w:0.14,r:5},Fav:{w:0.15,r:1},tb:{w:0.18,r:0.05},mass:{up:0.08,r:5},Pmax:{up:0.2,r:0.1},prog:{w:0.16,r:0.05}},
+  orders:[
+    {spec:["I","tb"],title:"A motor for the weekend",brief:"{client} flies on Saturday and needs a batch they can trust: the right impulse, burning for the right time."},
+    {spec:["Fav","I"],title:"Match the label",brief:"{client} is printing the label before the motor exists. Average thrust and total impulse have to match it."},
+    {spec:["Fav","tb"],title:"A steady push",brief:"{client} wants a set push for a set time: average thrust and burn time, nothing else."},
+    {spec:["I","mass"],title:"Light and strong",brief:"{client} counts every gram. The impulse they asked for, and the motor no heavier than the limit."},
+    {spec:["Fav","Pmax"],title:"Easy on the hardware",brief:"{client} reuses its cases, so the peak pressure has a ceiling. The thrust still has to be there."},
+    {spec:["I","prog"],title:"Shape the curve",brief:"{client} has a flight profile that wants a particular curve: the impulse, and thrust that ends where it should against where it started."}],
+  clients:["The Aqsor Steppe Rocketry Club","Dala Hobby Supply","The Kumtal Weather Service","Saryk Polytechnic","Bürkit Aerospace",
+    "A film crew from the capital","The range's own instrument team","A university balloon group","Tengri Model Works","An old programme engineer, retired"]
+};
+Object.assign(SIM,{DAILY});
 /* ===================== sim/levelset.js: level-set grain cross-sections (plan section 6.2) =====================
    For the shapes with no closed form (star, slotted, finocyl fins, moonburner) the grain's cross-section is laid on a
    square grid (TUNING.lsGrid cells across the grain), and every cell gets its exact signed distance from the port's edge
@@ -1665,6 +1698,87 @@ function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}
 Object.assign(SIM,{newCareer,slotTemp,buildCost,firingCost,contractById,basePay,board,canTake,takeJob,dropJob,lateShare,canAfford,isBroke,
   restartTier,settle,canBuy,owns,buy,logFiring,fireSeed});
+/* ===================== sim/daily.js: the Daily Spec (stage 8) =====================
+   dailySpec("YYYY-MM-DD") builds the day's work order from the date alone, so every phone gets the same one:
+     1. a kit of parts (data/daily.js): two grades, BATES plus two more grain shapes, two case materials; tier 1-2 liners
+        and throats, every closure and igniter
+     2. an order (which criteria) and a client, and the firing slot (dawn, noon or dusk), which sets the grain temperature
+     3. a hidden reference motor built from the kit: random sizes, the throat tuned to a target pressure, the igniter and
+        liner sized, and kept only if it fits Stand 3 and raises no warning at all
+     4. the spec: each criterion's band centred on what the predictor says the reference does at the slot's temperature
+   So every day is solvable with that day's parts, and the reference fires inside its own bands nearly always (the test in
+   tools/sim-tests/daily.js fires a month of days to check). The returned contract has the usual shape (sim/grade.js
+   grades it) plus daily (the date), no (Daily Spec number), kit, and solution (the reference, for the tests only).
+   kitCheck(kit, design) lists the parts of a design that aren't in the kit, each with the field to change.
+   No Date here (the sim stays pure): the app passes the phone's local date as a string. */
+/* days since 1970-01-01 for a calendar date (Howard Hinnant's days_from_civil) */
+function civilDays(y,m,d){y-=m<=2?1:0;const era=Math.floor(y/400),yoe=y-era*400,doy=Math.floor((153*(m+(m>2?-3:9))+2)/5)+d-1,
+  doe=yoe*365+Math.floor(yoe/4)-Math.floor(yoe/100)+doy;return era*146097+doe-719468;}
+const parseYMD=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));return m?[+m[1],+m[2],+m[3]]:null;};
+/* Daily Spec No. 1 is DAILY.epoch */
+function dailyNo(date){const a=parseYMD(date),e=parseYMD(DAILY.epoch);return a?civilDays(...a)-civilDays(...e)+1:0;}
+const pickN=(r,arr,n)=>{const a=arr.slice(),out=[];while(out.length<n&&a.length)out.push(a.splice(Math.floor(r.next()*a.length),1)[0]);return out;};
+const tierOk=tab=>Object.keys(tab).filter(k=>(tab[k].tier||1)<=2);
+function dailyKit(r){const K=DAILY.kit;
+  return{props:pickN(r,K.props,K.nProps),shapes:["bates"].concat(pickN(r,K.shapes,K.nShapes)),cases:pickN(r,K.cases,K.nCases),
+    liners:tierOk(LINERS),throats:tierOk(THROATS)};}
+/* round to a step that is fine enough for the band's width */
+const niceRound=(v,step,width)=>{const s=width<4*step?step/5:step;return Math.round(v/s)*s;};
+const fix3=v=>Math.round(v*1000)/1000;
+/* the hidden reference motor; null if none of the tries came out clean (the tests check that never happens) */
+function dailyRef(r,kit,tGrain,stand){
+  const Z=DAILY.size,shapes=kit.shapes.filter(s=>!GRAIN_SHAPES[s].ls),r1=v=>Math.round(v*10)/10;
+  const clean=p=>p.ok&&!p.sum.warnings.length&&p.motor.length*1000<=stand.len&&p.motor.diameter*1000<=stand.dia&&p.sum.Fmax<=stand.cell;
+  for(let k=0;k<Z.tries;k++){
+    const shape=r.pick(shapes),mat=r.pick(kit.cases),prop=r.pick(kit.props),id=r.pick(Z.bores),liner=kit.liners.includes("rubber")&&r.chance(0.4)?"rubber":"paper";
+    const linerThk=liner==="rubber"?1.5:1.0,od=id-2*linerThk;
+    const g={prop,shape,segs:1,segLen:0,coreD:0};
+    if(shape==="bates"){g.segs=r.int(Z.segs[0],Z.segs[1]);g.segLen=Math.round(r.float(Z.segLen[0],Z.segLen[1]));}
+    else if(shape==="tube")g.segLen=Math.round(r.float(Z.tubeLen[0],Z.tubeLen[1]));
+    else g.segLen=Math.round(r.float(Z.endLen[0],Z.endLen[1]));
+    if(shape!=="end")g.coreD=r1(od*r.float(Z.core[0],Z.core[1]));
+    const d=normDesign({grain:g,case:{mat,id,wall:Z.wall[mat],liner,linerThk,closure:"ring",bolts:6},
+      nozzle:{mat:kit.throats.includes("graphite")?"graphite":kit.throats[0],throatD:shape==="end"?r1(od*0.12):r1(g.coreD*0.6),exitD:0,half:15},igniter:"s"});
+    /* tune the throat towards the target peak pressure: Pc goes as Kn^(1/(1-n)), so the throat scales as P^((1-n)/2) */
+    const pT=r.float(Z.pMPa[0],Z.pMPa[1])*1e6,n=PROPELLANTS[prop].n,maxT=shape==="end"?od-1:g.coreD-0.5,eps=r.float(Z.eps[0],Z.eps[1]);
+    let ok=true;
+    for(let it=0;it<4;it++){d.nozzle.exitD=r1(d.nozzle.throatD*Math.sqrt(eps));
+      const p=predict(d,{tGrain},{steps:110});if(!p.ok){ok=false;break;}
+      d.nozzle.throatD=r1(Math.max(1.5,Math.min(maxT,d.nozzle.throatD*Math.pow(p.sum.Pmax/pT,(1-n)/2))));}
+    if(!ok)continue;
+    d.nozzle.exitD=r1(d.nozzle.throatD*Math.sqrt(eps));
+    /* the smallest igniter that lights it cleanly, and a thicker liner if the burn needs one */
+    let best=null;
+    for(const ig of Object.keys(IGNITERS)){d.igniter=ig;const p=predict(d,{tGrain},{steps:110});if(!p.ok)break;
+      const keys=p.sum.warnings.map(w=>w.key);if(keys.includes("liner")&&d.case.linerThk<3){d.case.linerThk+=1;}
+      if(p.sum.ign.strength>=TUNING.ignWeak*Z.ignMargin&&!keys.includes("spike")){best=ig;break;}}
+    if(!best)continue;
+    d.igniter=best;
+    const p=predict(d,{tGrain});
+    if(clean(p))return{design:d,pred:p};}
+  return null;}
+function dailySpec(date){
+  const R=rngStreams("daily/"+date),r=R.get("spec"),stand=STANDS[DAILY.size.stand];
+  const kit=dailyKit(R.get("kit")),order=r.pick(DAILY.orders),client=r.pick(DAILY.clients),slot=r.pick(["dawn","noon","dusk"]);
+  const tGrain=SLOTS[slot].tGrain,ref=dailyRef(R.get("reference"),kit,tGrain,stand);
+  if(!ref)return null;
+  const s=ref.pred.sum,m=ref.pred.motor;
+  const spec=order.spec.map(k=>{const B=DAILY.band[k],v=specValue(k,s,m);
+    if(B.w){const w=v*B.w;return{k,lo:fix3(niceRound(v-w,B.r,w)),hi:fix3(niceRound(v+w,B.r,w))};}
+    const w=v*B.up;return{k,hi:fix3(niceRound(v+w,B.r,w))};});
+  const start=clone(DEFAULT_DESIGN);start.grain.prop=kit.props[0];start.case.mat=kit.cases[0];start.case.wall=DAILY.size.wall[kit.cases[0]];
+  return{id:"daily",daily:date,no:dailyNo(date),client,title:order.title,brief:order.brief.replace("{client}",client),tier:2,stand:DAILY.size.stand,
+    slot,pay:0,days:1,spec,kit,start,solution:ref.design};}
+const clone=o=>JSON.parse(JSON.stringify(o));
+const KIT_PARTS=[["grain.prop","props",PROPELLANTS,"grade"],["grain.shape","shapes",GRAIN_SHAPES,"grain shape"],["case.mat","cases",CASES,"case material"],
+  ["case.liner","liners",LINERS,"liner"],["nozzle.mat","throats",THROATS,"throat material"]];
+function kitCheck(kit,d){const out=[];
+  for(const[f,k,tab,what]of KIT_PARTS){const v=f.split(".").reduce((o,x)=>o[x],d);
+    if(!kit[k].includes(v))out.push({field:f,text:`${tab[v]?tab[v].name:v} isn't in today's kit. Pick a ${what} from the kit.`});}
+  return out;}
+/* is part id in the kit for this design field? (the bench greys out the rest) */
+const inKit=(kit,field,id)=>{const p=KIT_PARTS.find(x=>x[0]===field);return!p||kit[p[1]].includes(id);};
+Object.assign(SIM,{dailyNo,dailySpec,dailyKit,kitCheck,inKit});
 return SIM;
 })();
 if(typeof module!=="undefined")module.exports=BURN_SIM;
@@ -2517,7 +2631,7 @@ return{unlock,setOn,stop,beep,click,chirp,bang,buzz,canBuzz,motor:{start:motorSt
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.8.0.0";
+const VERSION="0.8.1.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -2707,19 +2821,19 @@ function settingsSheet(){
    S is everything Burn Rate keeps for a player:
      S = {v, career (sim/career.js's object, plus career.designs: the bench's design per job) | null,
           free (the free bench's design) | null, freeN (free firings so far, so each one rolls new dice), lastBackup (ms),
-          hutT (the conditioning hut's setting, °C)}
+          hutT (the conditioning hut's setting, °C), daily and dailyHist (the Daily Spec, app/daily.js)}
    save() writes it to "brn-save" (debounced, and at once when the page hides). The three slots "brn-slot1".."brn-slot3"
    hold copies the player saves by hand, each with savedAt. Settings stay apart in "brn-settings" (this phone only).
    hydrate(o) checks a save's shape and runs the migrations before it becomes S; it returns false for anything it can't
    load, and leaves S alone then. Every storage call is in try/catch; nothing outside "brn-" is ever touched. */
 const SAVE_V=1,SAVE_KEY="brn-save",SLOTS=3,slotKey=i=>"brn-slot"+i;
-const freshSave=()=>({v:SAVE_V,career:null,free:null,freeN:0,lastBackup:0,hutT:20});
+const freshSave=()=>({v:SAVE_V,career:null,free:null,freeN:0,lastBackup:0,hutT:20,daily:null,dailyHist:{}});
 let S=freshSave();
 /* MIGRATE[v](o) turns a version-v save into a version v+1 one. None yet: SAVE_V is 1. */
 const MIGRATE={};
 const isObj=o=>!!o&&typeof o==="object"&&!Array.isArray(o);
 const isNum=v=>typeof v==="number"&&isFinite(v);
-function snapshot(){return JSON.parse(JSON.stringify({v:SAVE_V,career:S.career,free:S.free,freeN:S.freeN|0,lastBackup:S.lastBackup||0,hutT:S.hutT}));}
+function snapshot(){return JSON.parse(JSON.stringify({v:SAVE_V,career:S.career,free:S.free,freeN:S.freeN|0,lastBackup:S.lastBackup||0,hutT:S.hutT,daily:S.daily,dailyHist:S.dailyHist}));}
 /* is this a career object the game can run? (the shape newCareer makes) */
 function careerOk(c){
   if(!isObj(c))return false;
@@ -2729,15 +2843,20 @@ function careerOk(c){
   if("designs"in c&&!isObj(c.designs))return false;
   for(const id in c.jobs){const j=c.jobs[id];if(!isObj(j)||!isNum(j.due)||!isNum(j.pay)||!isNum(j.n))return false;}
   return true;}
+/* the Daily Spec's state (app/daily.js): today's run and the last 60 days' best grades */
+function dailyOk(o){return o==null||isObj(o)&&/^\d{4}-\d{2}-\d{2}$/.test(o.date)&&isNum(o.n)&&isNum(o.bestN)&&typeof o.marks==="string"&&
+  (o.best==null||/^[ABC]$/.test(o.best))&&isObj(o.design)&&designOk(o.design);}
+function dailyHistOk(h){if(h==null)return true;if(!isObj(h))return false;
+  for(const k in h){const e=h[k];if(!/^\d{4}-\d{2}-\d{2}$/.test(k)||!isObj(e)||!isNum(e.n)||!(e.l==null||/^[ABC]$/.test(e.l)))return false;}return true;}
 function designOk(d){return d==null||isObj(d)&&isObj(d.grain)&&isObj(d.case)&&isObj(d.nozzle)&&typeof d.igniter==="string";}
 function hydrate(o){
   if(!isObj(o)||!isNum(o.v)||o.v>SAVE_V||o.v<1)return false;
   o=JSON.parse(JSON.stringify(o));
   for(let v=o.v;v<SAVE_V;v++){if(!MIGRATE[v])return false;o=MIGRATE[v](o);o.v=v+1;}
   if(o.career!=null&&!careerOk(o.career))return false;
-  if(!designOk(o.free))return false;
+  if(!designOk(o.free)||!dailyOk(o.daily)||!dailyHistOk(o.dailyHist))return false;
   if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
-  S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0,hutT:isNum(o.hutT)?o.hutT:20});
+  S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0,hutT:isNum(o.hutT)?o.hutT:20,daily:o.daily||null,dailyHist:o.dailyHist||{}});
   return true;}
 function readKey(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return isObj(o)?o:null;}catch(e){return null;}}
 function loadSave(){const o=readKey(SAVE_KEY);if(o&&!hydrate(o))toast("The save on this phone couldn't be read. Restore a backup from Saves.",5000);}
@@ -3076,7 +3195,7 @@ function ctlHtml(c,d){
   if(c.type==="info")return c.html(d);
   const v=getF(d,c.f),lab=`<button type="button" class="gl" data-g="${c.g}">${esc(c.label)}</button>`;
   if(c.type==="pick")return`<fieldset class="ctl pick" data-field="${c.f}"><legend>${lab}</legend>${Object.entries(c.items).map(([id,it])=>
-    `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${it.tier>1?`<span class="tag${inCareer()&&it.tier>S.career.tier?" lock":""}">Tier ${it.tier}${inCareer()&&it.tier>S.career.tier?" · locked":""}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
+    `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${isDaily()?BURN_SIM.inKit(GAME.contract.kit,c.f,id)?"":`<span class="tag lock">Not in today's kit</span>`:it.tier>1?`<span class="tag${inCareer()&&it.tier>S.career.tier?" lock":""}">Tier ${it.tier}${inCareer()&&it.tier>S.career.tier?" · locked":""}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
   if(c.type==="seg")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}</div><div class="segbar" role="group">${c.opts.map(([id,n])=>
     `<button type="button" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}" class="${id===v?"on":""}">${esc(n)}</button>`).join("")}</div></div>`;
   if(c.type==="step")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}<span class="val mono">${v}</span></div><div class="stepper">
@@ -3310,7 +3429,7 @@ const fmtSpec=(k,v)=>{const i=BURN_SIM.SPEC_INFO[k];return(+v).toFixed(k==="I"&&
 /* money: "2 500 cr", "−1 200 cr" (a thin space between thousands, a real minus sign) */
 function fmtCr(v){v=Math.round(+v||0);return(v<0?"−":"")+String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" cr";}
 /* the bench's design is the saved object itself, so edits save with save() */
-function setDesign(d){DZ.d=d;if(inCareer()&&GAME.contract)S.career.designs[GAME.contract.id]=d;else if(!inCareer())S.free=d;save();}
+function setDesign(d){DZ.d=d;if(inCareer()&&GAME.contract)S.career.designs[GAME.contract.id]=d;else if(isDaily())dailyState(GAME.contract).design=d;else if(!inCareer())S.free=d;save();}
 function benchOpen(c,design,tGrain,predSlot){GAME.contract=c;DZ.d=design;DZ.tGrain=tGrain;DZ.predSlot=predSlot;openDesigner();}
 /* open the bench on a job in hand (taking it first if it's still on the board) */
 function takeContract(id){
@@ -3330,7 +3449,7 @@ function drawGo(){
   else checks=`<span class="ck">Free design, no client</span>`;
   $("dzGo").innerHTML=`<div class="go-l"><button type="button" class="temp mono" id="dzTemp"${locked?" disabled":""} aria-label="Predict at ${tl}${locked?" (this contract fires then)":", tap to change"}">${esc(tl)}${locked?"":" ▾"}</button><div class="cks">${checks}</div></div>
     <button type="button" class="btn pri" id="dzFire">${c?c.flight?"To the rail":"To the stand":"Test fire"} ›</button>`;
-  $("dzSite").textContent=c?c.title:"Stand 3 · Design bench";}
+  $("dzSite").textContent=c?(c.daily?`Daily Spec No. ${c.no} · `:"")+c.title:"Stand 3 · Design bench";}
 function cycleTemp(){
   const list=["ref"].concat(slotChoices()),i=list.indexOf(DZ.predSlot),nx=list[(i+1)%list.length];
   DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
@@ -3346,6 +3465,7 @@ function toStand(){
   const r=DZ.res;if(!r)return;
   const fixList=list=>list.map(e=>{const c=ctlSpec(e.field);return`<li><p>${esc(e.text)}</p>${c?`<button type="button" class="btn sm" data-fix="${e.field}">Go to ${esc(c.label.toLowerCase())}</button>`:""}</li>`;}).join("");
   if(!r.ok){openSheet("Not buildable",`<p>This motor can't be built yet.</p><ul class="fixes">${fixList(r.errors)}</ul>`);return;}
+  if(isDaily()){const kc=BURN_SIM.kitCheck(GAME.contract.kit,DZ.d);if(kc.length){openSheet("Not in today's kit",`<ul class="fixes">${fixList(kc)}</ul>`);return;}}
   const pf=BURN_SIM.preFire(withStand(GAME.contract),DZ.d,r.motor,{sum:r.sum,tier:inCareer()?S.career.tier:null});
   if(pf.length){openSheet(isFlight()?"The range won't launch it":"It won't go on the stand",`<ul class="fixes">${fixList(pf)}</ul>`);return;}
   if(isFlight()){const pl=flightChecks().crit;if(pl.length){openSheet("The range won't launch it",`<ul class="fixes">${fixList(pl)}</ul>`);return;}}
@@ -3402,13 +3522,22 @@ function startFiring(slot){
       fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late});
     save(true);
     GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker};
+  }else if(isDaily()){
+    /* the Daily Spec: free to fire, the best grade kept (app/daily.js) */
+    const before={daily:clone(dailyState(c)),hist:S.dailyHist&&S.dailyHist[c.daily]?clone(S.dailyHist[c.daily]):null};
+    const n=S.daily.n+1,seed=`daily/${c.daily}/${n}`,f=BURN_SIM.fire(d,{tGrain:tG},seed);if(!f.ok){toast("This motor can't be built.");return;}
+    const g=BURN_SIM.grade(c,f),st=dailyRecord(c,g);save(true);
+    GAME.last={f,g,c,slot,tGrain:tG,n,key:"daily",no:n,design:d,bunker:1,daily:{before,best:st.best,bestN:st.bestN,isBest:g.pass&&st.bestN===n}};
   }else{
     const n=(S.freeN|0)+1;S.freeN=n;save();
     const f=BURN_SIM.fire(d,{tGrain:tG},"free/"+n);if(!f.ok){S.freeN=n-1;toast("This motor can't be built.");return;}
     GAME.last={f,g:null,c:null,slot,tGrain:tG,n,key:"free",no:n,design:d,bunker:1};}
   openFiring();}
 function undoFiring(){const L=GAME.last;if(!L)return;
-  if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;}else S.freeN=Math.max(0,(S.freeN|0)-1);
+  if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;}
+  else if(L.daily){const b=L.daily.before,design=S.daily.design;S.daily=b.daily;S.daily.design=design;
+    if(b.hist)S.dailyHist[b.daily.date]=b.hist;else delete S.dailyHist[b.daily.date];}
+  else S.freeN=Math.max(0,(S.freeN|0)-1);
   save(true);GAME.last=null;}
 /* a logbook entry's report: the same motor, conditions and seed fire the same, so the report comes back exactly */
 function replayFiring(e){
@@ -3416,7 +3545,7 @@ function replayFiring(e){
   GAME.last={f,g:c?BURN_SIM.grade(c,f):null,c,slot:e.slot,tGrain:tG,n:e.n,key:e.key,no:e.no,design:e.design,entry:e,replay:true,bunker:e.rate>=BURN_SIM.CAREER.logRate[1]?1:0};
   openReport();}
 /* ===================== app/career.js: the title, the work orders, facilities, the logbook and saves (stage 4) =====================
-   The title offers Continue (the career on this phone), New career, Free design and Saves. The board shows the startup's
+   The title offers Continue (the career on this phone), New career, the Daily Spec (app/daily.js), Free design and Saves. The board shows the startup's
    day, money and reputation, the jobs in hand (with their deadlines) and the work orders on offer; facilities (the
    blockhouse instruments, the Stand 2 lease) sit under it. The logbook lists every firing; tapping one fires the same
    motor again from its seed, so its report comes back exactly. Going broke offers a restart of the tier.
@@ -3429,7 +3558,7 @@ function renderTitle(){
   $("tActions").innerHTML=(c?`<button type="button" class="btn pri big" id="tCont"><span>Continue</span><small>${esc(c.name)} · day ${c.day} · ${fmtCr(c.money)}</small></button>
       <button type="button" class="btn big" id="tNew">New career</button>`
     :`<button type="button" class="btn pri big" id="tNew">New career</button>`)+
-    `<button type="button" class="btn big" id="tFree">Free design</button>
+    dailyTitleBtn()+`<button type="button" class="btn big" id="tFree">Free design</button>
     <button type="button" class="btn" id="tSaves">Saves and backups</button>
     <button type="button" class="btn" id="tSet">Settings</button>
     <p class="note">${c?"Your career saves on this phone as you play. Keep a backup somewhere else too.":"Run a two-person rocket startup on a leased state test stand: take work orders, design motors, fire them and get paid."}</p>`;}
@@ -3438,6 +3567,7 @@ function initTitle(){
     if(b.id==="tCont"){GAME.mode="career";openBoard();}
     else if(b.id==="tNew")newCareerSheet();
     else if(b.id==="tFree")freeDesign();
+    else if(b.id==="tDaily")openDaily();
     else if(b.id==="tSaves")savesSheet();
     else if(b.id==="tSet")settingsSheet();});}
 function newCareerSheet(){
@@ -3540,6 +3670,75 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");
   else if(d.slotLoad){const i=+d.slotLoad;if(!confirm(`Load slot ${i}? It replaces the game you're playing now${S.career?` (${S.career.name}, day ${S.career.day})`:""}.`))return;
     if(loadSlot(i)){closeSheet();applyLoaded(`Slot ${i} loaded`);}else toast("That slot couldn't be read.");}
   else if(d.slotClear){const i=+d.slotClear;if(confirm(`Clear slot ${i}?`)){clearSlot(i);savesSheet();}}});
+/* ===================== app/daily.js: the Daily Spec (stage 8) =====================
+   One work order a day, the same on every phone (sim/daily.js builds it from the date). Kelbo's rules (13 November 2026):
+   fire as many times as you like, the best grade is kept; the day's kit of parts is fixed and has nothing to do with the
+   career, so anyone can play it from the title, career or not. Firings are free: no money, no range days.
+   What it keeps, in the save (app/save.js):
+     S.daily     = {date, n (firings today), best ("A" "B" "C" or null), bestN (the firing that got it), marks (one
+                    character per firing: A, B, C or x for a fail), design (today's bench)}; a new date starts it over
+     S.dailyHist = {"YYYY-MM-DD": {l (best letter or null), n (firings)}}, the last 60 days, for the streak
+   The firing seed is "daily/<date>/<n>", so everyone's third firing of a day rolls the same dice.
+   Sharing sends a short text (the number, the grade, the run of marks) through the phone's share sheet, or copies it. */
+const DAILY_HIST_MAX=60,DAILY_URL="https://burnrate.longlight.games/";
+let DAILY_C=null;   // today's contract, built once per date (it takes a moment)
+/* the phone's own calendar date, "YYYY-MM-DD" */
+function todayStr(){const d=new Date(),p=n=>String(n).padStart(2,"0");return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+function dailyToday(){const t=todayStr();if(!DAILY_C||DAILY_C.daily!==t)DAILY_C=BURN_SIM.dailySpec(t);return DAILY_C;}
+const isDaily=()=>GAME.mode==="daily"&&!!(GAME.contract&&GAME.contract.daily);
+/* today's state, started over when the date has moved on */
+function dailyState(c){
+  if(!S.daily||S.daily.date!==c.daily)S.daily={date:c.daily,n:0,best:null,bestN:0,marks:"",design:clone(c.start)};
+  return S.daily;}
+const LETTER_RANK={A:3,B:2,C:1};
+/* after a firing: count it, keep the best grade, and note the day in the history */
+function dailyRecord(c,g){
+  const st=dailyState(c);st.n++;st.marks=(st.marks+(g.pass?g.letter:"x")).slice(-40);
+  if(g.pass&&(LETTER_RANK[g.letter]||0)>(LETTER_RANK[st.best]||0)){st.best=g.letter;st.bestN=st.n;}
+  S.dailyHist=S.dailyHist||{};S.dailyHist[c.daily]={l:st.best,n:st.n};
+  const keys=Object.keys(S.dailyHist).sort();while(keys.length>DAILY_HIST_MAX)delete S.dailyHist[keys.shift()];
+  return st;}
+/* days in a row with a pass, counting back from today (or from yesterday, if today has no pass yet) */
+function dailyStreak(){
+  const h=S.dailyHist||{},d=new Date();let n=0;
+  const key=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
+  if(!(h[key(d)]&&h[key(d)].l))d.setDate(d.getDate()-1);
+  while(h[key(d)]&&h[key(d)].l){n++;d.setDate(d.getDate()-1);}
+  return n;}
+const KIT_NAMES=c=>[["Grades",c.kit.props,BURN_SIM.PROPELLANTS],["Grain shapes",c.kit.shapes,BURN_SIM.GRAIN_SHAPES],["Case materials",c.kit.cases,BURN_SIM.CASES],
+  ["Liners",c.kit.liners,BURN_SIM.LINERS],["Throats",c.kit.throats,BURN_SIM.THROATS]];
+/* the order sheet: the brief, the spec, the kit and how today is going */
+function dailySheet(first){
+  const c=dailyToday();if(!c){toast("Today's order didn't come together. Try again tomorrow.",4000);return;}
+  const st=dailyState(c),sk=dailyStreak();
+  const kit=KIT_NAMES(c).map(([h,ids,tab])=>`<li><b>${h}:</b> ${ids.map(id=>esc(tab[id].name)).join(", ")}</li>`).join("");
+  const how=st.n?`<p class="hint">${st.best?`Best so far: <b>${st.best}</b>, on firing ${st.bestN}.`:"No pass yet."} ${st.n} firing${st.n>1?"s":""} today.${sk?` Streak: ${sk} day${sk>1?"s":""}.`:""}</p>`
+    :`<p class="hint">Fire as often as you like: the best grade is kept. Nobody pays and nothing costs.${sk?` Streak: ${sk} day${sk>1?"s":""}.`:""}</p>`;
+  openSheet(`Daily Spec No. ${c.no}`,`<div class="wo"><span class="site">${esc(c.client)}</span><h3>${esc(c.title)}</h3><p>${esc(c.brief)}</p>
+    ${specList(c)}</div><h3 class="dl-h">Today's kit</h3><ul class="dl-kit">${kit}<li>Every closure and igniter.</li></ul>
+    <p class="hint">Everyone gets the same order and the same kit today. A new one comes at midnight, your phone's time.</p>${how}
+    ${first?`<button type="button" class="btn pri big wide" id="dlGo">To the bench</button>`:`<div class="row">${st.n?`<button type="button" class="btn" id="dlShare">Share</button>`:""}<button type="button" class="btn pri" id="dlClose">Back to the bench</button></div>`}`);}
+function openDaily(){
+  const c=dailyToday();if(!c){toast("Today's order didn't come together. Try again tomorrow.",4000);return;}
+  const st=dailyState(c);save();
+  GAME.mode="daily";benchOpen(c,st.design,BURN_SIM.slotTemp(c.slot,c,20),c.slot);
+  dailySheet(true);}
+function shareDaily(){
+  const st=S.daily,c=dailyToday();if(!st||!c||st.date!==c.daily||!st.n)return;
+  const marks=st.marks.split("").map(m=>m==="x"?"✗":m).join(" ");
+  const text=`Burn Rate · Daily Spec No. ${c.no}\n${st.best?`Grade ${st.best} on firing ${st.bestN}`:`No pass in ${st.n} firing${st.n>1?"s":""}`}\n${marks}\n${DAILY_URL}`;
+  const copied=()=>toast("Copied. Paste it anywhere.");
+  if(navigator.share){navigator.share({text}).catch(()=>{});return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(copied,()=>toast(text,6000));return;}
+  toast(text,6000);}
+/* the title's button: the number, and how today is going */
+function dailyTitleBtn(){
+  const t=todayStr(),no=BURN_SIM.dailyNo(t),st=S.daily&&S.daily.date===t?S.daily:null;
+  const sub=st&&st.n?(st.best?`Best ${st.best} · ${st.n} firing${st.n>1?"s":""}`:`No pass yet · ${st.n} firing${st.n>1?"s":""}`):"Today's order, the same for everyone";
+  return`<button type="button" class="btn big" id="tDaily"><span>Daily Spec No. ${no}</span><small>${sub}</small></button>`;}
+document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
+  if(b.id==="dlGo"||b.id==="dlClose")closeSheet();
+  else if(b.id==="dlShare")shareDaily();});
 /* ===================== app/firing.js: the static firing screen (plan sections 4 and 9.2) =====================
    A countdown, then the stand and the live strip chart: the measured trace (red) draws over the prediction (blue) as
    the motor burns, with pressure, thrust and time gauges. Burns shorter than 2 s play slowed down and burns longer than
@@ -3682,6 +3881,7 @@ function initFiring(){
    the basic instruments only the batch and the case show (the Blockhouse instruments facility shows the rest).
    In a career the bill follows: the stand's fee, the motor's materials, the client's pay (grade and lateness) and the
    money left. A logbook entry's report (GAME.last.replay) is read-only.
+   A Daily Spec firing (GAME.last.daily) shows today's best and offers Share (app/daily.js).
    A launch (f.flight) adds the flight: height against time, predicted (no wind) and real, with apogee, top speed, the
    day's wind and where it landed; the motor's own curves follow as the onboard logger's data. */
 const STAMP={cato:"CATO",eject:"Nozzle lost",burnthrough:"Burn-through",hangfire:"Hang fire",chuff:"Chuffing",spec:"Spec miss",yield:"Case yielded"};
@@ -3744,16 +3944,20 @@ function renderReport(){
       ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
   else if(L.replay&&L.entry){const e=L.entry;bill=`<p class="rp-note mono">Day ${e.day} · cost ${fmtCr(e.cost)}${e.paid?` · paid ${fmtCr(e.paid)}`:""}${e.late?` · ${e.late} day${e.late>1?"s":""} late`:""}</p>`;}
   const broke=L.out&&S.career&&BURN_SIM.isBroke(S.career)?`<section class="card broke"><h3 class="sign">Out of money</h3><p>The bank won't pay for another motor. The work orders offer a restart of the tier.</p></section>`:"";
+  /* the Daily Spec: how today stands, and sharing it */
+  const dl=L.daily?`<section class="card rp-daily"><h3>Daily Spec No. ${c.no}</h3><p>${L.daily.isBest&&L.daily.bestN>1?"<b>A new best.</b> ":""}${L.daily.best?`Today's best: <b>${L.daily.best}</b>, on firing ${L.daily.bestN}.`:"No pass yet today. Fire again: only the best counts."}</p>
+    <p class="hint">${L.daily.best==="A"?"An A is as good as it gets. Share it, or keep firing for the fun of it.":"Fire as often as you like; the best grade is kept."}</p></section>`:"";
   const act=L.replay?`<button type="button" class="btn pri" id="rpLog">Back to the logbook</button>`
+    :L.daily?`<button type="button" class="btn pri" id="rpBench">Back to the bench</button><button type="button" class="btn" id="rpAgain">Fire another</button><button type="button" class="btn" id="rpShare">Share</button><button type="button" class="btn" id="rpTitle">Title</button>`
     :L.out&&L.out.done?`<button type="button" class="btn pri" id="rpBoard">Work orders</button><button type="button" class="btn" id="rpBench">Back to the bench</button>`
     :`<button type="button" class="btn pri" id="rpBench">Back to the bench</button>${!c||S.career&&S.career.jobs[c.id]?`<button type="button" class="btn" id="rpAgain">Fire another</button>`:""}${c?`<button type="button" class="btn" id="rpBoard">Work orders</button>`:""}`;
   $("rpBody").innerHTML=`
     <header class="rp-form"><div class="ghost" aria-hidden="true">АҚСОР · 41</div>
       <span class="site">Aqsor Range · Site 41 · ${esc(fly?"Launch rail":c?BURN_SIM.STANDS[c.stand].name:"Stand 3")}</span>
-      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. 41-${String(L.no).padStart(3,"0")}</span></h2>
+      <h2 class="sign">${fl&&fl.destructive?"Incident report":fly?"Flight report":"Range report"} <span class="mono">No. ${L.daily?`D${c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`}</span></h2>
       <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${fly?"launch":"motor"} ${L.n}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
-    ${broke}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
+    ${broke}${dl}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
       <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
@@ -3792,7 +3996,9 @@ function initReport(){
     else if(b.id==="rpBench"){showScreen("design");drawAll();}
     else if(b.id==="rpAgain"){showScreen("design");drawAll();toStand();}
     else if(b.id==="rpBoard")openBoard();
-    else if(b.id==="rpLog")openLogbook();});
+    else if(b.id==="rpLog")openLogbook();
+    else if(b.id==="rpShare")shareDaily();
+    else if(b.id==="rpTitle"){renderTitle();showScreen("title");}});
   addEventListener("resize",()=>{if(!$("report").hidden)drawReportChart();});}
 /* ===================== app/debug.js: the ?debug=1 page =====================
    A plain bench for checking the motor model: pick a reference motor and a grain temperature, see the predicted pressure

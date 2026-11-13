@@ -200,6 +200,9 @@ p{margin:0 0 .7em}
 .wo p{font-size:.95rem}
 .wo-spec{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:4px;font-size:.92rem}
 .wo-spec b{font-weight:600;color:var(--ink)}
+/* the Daily Spec's order sheet (app/daily.js) */
+.dl-h{font-size:1rem;margin:4px 0 4px}
+.dl-kit{list-style:none;padding:0;margin:0 0 10px;display:grid;gap:3px;font-size:.9rem}
 .stamp{display:inline-block;font:400 1rem/1 var(--sign);letter-spacing:.06em;text-transform:uppercase;padding:5px 9px 4px;border:2px solid currentColor;border-radius:4px;transform:rotate(-4deg);flex:none}
 .stamp.pass{color:var(--good)}.stamp.fail{color:var(--stencil)}
 .stamp.big{font-size:1.5rem;padding:7px 12px 5px;border-width:3px}

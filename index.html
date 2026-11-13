@@ -450,6 +450,10 @@ const TUNING={
   sepRatio:0.4,        // flow separates where nozzle wall pressure would fall under this x ambient (Summerfield)
   eroExp:0.8,          // throat erosion grows as (P/pRef)^eroExp
   headSpace:0.25,      // empty chamber ahead of the grain, as a fraction of grain diameter
+  lsGrid:256,          // level-set grains: grid cells across the grain's diameter
+  lsSmooth:4,          // level-set grains: the burning area is the port's growth measured over this many cells
+  lsWebMin:1.0,        // level-set grains: the thinnest propellant left at the wall, mm
+  eroMax:1.5,          // erosive burning: the burn rate gain never goes past this (plan section 6.5)
   segGap:2,            // gap between segments, mm
   closureThk:0.14,     // each closure's thickness as a fraction of bore diameter (for mass)
   closureRho:2700,     // closures are aluminium by default, kg/m³
@@ -460,6 +464,7 @@ const TUNING={
   ignWeak:0.45,        // strength under this: hang-fire risk (stage 3)
   sfWarn:1.5,          // case safety factor under this: warning
   ptWarn:2.0,          // port-to-throat area ratio under this: erosive-spike warning
+  eroWarn:1.05,        // an erosive gain on the burn rate over this: warning
   gWarn:1500,          // peak mass flux over this, kg/(m²·s): warning
   linerWarn:0.85,      // burn time over this x liner rating: warning
   spikeWarn:1.3,       // a start-up peak over this x the steady peak: the igniter is too big (warning)
@@ -482,23 +487,23 @@ Object.assign(SIM,{TUNING});
      sigmaP  temperature sensitivity of burn rate, per °C (a_eff = a·exp(sigmaP·(T − 20)))
      pMin    below this chamber pressure the burn is unstable (chuffing), MPa
      aVar    batch-to-batch burn rate spread (1 sd), fraction
-     kE      erosive burning gain, per (kg/m²s) above gTh (stage 5)
-     gTh     erosive threshold mass flux, kg/(m²·s) (stage 5)
+     kE      erosive burning gain, per (kg/m²s) of mass flux above gTh (sim/ballistics.js)
+     gTh     erosive threshold mass flux, kg/(m²·s)
      cost    per kg, in the game's money
      tier    career tier that unlocks it */
 const PROPELLANTS={
   "tr2":{name:"TR-2 Mule",maker:"State surplus",note:"Forgiving, low exponent. Slow and steady.",
-    rRef:5.0,n:0.30,rho:1700,cStar:1380,gamma:1.21,sigmaP:0.0016,pMin:0.55,aVar:0.025,kE:6e-5,gTh:1100,cost:40,tier:1},
+    rRef:5.0,n:0.30,rho:1700,cStar:1380,gamma:1.21,sigmaP:0.0016,pMin:0.55,aVar:0.025,kE:1.8e-4,gTh:1100,cost:40,tier:1},
   "swift9":{name:"Swift 9",maker:"Startup grade",note:"Fast and touchy. High exponent: small changes, big swings.",
-    rRef:9.0,n:0.52,rho:1660,cStar:1420,gamma:1.20,sigmaP:0.0030,pMin:0.9,aVar:0.040,kE:9e-5,gTh:900,cost:55,tier:1},
+    rRef:9.0,n:0.52,rho:1660,cStar:1420,gamma:1.20,sigmaP:0.0030,pMin:0.9,aVar:0.040,kE:2.7e-4,gTh:900,cost:55,tier:1},
   "tr5":{name:"TR-5 Dray",maker:"State surplus",note:"The workhorse. Middle of everything, plenty of it.",
-    rRef:7.0,n:0.38,rho:1760,cStar:1470,gamma:1.19,sigmaP:0.0020,pMin:0.7,aVar:0.020,kE:7e-5,gTh:1100,cost:70,tier:2},
+    rRef:7.0,n:0.38,rho:1760,cStar:1470,gamma:1.19,sigmaP:0.0020,pMin:0.7,aVar:0.020,kE:2.1e-4,gTh:1100,cost:70,tier:2},
   "clearsky":{name:"Clearsky HP",maker:"Startup grade",note:"High energy, but it feels the weather.",
-    rRef:8.0,n:0.42,rho:1780,cStar:1540,gamma:1.18,sigmaP:0.0036,pMin:0.8,aVar:0.030,kE:8e-5,gTh:1000,cost:120,tier:2},
+    rRef:8.0,n:0.42,rho:1780,cStar:1540,gamma:1.18,sigmaP:0.0036,pMin:0.8,aVar:0.030,kE:2.4e-4,gTh:1000,cost:120,tier:2},
   "tr9":{name:"TR-9 Ox",maker:"State surplus",note:"Dense, slow, very low exponent. Built for big boosters.",
-    rRef:4.0,n:0.24,rho:1820,cStar:1520,gamma:1.17,sigmaP:0.0012,pMin:0.6,aVar:0.012,kE:5e-5,gTh:1300,cost:95,tier:3},
+    rRef:4.0,n:0.24,rho:1820,cStar:1520,gamma:1.17,sigmaP:0.0012,pMin:0.6,aVar:0.012,kE:1.5e-4,gTh:1300,cost:95,tier:3},
   "steppefire":{name:"Steppefire X",maker:"Startup grade",note:"Very fast for boost phases. Respect the margins.",
-    rRef:14.0,n:0.48,rho:1740,cStar:1500,gamma:1.18,sigmaP:0.0026,pMin:1.0,aVar:0.030,kE:1e-4,gTh:900,cost:150,tier:3}
+    rRef:14.0,n:0.48,rho:1740,cStar:1500,gamma:1.18,sigmaP:0.0026,pMin:1.0,aVar:0.030,kE:3e-4,gTh:900,cost:150,tier:3}
 };
 Object.assign(SIM,{PROPELLANTS});
 /* ===================== data/materials.js: cases, liners, nozzles, closures, igniters =====================
@@ -539,11 +544,26 @@ const IGNITERS={
 Object.assign(SIM,{CASES,LINERS,THROATS,CLOSURES,IGNITERS});
 /* ===================== data/designs.js: the default design and the reference motors =====================
    A design is what the player edits, in friendly units (mm, counts, table ids). sim/motor.js turns it into SI.
-     grain   prop (PROPELLANTS id), shape ("bates" | "tube" | "end"), segs, segLen (mm), coreD (mm; ignored by "end")
+     grain   prop (PROPELLANTS id), shape (a GRAIN_SHAPES id), segs, segLen (mm), coreD (mm; ignored by "end"),
+             and for the level-set shapes: pts (star points, slots or fins), ptLen (how far they reach past the core, mm),
+             ptW (slot or fin width, mm), finLen (finocyl: the finned length at the aft end of each segment, mm),
+             offset (moonburner: how far the core sits off the axis, mm). Missing fields take GRAIN_DEFAULTS.
      case    mat (CASES id), id (bore, mm), wall (mm), liner (LINERS id), linerThk (mm), closure (CLOSURES id), bolts
      nozzle  mat (THROATS id), throatD (mm), exitD (mm), half (divergence half-angle, degrees)
      igniter IGNITERS id
    REF_DESIGNS are the yardstick motors tools/sim-test.js prints with --brief (keep them stable). */
+/* grain shapes: ls = level-set cross-section (sim/levelset.js); uses = the extra fields its controls show */
+const GRAIN_SHAPES={
+  bates:{name:"BATES",tier:1,ls:false,uses:[],note:"Cored segments, ends burning. Close to a flat curve."},
+  tube:{name:"Tube",tier:1,ls:false,uses:[],note:"One core, ends inhibited. The surface grows: a climbing curve."},
+  end:{name:"End burner",tier:1,ls:false,uses:[],note:"Burns from the back like a cigarette. Long and gentle."},
+  star:{name:"Star",tier:2,ls:true,uses:["pts","ptLen"],note:"A star-shaped port. Lots of surface at once: hard off the pad."},
+  slots:{name:"Slotted",tier:2,ls:true,uses:["pts","ptLen","ptW"],note:"A core with radial slots: tune the start without a shorter grain."},
+  finocyl:{name:"Finocyl",tier:3,ls:true,uses:["pts","ptLen","ptW","finLen"],note:"A plain core with fins at the aft end: a flat, long, big burn."},
+  moon:{name:"Moonburner",tier:3,ls:true,uses:["offset"],note:"The core sits off the axis: a long burn with a thick web on one side."}};
+const GRAIN_DEFAULTS={pts:6,ptLen:6,ptW:3,finLen:40,offset:4};
+/* fill in fields an older design (or a contract's design) doesn't have; changes d and returns it */
+function normDesign(d){if(d&&d.grain)for(const k in GRAIN_DEFAULTS)if(typeof d.grain[k]!=="number")d.grain[k]=GRAIN_DEFAULTS[k];return d;}
 const DEFAULT_DESIGN={
   grain:{prop:"tr2",shape:"bates",segs:2,segLen:48,coreD:10},
   case:{mat:"al6061",id:29,wall:1.5,liner:"paper",linerThk:1.0,closure:"ring",bolts:6},
@@ -558,7 +578,7 @@ const REF_DESIGNS={
   "54mm 4-seg BATES, Dray, steel throat":{grain:{prop:"tr5",shape:"bates",segs:4,segLen:80,coreD:20},case:{mat:"cromo",id:51,wall:2.0,liner:"rubber",linerThk:1.5,closure:"bolts",bolts:8},nozzle:{mat:"steel",throatD:14,exitD:36,half:15},igniter:"m"},
   "98mm 5-seg BATES, Ox, composite":{grain:{prop:"tr9",shape:"bates",segs:5,segLen:150,coreD:42},case:{mat:"composite",id:94,wall:3.0,liner:"ablative",linerThk:2.5,closure:"bolts",bolts:12},nozzle:{mat:"insert",throatD:28,exitD:60,half:15},igniter:"l"}
 };
-Object.assign(SIM,{DEFAULT_DESIGN,REF_DESIGNS});
+Object.assign(SIM,{GRAIN_SHAPES,GRAIN_DEFAULTS,normDesign,DEFAULT_DESIGN,REF_DESIGNS});
 /* ===================== data/variance.js: how a real firing differs from the prediction (plan section 7) =====================
    The predictor is the ideal motor. A firing is the same motor plus seeded deviations, each one something the incident
    report can name. sim/fire.js draws them, one named random stream per source, so adding a source never reshuffles the
@@ -698,6 +718,96 @@ const FACILITIES={
     note:"The medium stand: motors up to 900 mm long and 110 mm across, a 10 kN load cell. Opens tier 2 work and tier 2 parts."}
 };
 Object.assign(SIM,{CAREER,FACILITIES});
+/* ===================== sim/levelset.js: level-set grain cross-sections (plan section 6.2) =====================
+   For the shapes with no closed form (star, slotted, finocyl fins, moonburner) the port's cross-section is drawn on a
+   square grid (TUNING.lsGrid cells across the grain), and every propellant cell gets its distance from the port with an
+   exact Euclidean distance transform (Felzenszwalb and Huttenlocher's two-pass method). The burning surface after the
+   grain has burned back by web x is the contour where distance = x, so:
+     port area P(x)   = the port at the start plus every cell the contour has passed (each cell burns over one cell
+                        width, so the area grows smoothly, not in steps)
+     perimeter p(x)   = dP/dx (smoothed over about a cell)
+     propellant left  = the grain's area minus what has burned
+   lsTable(params) returns those three as tables against x, plus the distance map for the cross-section view.
+   A table only depends on the cross-section, so the last few are kept (the same key always gives the same table: the
+   memo doesn't change any result). A circle drawn this way matches the analytic tube (tools/sim-tests/levelset.js). */
+const LS_MEMO=[];
+/* the port's shape as an inside(x, y) test, in metres from the grain's axis. p: {shape, rc, pts, ptLen, ptW, offset} */
+function portTest(p){
+  const rc=p.rc;
+  if(p.shape==="star"){
+    /* a star polygon: the points' tips at rc + ptLen, the valleys between them at rc */
+    const vx=[],vy=[],n=p.pts;
+    for(let k=0;k<2*n;k++){const a=PI*k/n+PI/2,r=k%2?rc:rc+p.ptLen;vx.push(r*Math.cos(a));vy.push(r*Math.sin(a));}
+    return(x,y)=>{let ins=false;for(let i=0,j=vx.length-1;i<vx.length;j=i++)
+      if((vy[i]>y)!==(vy[j]>y)&&x<(vx[j]-vx[i])*(y-vy[i])/(vy[j]-vy[i])+vx[i])ins=!ins;return ins;};}
+  if(p.shape==="slots"){
+    /* the core plus radial slots of width ptW reaching out to rc + ptLen */
+    const n=p.pts,tip=rc+p.ptLen,hw=p.ptW/2,cs=[],sn=[];
+    for(let k=0;k<n;k++){const a=2*PI*k/n+PI/2;cs.push(Math.cos(a));sn.push(Math.sin(a));}
+    return(x,y)=>{if(x*x+y*y<=rc*rc)return true;
+      for(let k=0;k<n;k++){const u=x*cs[k]+y*sn[k],v=-x*sn[k]+y*cs[k];if(u>=0&&u<=tip&&Math.abs(v)<=hw)return true;}return false;};}
+  if(p.shape==="moon"){const o=p.offset;return(x,y)=>x*x+(y-o)*(y-o)<=rc*rc;}   // the core moved off the axis (upwards)
+  return(x,y)=>x*x+y*y<=rc*rc;}                                                   // a plain round core
+/* squared Euclidean distance transform along one line (f: 0 on the port, BIG elsewhere) */
+function edt1(f,n,d,v,z){
+  let k=0;v[0]=0;z[0]=-Infinity;z[1]=Infinity;
+  for(let q=1;q<n;q++){
+    let s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);
+    while(s<=z[k]){k--;s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);}
+    k++;v[k]=q;z[k]=s;z[k+1]=Infinity;}
+  k=0;for(let q=0;q<n;q++){while(z[k+1]<q)k++;d[q]=(q-v[k])*(q-v[k])+f[v[k]];}}
+/* the table for one cross-section. p: {shape, R, rc, pts, ptLen, ptW, offset} in metres */
+function lsTable(p){
+  const N=TUNING.lsGrid,key=[p.shape,p.R,p.rc,p.pts,p.ptLen,p.ptW,p.offset,N].join("|");
+  const hit=LS_MEMO.find(e=>e.key===key);if(hit)return hit.tab;
+  const R=p.R,c=2*R/N,inPort=portTest(p),BIG=1e10;
+  /* the grid: 0 outside the grain, 1 port, 2 propellant */
+  const kind=new Uint8Array(N*N),D=new Float64Array(N*N);
+  let nPort=0,nGrain=0;
+  for(let j=0;j<N;j++){const y=-R+(j+0.5)*c;for(let i=0;i<N;i++){const x=-R+(i+0.5)*c,q=j*N+i;
+    if(x*x+y*y>R*R)continue;
+    if(inPort(x,y)){kind[q]=1;nPort++;}else{kind[q]=2;nGrain++;}}}
+  /* distance (in cells) from every cell to the nearest port cell: columns, then rows */
+  const f=new Float64Array(N),d=new Float64Array(N),v=new Int32Array(N),z=new Float64Array(N+1);
+  for(let q=0;q<N*N;q++)D[q]=kind[q]===1?0:BIG;
+  for(let i=0;i<N;i++){for(let j=0;j<N;j++)f[j]=D[j*N+i];edt1(f,N,d,v,z);for(let j=0;j<N;j++)D[j*N+i]=d[j];}
+  for(let j=0;j<N;j++){for(let i=0;i<N;i++)f[i]=D[j*N+i];edt1(f,N,d,v,z);for(let i=0;i<N;i++)D[j*N+i]=d[i];}
+  /* each propellant cell burns over one cell width: from s = (distance to the nearest port cell) − one cell, to s + c.
+     s is kept for the cross-section view (−1 on the port, NaN outside the grain) */
+  const s=new Float32Array(N*N);let sMax=0;
+  for(let q=0;q<N*N;q++){if(kind[q]===0){s[q]=NaN;continue;}if(kind[q]===1){s[q]=-1;continue;}
+    const sv=Math.max(0,Math.sqrt(D[q])*c-c);s[q]=sv;if(sv>sMax)sMax=sv;}
+  /* histogram in quarter-cell bins, then the port area at each bin edge x_k = k·h */
+  const h=c/4,nb=Math.ceil((sMax+c)/h)+6,H=new Float64Array(nb);
+  for(let q=0;q<N*N;q++)if(kind[q]===2)H[Math.min(nb-1,Math.floor(s[q]/h))]++;
+  const P=new Float64Array(nb+1);let full=0;
+  for(let k=0;k<=nb;k++){
+    if(k-5>=0)full+=H[k-5];
+    let part=0;for(let j=Math.max(0,k-4);j<k;j++)part+=H[j]*Math.min(1,(k-j-0.5)/4);
+    P[k]=(nPort+full+part)*c*c;}
+  /* the perimeter: dP/dx over a window TUNING.lsSmooth cells wide (distances on a grid come in steps, so a narrower
+     window is noisy); within the first half window it looks forward only */
+  const per=new Float64Array(nb+1),w=Math.max(1,Math.round(TUNING.lsSmooth*2));   // half window, in quarter-cell bins
+  for(let k=0;k<=nb;k++){const a=Math.max(0,k-w),b=Math.min(nb,k+w);per[k]=b>a?(P[b]-P[a])/((b-a)*h):0;}
+  for(let k=0;k<w&&k+w<=nb;k++)per[k]=(P[k+w]-P[k])/(w*h);
+  const Ag=nGrain*c*c,web=sMax+c;
+  const at=(arr,x)=>{if(x<=0)return arr[0];const u=x/h,k=Math.floor(u);if(k>=nb)return arr[nb];return arr[k]+(arr[k+1]-arr[k])*(u-k);};
+  const tab={N,c,R,web,s,nPort,nGrain,port0:nPort*c*c,grain0:Ag,
+    per:x=>x>=web?0:at(per,x),
+    port:x=>Math.min(PI*R*R,at(P,Math.min(x,web))),
+    area:x=>x>=web?0:Math.max(0,Ag-(at(P,x)-P[0]))};   // propellant left in the cross-section, m²
+  LS_MEMO.unshift({key,tab});if(LS_MEMO.length>8)LS_MEMO.pop();
+  return tab;}
+/* a level-set segment of length L, ends inhibited. pieces: [{tab, L}] forward to aft (a finocyl segment is a plain core
+   forward and the finned part aft); the segment answers the same questions as the analytic ones in sim/grain.js */
+function lsSeg(R,pieces,shape){
+  const L=pieces.reduce((s,p)=>s+p.L,0),web=Math.max(...pieces.map(p=>p.tab.web)),aft=pieces[pieces.length-1].tab;
+  return{kind:"ls",shape,R,L,web,pieces,rc:0,
+    A(x){return x>=web?0:pieces.reduce((s,p)=>s+p.tab.per(x)*p.L,0);},
+    V(x){return x>=web?0:pieces.reduce((s,p)=>s+p.tab.area(x)*p.L,0);},
+    port(x){return aft.port(x);},
+    minPort(x){return Math.min(...pieces.map(p=>p.tab.port(x)));}};}
+Object.assign(SIM,{portTest,lsTable,lsSeg});
 /* ===================== sim/grain.js: grain geometry (plan section 6.2) =====================
    A grain is one or more segments in the case. Every segment answers three questions at web distance x (metres burned
    back from the starting surface):
@@ -706,8 +816,10 @@ Object.assign(SIM,{CAREER,FACILITIES});
      port(x)   flow area of the port at the segment's aft end, m² (for port-to-throat ratio and mass flux)
    plus web, the x at which it has burned out. Beyond its web a segment has A = 0 and V = 0.
    Tier 1 shapes are analytic (closed forms): "bates" (cored segments, both ends burning), "tube" (a cored grain with its
-   ends inhibited), "end" (an end burner: a solid cylinder burning from its aft face). Stage 5 adds level-set shapes
-   (star, slotted, finocyl, moonburner) that produce the same three tables from a rasterised cross-section. */
+   ends inhibited), "end" (an end burner: a solid cylinder burning from its aft face). The level-set shapes (sim/levelset.js)
+   answer the same questions from a cross-section drawn on a grid, ends inhibited: "star" (a star-shaped port), "slots"
+   (a core with radial slots), "finocyl" (a plain core forward, the slotted section over the aft finLen of each segment)
+   and "moon" (a moonburner: a round core moved off the axis by offset). */
 const PI=Math.PI;
 /* one cored segment: outer radius R, core radius rc, length L, ends burning (true) or inhibited (false) */
 function coreSeg(R,rc,L,endsBurn){
@@ -727,9 +839,18 @@ function endSeg(R,L){
 }
 /* buildGrain({shape, segs, segLen, coreD, od}) in metres. Returns the segments and whole-grain helpers.
    Segments are listed forward to aft; the aft one carries the whole mass flow past its port. */
+function lsSegment(g,R){
+  const rc=g.coreD/2,base={R,rc,pts:g.pts,ptLen:g.ptLen,ptW:g.ptW,offset:g.offset};
+  if(g.shape==="finocyl"){
+    const Lf=Math.min(g.finLen,g.segLen),pieces=[];
+    if(g.segLen-Lf>1e-6)pieces.push({tab:lsTable({shape:"core",R,rc}),L:g.segLen-Lf});
+    pieces.push({tab:lsTable(Object.assign({},base,{shape:"slots"})),L:Lf});
+    return lsSeg(R,pieces,"finocyl");}
+  return lsSeg(R,[{tab:lsTable(Object.assign({},base,{shape:g.shape})),L:g.segLen}],g.shape);}
 function buildGrain(g){
   const R=g.od/2,segs=[];
   if(g.shape==="end")segs.push(endSeg(R,g.segLen*g.segs));
+  else if(GRAIN_SHAPES[g.shape]&&GRAIN_SHAPES[g.shape].ls)for(let i=0;i<g.segs;i++)segs.push(lsSegment(g,R));
   else for(let i=0;i<g.segs;i++)segs.push(coreSeg(R,g.coreD/2,g.segLen,g.shape==="bates"));
   const gaps=g.shape==="end"?0:(g.segs-1)*TUNING.segGap/1000;
   const len=(g.shape==="end"?g.segLen*g.segs:g.segLen*g.segs)+gaps;
@@ -738,9 +859,9 @@ function buildGrain(g){
     A:x=>segs.reduce((s,q)=>s+q.A(x),0),
     V:x=>segs.reduce((s,q)=>s+q.V(x),0),
     port:x=>segs[segs.length-1].port(x),
-    minPort:x=>Math.min(...segs.map(q=>q.port(x)))};
+    minPort:x=>Math.min(...segs.map(q=>q.minPort?q.minPort(x):q.port(x)))};
 }
-Object.assign(SIM,{buildGrain,coreSeg,endSeg});
+Object.assign(SIM,{buildGrain,coreSeg,endSeg,lsSegment});
 /* ===================== sim/nozzle.js: the nozzle and thrust coefficient (plan section 6.4) =====================
    Ideal one-dimensional isentropic flow of a frozen gas with ratio of specific heats gamma.
      areaRatio(M, g)        A/A* at Mach M
@@ -796,7 +917,7 @@ Object.assign(SIM,{vdk,areaRatio,presRatio,exitMach,subMach,cfMomentum,cfIdeal,c
 const mm=v=>v/1000;
 function designErrors(d){
   const e=[],add=(field,text)=>e.push({field,text});
-  const g=d.grain,c=d.case,z=d.nozzle;
+  const g=Object.assign({},GRAIN_DEFAULTS,d.grain),c=d.case,z=d.nozzle,sh=GRAIN_SHAPES[g.shape];
   if(!PROPELLANTS[g.prop])add("grain.prop","Pick a propellant grade.");
   if(!CASES[c.mat])add("case.mat","Pick a case material.");
   if(!LINERS[c.liner])add("case.liner","Pick a liner.");
@@ -809,12 +930,22 @@ function designErrors(d){
   const od=c.id-2*c.linerThk;
   if(!(g.segs>=1&&g.segs<=12&&Math.round(g.segs)===g.segs))add("grain.segs","1 to 12 segments.");
   if(!(g.segLen>=5&&g.segLen<=2000))add("grain.segLen","Segment length must be 5 to 2000 mm.");
-  if(!["bates","tube","end"].includes(g.shape))add("grain.shape","Pick a grain shape.");
+  if(!sh)add("grain.shape","Pick a grain shape.");
   if(g.shape!=="end"){
     if(!(g.coreD>=2))add("grain.coreD","The core needs to be at least 2 mm across.");
     else if(g.coreD>od-2)add("grain.coreD",`The core (${g.coreD} mm) leaves no propellant in a ${od.toFixed(1)} mm grain.`);
     if(z.throatD>=g.coreD)add("nozzle.throatD",`The throat (${z.throatD} mm) is as wide as the core (${g.coreD} mm): the port would choke instead of the nozzle.`);
   }
+  if(sh&&sh.ls&&g.coreD>=2&&g.coreD<=od-2){
+    const room=(od-g.coreD)/2-TUNING.lsWebMin;   // mm of propellant outside the core, less the thinnest web allowed
+    const u=f=>sh.uses.includes(f);
+    if(u("pts")&&!(g.pts>=(g.shape==="star"?3:2)&&g.pts<=12&&Math.round(g.pts)===g.pts))add("grain.pts",g.shape==="star"?"3 to 12 points.":"2 to 12 slots.");
+    if(u("ptLen")&&!(g.ptLen>=1))add("grain.ptLen","The points need to reach at least 1 mm past the core.");
+    else if(u("ptLen")&&g.ptLen>room)add("grain.ptLen",`The points reach ${g.ptLen} mm past the core; this grain has room for ${Math.max(0,room).toFixed(1)} mm.`);
+    if(u("ptW")&&!(g.ptW>=1&&g.ptW<=g.coreD))add("grain.ptW",`Slot width must be 1 mm to the core's ${g.coreD} mm.`);
+    if(u("finLen")&&!(g.finLen>=5&&g.finLen<=g.segLen))add("grain.finLen","The fins run 5 mm up to the whole segment.");
+    if(u("offset")&&!(g.offset>=0))add("grain.offset","The offset can't be negative.");
+    else if(u("offset")&&g.offset>room)add("grain.offset",`The core moved ${g.offset} mm leaves under ${TUNING.lsWebMin} mm of propellant at the wall.`);}
   if(!(z.throatD>=1&&z.throatD<od))add("nozzle.throatD","Throat must be at least 1 mm and narrower than the grain.");
   if(!(z.exitD>=z.throatD))add("nozzle.exitD","The exit can't be narrower than the throat.");
   else if(z.exitD>c.id+2*c.wall+20)add("nozzle.exitD","The exit is much wider than the motor.");
@@ -827,7 +958,9 @@ function motorFromDesign(d){
   if(errors.length)return{ok:false,errors};
   const prop=PROPELLANTS[d.grain.prop],cm=CASES[d.case.mat],ln=LINERS[d.case.liner],th=THROATS[d.nozzle.mat],cl=CLOSURES[d.case.closure],ig=IGNITERS[d.igniter];
   const id=mm(d.case.id),wall=mm(d.case.wall),lin=mm(d.case.linerThk),od=id-2*lin;
-  const grain=buildGrain({shape:d.grain.shape,segs:d.grain.segs,segLen:mm(d.grain.segLen),coreD:mm(d.grain.coreD),od});
+  const gd=Object.assign({},GRAIN_DEFAULTS,d.grain);
+  const grain=buildGrain({shape:gd.shape,segs:gd.segs,segLen:mm(gd.segLen),coreD:mm(gd.coreD),od,
+    pts:gd.pts,ptLen:mm(gd.ptLen),ptW:mm(gd.ptW),finLen:mm(gd.finLen),offset:mm(gd.offset)});
   const rt0=mm(d.nozzle.throatD)/2,re=mm(d.nozzle.exitD)/2,At0=PI*rt0*rt0,Ae=PI*re*re;
   const chamberLen=grain.len+TUNING.headSpace*od,Vch=PI*(od/2)*(od/2)*chamberLen;
   const clThk=TUNING.closureThk*id,caseLen=chamberLen+2*clThk;
@@ -864,13 +997,19 @@ Object.assign(SIM,{designErrors,motorFromDesign});
    spreads over the grain, both slower for a weaker igniter (strength = igniter gas / gas the chamber needs). Burning area
    is scaled by the lit fraction while the flame spreads.
    Temperature (6.6): a = a20 · exp(sigmaP · (T − 20)). Throat erosion (6.4): the throat radius grows at the material's
-   rate · (P / 5 MPa)^0.8. Erosive burning (6.5) arrives in stage 5.
+   rate · (P / 5 MPa)^0.8.
+   Erosive burning (6.5): gas rushing down a narrow port scours the grain and speeds its burn, r_e = r·(1 + kE·(G − gTh))
+   where the mass flux G passes the grade's threshold. The chamber is lumped (one x for the whole grain), so the flux is
+   taken as rising evenly from nothing at the head end to mdot / port area at the aft end, and the grain burns at the
+   gain averaged along its length: 1 + kE·(Gaft − gTh)² / (2·Gaft) when Gaft > gTh, capped at TUNING.eroMax. It is
+   biggest at the start of a narrow-port motor, which is the erosive spike; opts.noErosive turns it off (tests).
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
-   opts (all optional): steps (regression steps over the web; fewer = faster, for live dragging), and the variance
+   opts (all optional): noErosive, steps (regression steps over the web; fewer = faster, for live dragging), and the variance
    model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight (strength under which the grain never lights),
    areaAdd(t, x) -> extra burning area in m² (a void or a crack; its propellant comes out of the grain's web)}
-   Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit, ...}. */
+   Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit,
+   eroPeak (the biggest erosive gain on the burn rate, 1 = none), tEro (when), ...}. */
 function propCoef(prop,tGrain){return prop.rRef/1000/Math.pow(TUNING.pRef,prop.n)*Math.exp(prop.sigmaP*(tGrain-TUNING.tRef));}
 function simulate(motor,cond,opts){
   cond=cond||{};opts=opts||{};
@@ -886,6 +1025,7 @@ function simulate(motor,cond,opts){
   const igIn=(t0,t1)=>igGas*Math.max(0,Math.min(t1,ig.burn)-Math.min(t0,ig.burn))/ig.burn;
   /* outputs */
   const o={t:[],p:[],f:[],kn:[],x:[],mdot:[],at:[],cf:[]};
+  const noEro=!!opts.noErosive;let eroPeak=1,tEro=0;
   let t=0,x=0,P=Pa,rt=motor.rt0,mg=P*(Vch-G.V(0))/RT,rLast=0,sepAny=false,chuffAny=false,mOut=0,mBurn=0,mIgn=0,steps=0;
   const m0=mg;
   let thrustCache={at:-1};
@@ -907,7 +1047,10 @@ function simulate(motor,cond,opts){
     /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain, and the
        propellant it burns comes out of the grain: the web is used up faster by (A + extra) / A, so mass still balances */
     const extra=areaAdd&&burning?areaAdd(t1,x):0,Ax=G.A(x),boost=extra>0&&Ax>1e-12?1+extra/Ax:1;
-    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*boost*a*Math.pow(Pn,n)*dt):x;
+    const portX=G.port(x);
+    const eroOf=Pn=>{if(noEro)return 1;const Gf=Pn*At/cs*chokedFrac(Pn,Pa,g)/portX;
+      return Gf>prop.gTh?Math.min(T.eroMax,1+prop.kE*(Gf-prop.gTh)*(Gf-prop.gTh)/(2*Gf)):1;};
+    const xOf=Pn=>burning&&fl>0?Math.min(web,x+fl*boost*eroOf(Pn)*a*Math.pow(Pn,n)*dt):x;
     const resid=Pn=>{const xn=xOf(Pn),Vn=G.V(xn);
       const gen=rho*(V0-Vn);
       const out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
@@ -925,7 +1068,8 @@ function simulate(motor,cond,opts){
       Pn=m;if((hi-lo)<1e-9*hi)break;}
     const xn=xOf(Pn),gen=rho*(V0-G.V(xn)),out=Pn*At/cs*chokedFrac(Pn,Pa,g)*dt;
     x=xn;t=t1;P=Pn;mg=(Vch-G.V(x))*P/RT;mOut+=out;mBurn+=gen;mIgn+=ign;
-    rLast=fl*boost*a*Math.pow(P,n);
+    const ero=burning?eroOf(P):1;if(burning&&ero>eroPeak){eroPeak=ero;tEro=t;}
+    rLast=fl*boost*ero*a*Math.pow(P,n);
     if(burning&&fl>=1&&P<prop.pMin*1e6&&x<web*0.98)chuffAny=true;
     rt+=eroRate*Math.pow(P/T.pRef,T.eroExp)*dt;
     const th=thrust(P,At);if(th.sep&&burning&&fl>=1&&x<web*0.97)sepAny=true;   // separation in the steady burn, not the start-up or tail
@@ -933,7 +1077,7 @@ function simulate(motor,cond,opts){
     if(!burning&&P<T.tailEnd*Pa)break;
     if(notLit&&t>ig.burn+0.3&&P<T.tailEnd*Pa)break;
   }
-  return{ok:true,...o,ign:{strength:S,delay,spread,notLit},sepAny,chuffAny,notLit,
+  return{ok:true,...o,ign:{strength:S,delay,spread,notLit},sepAny,chuffAny,notLit,eroPeak,tEro,
     a,tGrain,pAmb:Pa,steps,web,mass:{out:mOut,burned:mBurn,ign:mIgn,gas0:m0,gasEnd:mg},rtEnd:rt};
 }
 Object.assign(SIM,{propCoef,simulate});
@@ -974,7 +1118,7 @@ function summarize(m,r){
     pt0:m.grain.minPort(0)/m.At0,massFrac:mp/m.mass.total,mass:m.mass,
     hoop,sf:m.caseMat.yield*1e6/hoop,sfUlt:m.caseMat.ult*1e6/hoop,closureLoad,closureSf:m.retention/closureLoad,
     linerRating:m.linerRating,burnAll:r.t[n-1],sep:r.sepAny,chuff:r.chuffAny,ign:r.ign,rtEnd:r.rtEnd,
-    throatGrowth:r.rtEnd/m.rt0-1};
+    throatGrowth:r.rtEnd/m.rt0-1,eroPeak:r.eroPeak||1,tEro:r.tEro||0};
   s.warnings=warnings(m,s);
   return s;
 }
@@ -989,6 +1133,7 @@ function warnings(m,s){
   else if(s.closureSf<T.sfWarn)add("closure","warn",`Closure retention margin ${s.closureSf.toFixed(2)}. Aim for ${T.sfWarn} or more.`,"case.closure","retention");
   if(s.pLow>0&&s.pLow<m.prop.pMin*1e6)add("chuff","warn",`Pressure falls to ${mpa(s.pLow)}, under ${m.prop.name}'s stable minimum of ${m.prop.pMin} MPa. Expect chuffing.`,"nozzle.throatD","chuffing");
   if(s.pt0<T.ptWarn)add("pt","warn",`Port-to-throat ratio ${s.pt0.toFixed(2)} at ignition. Under ${T.ptWarn}, expect an erosive spike.`,"grain.coreD","portThroat");
+  if(s.eroPeak>T.eroWarn)add("ero",s.eroPeak>1.25?"crit":"warn",`Erosive burning: gas scouring the narrow port speeds the burn by up to ${Math.round((s.eroPeak-1)*100)}% at ${s.tEro.toFixed(2)} s, and the pressure with it.`,"grain.coreD","erosive");
   if(s.gMax>T.gWarn)add("flux","warn",`Peak mass flux ${Math.round(s.gMax)} kg/m²s. Over ${T.gWarn}, the port scours the grain.`,"grain.coreD","massFlux");
   if(s.tb>m.linerRating)add("liner","crit",`The burn lasts ${s.tb.toFixed(1)} s; the liner protects the case for ${m.linerRating.toFixed(1)} s. Expect a burn-through.`,"case.linerThk","liner");
   else if(s.tb>T.linerWarn*m.linerRating)add("liner","warn",`The burn (${s.tb.toFixed(1)} s) uses most of the liner's ${m.linerRating.toFixed(1)} s.`,"case.linerThk","liner");
@@ -1115,6 +1260,8 @@ function fire(design,cond,seed){
       addF("temp",predSum.Pmax/pred20.Pmax-1,`${slotTxt}: ${pct(predSum.Pmax/pred20.Pmax-1)} pressure against the 20 °C prediction.`);
       addF("batch",peak(base.p)/predSum.Pmax-1,`This propellant batch burned ${vs(d.aMul,"faster","slower")} than the grade's rate: ${pct(peak(base.p)/predSum.Pmax-1)} pressure.`);
       if(hook)addF(d.crack?"crack":"void",peak(run.p.slice(0,f.i+1))/peak(base.p)-1,(d.crack?"The crack":"The void")+` added ${pct(peak(run.p.slice(0,f.i+1))/peak(base.p)-1)} pressure.`);
+      if(pred.eroPeak>TUNING.eroWarn)addF("erosive",Math.pow(pred.eroPeak,1/(1-m.prop.n))-1,`Erosive burning in the narrow port sped the burn up to ${Math.round((pred.eroPeak-1)*100)}% at ${pred.tEro.toFixed(2)} s: up to ${pct(Math.pow(pred.eroPeak,1/(1-m.prop.n))-1)} pressure.`);
+      if(pred.eroPeak>TUNING.eroWarn&&!f.fix.includes("grain.coreD"))f.fix.push("grain.coreD");
       if(k==="cato")addF("case",1-d.caseMul,`This case tube tested ${vs(d.caseMul,"stronger","weaker")} than its rating.`);
       else addF("closure",1-d.retMul,`These closures held ${vs(d.retMul,"more","less")} than their rating.`);
     }else if(k==="burnthrough"){
@@ -1197,7 +1344,7 @@ function preFire(contract,design,m,o){
     if(m.length*1000>st.len)add("grain.segLen",`The motor is ${Math.round(m.length*1000)} mm long; ${st.name} takes ${st.len} mm.`);
     if(m.diameter*1000>st.dia)add("case.id",`The motor is ${Math.round(m.diameter*1000)} mm across; ${st.name}'s clamps take ${st.dia} mm.`);
     if(o.sum&&st.cell&&o.sum.Fmax>st.cell)add("nozzle.throatD",`The motor peaks at ${(o.sum.Fmax/1000).toFixed(2)} kN; ${st.name}'s load cell is rated ${(st.cell/1000).toFixed(1)} kN.`);}
-  const tier=o.tier||contract.tier||1,parts=[["grain.prop",PROPELLANTS[design.grain.prop],"grade"],["case.mat",CASES[design.case.mat],"case material"],
+  const tier=o.tier||contract.tier||1,parts=[["grain.prop",PROPELLANTS[design.grain.prop],"grade"],["grain.shape",GRAIN_SHAPES[design.grain.shape],"grain shape"],["case.mat",CASES[design.case.mat],"case material"],
     ["case.liner",LINERS[design.case.liner],"liner"],["nozzle.mat",THROATS[design.nozzle.mat],"throat material"]];
   for(const[f,p,what]of parts)if(p&&(p.tier||1)>tier)add(f,`${p.name} is a tier ${p.tier} ${what}. You have tier ${tier} parts${o.tier?" so far":" on this job"}.`);
   return out;}
@@ -1348,8 +1495,30 @@ Object.assign(VIS,{curves,at});
 /* ===================== vis/section.js: the motor cross-section (plan section 9.2) =====================
    section(cv, motor, x, info) draws the motor cut along its axis (forward closure on the left, nozzle on the right) with
    the grain burned back by web distance x (m), and under it an end-on view of the aft segment's port. info: lines of text
-   drawn beside the end view (time, pressure...). Drawn to scale; burning surfaces glow. Stage 5 swaps the analytic
-   segments for the level-set cross-section. h(width) -> height, optional. */
+   drawn beside the end view (time, pressure...). Drawn to scale; burning surfaces glow. h(width) -> height, optional.
+   Level-set grains (star, slotted, finocyl, moonburner) are drawn from their distance maps (sim/levelset.js): the side
+   cut follows the grid's centre column (the moonburner's core is moved up, so the cut shows its thin side on top), and
+   the end view paints every cell: propellant, the burning front (where the distance equals x) or open port. */
+const LS_IMG=new WeakMap();   // distance map -> {canvas, ctx, img}, so the end view reuses its pixels
+const rgbOf=(()=>{let cx=null;return col=>{if(!cx){const cv=document.createElement("canvas");cv.width=cv.height=1;cx=cv.getContext("2d",{willReadFrequently:true});}
+  cx.clearRect(0,0,1,1);cx.fillStyle=col;cx.fillRect(0,0,1,1);return cx.getImageData(0,0,1,1).data.slice(0,4);};})();
+/* paint a level-set cross-section burned back to x; band = half-width of the burning front, m */
+function lsImage(tab,x,band,k){
+  let e=LS_IMG.get(tab);
+  if(!e){const cv=document.createElement("canvas");cv.width=cv.height=tab.N;const ctx=cv.getContext("2d");e={cv,ctx,img:ctx.createImageData(tab.N,tab.N)};LS_IMG.set(tab,e);}
+  const P=rgbOf(k.prop),B=rgbOf(k.burn),O=rgbOf(k.card),d=e.img.data,s=tab.s,N=tab.N,h=tab.c/2;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    const q=(N-1-j)*N+i,o=(j*N+i)*4,v=s[q];   // grid row 0 is the bottom (y = −R); the image's row 0 is the top
+    let C;if(v!==v){d[o+3]=0;continue;}
+    if(v<0)C=O;else{const dd=v+h;C=Math.abs(dd-x)<=band?B:dd<x?O:P;}
+    d[o]=C[0];d[o+1]=C[1];d[o+2]=C[2];d[o+3]=255;}
+  e.ctx.putImageData(e.img,0,0);return e.cv;}
+/* the runs of propellant still there along the grid's centre column, as [y0, y1] in metres from the axis (y up) */
+function lsCut(tab,x){
+  const N=tab.N,i=N>>1,c=tab.c,R=tab.R,out=[];let a=-1;
+  for(let j=0;j<=N;j++){const v=j<N?tab.s[j*N+i]:NaN,solid=v===v&&v>=0&&v+c/2>x;
+    if(solid&&a<0)a=j;else if(!solid&&a>=0){out.push([-R+a*c,-R+j*c,a>0&&tab.s[(a-1)*N+i]===tab.s[(a-1)*N+i],j<N&&v===v]);a=-1;}}
+  return out;}   // [y0, y1, burning below, burning above]
 function section(cv,m,x,info,h){
   const{c,W,H}=fit(cv,h||(w=>Math.min(w*0.62,300))),k=tokens(),T=BURN_SIM.TUNING;
   const G=m.grain,id=m.id,R0=id/2+m.wall,clThk=T.closureThk*id,len=m.length,pad=10;
@@ -1373,6 +1542,14 @@ function section(cv,m,x,info,h){
   c.lineWidth=2;
   for(const g of G.segs){
     const L=g.L;
+    if(g.kind==="ls"){let a=xs;
+      for(const pc of g.pieces){const runs=lsCut(pc.tab,x);
+        for(const[y0,y1,bLo,bHi]of runs){c.fillStyle=k.prop;c.fillRect(X(a),cy-Y(y1),pc.L*s,Y(y1-y0));
+          c.strokeStyle=k.burn;c.beginPath();
+          if(bLo){c.moveTo(X(a),cy-Y(y0));c.lineTo(X(a+pc.L),cy-Y(y0));}
+          if(bHi){c.moveTo(X(a),cy-Y(y1));c.lineTo(X(a+pc.L),cy-Y(y1));}c.stroke();}
+        a+=pc.L;}
+      xs+=L+gap;continue;}
     if(x<g.web){
       let a0,a1,r0;
       if(g.kind==="bates"){a0=xs+x;a1=xs+L-x;r0=g.rc+x;}
@@ -1393,7 +1570,9 @@ function section(cv,m,x,info,h){
   const top=cy+Y(R0)+12,dE=Math.max(36,Math.min(H-top-4,W*0.4)),cx=pad+dE/2,cyE=top+dE/2,sE=dE/2/R0,g=G.segs[G.segs.length-1];
   const disc=(r,col)=>{c.fillStyle=col;c.beginPath();c.arc(cx,cyE,Math.max(0,r*sE),0,7);c.fill();};
   disc(R0,k.metal);disc(id/2,k.liner);disc(m.od/2,k.card);
-  if(x<g.web){
+  if(g.kind==="ls"){const tab=g.pieces[g.pieces.length-1].tab,im=lsImage(tab,x,Math.max(tab.c,1.3/sE),k);
+    c.save();c.beginPath();c.arc(cx,cyE,g.R*sE,0,7);c.clip();c.imageSmoothingEnabled=true;c.drawImage(im,cx-g.R*sE,cyE-g.R*sE,2*g.R*sE,2*g.R*sE);c.restore();}
+  else if(x<g.web){
     disc(g.R,g.kind==="end"?k.burn:k.prop);
     if(g.kind!=="end"){const r=g.rc+x;disc(r,k.card);c.strokeStyle=k.burn;c.lineWidth=2;c.beginPath();c.arc(cx,cyE,r*sE,0,7);c.stroke();}}
   /* the readouts beside the end view, in columns of up to three lines */
@@ -1522,7 +1701,7 @@ return VIS;})();
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="0.5.0.0";
+const VERSION="0.5.1.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -1591,7 +1770,13 @@ const PWA=(()=>{
 const GLOSS={
   grade:{t:"Propellant grade",d:"Each grade is a set of numbers. Burn rate: how fast the surface recedes at 5 MPa. Exponent n: how strongly that rate follows pressure. Density, and c*, how much pressure the gas makes per kilogram flowing. A high-n grade gives big swings from small changes."},
   exponent:{t:"Pressure exponent (n)",d:"Burn rate goes as pressure to the power n. With a low n (0.2 to 0.35) the motor settles calmly. With a high n (0.5 and up) a little more burning area or a little less throat sends the pressure up a lot, which is why high-n grades are touchy."},
-  shape:{t:"Grain shape",d:"BATES: short hollow cylinders burning inside and on both ends, so the area stays fairly flat. Tube: one long hollow grain with its ends covered; the core grows, so the area and the pressure climb (progressive). End burner: a solid cylinder burning only from its back face, small and steady, so it burns for a long time at low thrust."},
+  shape:{t:"Grain shape",d:"BATES: short hollow cylinders burning inside and on both ends, so the area stays fairly flat. Tube: one long hollow grain with its ends covered; the core grows, so the area and the pressure climb (progressive). End burner: a solid cylinder burning only from its back face, small and steady, so it burns for a long time at low thrust. Star and slotted ports start with a lot of surface that shrinks as the points burn out: hard off the pad, then falling (regressive). A finocyl adds fins at the aft end of a plain core to fill in the start of its climb. A moonburner's core sits off the axis, so one side is a thick web: a long burn."},
+  starPoints:{t:"Points, slots or fins",d:"How many points the star has, or how many slots or fins reach out from the core. More of them: more burning surface at the start, and a shorter time before they burn away."},
+  pointDepth:{t:"Reach",d:"How far the points, slots or fins reach out past the core. Deeper points add starting surface; their tips leave thin propellant near the case that burns out early (slivers), so the end of the burn tails off."},
+  slotWidth:{t:"Slot width",d:"How wide each slot or fin is. Wider slots open more port area (gentler flow, less erosive burning) and take propellant out of the grain."},
+  finLength:{t:"Fin length",d:"How much of each segment, at the aft end, has fins. The rest is a plain core. Longer fins add more surface early, so the curve starts higher; shorter fins let the plain core's climb show."},
+  coreOffset:{t:"Core offset",d:"How far a moonburner's core sits from the motor's axis. Moving it toward the wall leaves a thin web on one side and a thick one on the other, so the burn is long and fairly flat, ending in a slow tail."},
+  erosive:{t:"Erosive burning",d:"Gas racing down a narrow port scours the burning surface and makes it burn faster than the pressure alone would. It is worst at the start, when the port is narrowest and carries the most flow, so the pressure spikes; as the port opens, it fades. A wider core, a smaller throat or a slower, low-exponent grade calms it. The predictor includes it."},
   segments:{t:"Segments",d:"BATES grains are split into short segments so each one's burning ends balance its growing core. More segments: more propellant and more burning area, so higher pressure and more impulse."},
   web:{t:"Web",d:"The thickness of propellant that has to burn through before a segment is gone: the smaller of the wall (outside minus core, halved) and half the segment length for BATES. Burn time is roughly web divided by burn rate."},
   core:{t:"Core",d:"The hole down the middle of a cored grain. A bigger core means less propellant but more burning area at the start, and a wider port for the gas to flow out."},
@@ -1614,7 +1799,7 @@ const GLOSS={
   hangFire:{t:"Hang fire",d:"The igniter goes off but the grain doesn't light properly: a long delay, a weak start, or nothing at all. A bigger igniter fixes it."},
   ignSpike:{t:"Start spike",d:"An igniter that is too big for the motor pushes the pressure past the steady burn while it is still going. The case has to hold that spike too. Pick a smaller igniter."},
   chuffing:{t:"Chuffing",d:"Under each grade's stable minimum pressure the flame can't hold steady: it puffs out and relights in a slow, loud chuff, chuff. More Kn (a smaller throat) brings the pressure back up."},
-  portThroat:{t:"Port-to-throat ratio",d:"The open area of the core at the aft end divided by the throat area. Under about 2, the gas rushing down a narrow core scours the grain and burns it faster than the prediction: a pressure spike at the start. A bigger core or a smaller throat fixes it."},
+  portThroat:{t:"Port-to-throat ratio",d:"The open area of the core at the aft end divided by the throat area. Under about 2, the gas rushing down a narrow core scours the grain and burns it faster (erosive burning): a pressure spike at the start. A bigger core or a smaller throat fixes it."},
   massFlux:{t:"Mass flux",d:"Kilograms of gas per second flowing through each square metre of the port. High flux at the aft end of a long grain scours the surface (erosive burning) and spikes the pressure."},
   isp:{t:"Specific impulse (Isp)",d:"Impulse per weight of propellant, in seconds: how well the motor turns propellant into push. A better nozzle and a higher pressure raise it."},
   impulse:{t:"Total impulse",d:"Thrust added up over the whole burn, in newton-seconds. It is what a contract's class letter is based on."},
@@ -1942,7 +2127,7 @@ const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
 const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
-  flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike"};
+  flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike",ero:"Erosive spike"};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const getF=(d,f)=>f.split(".").reduce((o,k)=>o[k],d);
 function setF(d,f,v){const k=f.split(".");let o=d;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=v;}
@@ -1950,14 +2135,20 @@ const r1=v=>Math.round(v*10)/10;
 
 /* ---- the controls on each tab, as data. type: pick (cards), seg (segmented buttons), step (- n +), slide ---- */
 function controls(tab,d){
-  const S=BURN_SIM,od=d.case.id-2*d.case.linerThk,cored=d.grain.shape!=="end";
+  const S=BURN_SIM,od=d.case.id-2*d.case.linerThk,cored=d.grain.shape!=="end",sh=S.GRAIN_SHAPES[d.grain.shape]||{uses:[]},u=f=>sh.uses.includes(f);
+  const room=Math.max(1.5,(od-d.grain.coreD)/2-S.TUNING.lsWebMin),gs=d.grain.shape;
   if(tab==="grain")return[
     {f:"grain.prop",type:"pick",label:"Propellant grade",g:"grade",items:S.PROPELLANTS,
       sub:p=>`${p.rRef} mm/s at 5 MPa · n ${p.n.toFixed(2)} · ${p.rho} kg/m³ · c* ${p.cStar} m/s`},
-    {f:"grain.shape",type:"seg",label:"Grain shape",g:"shape",opts:[["bates","BATES"],["tube","Tube"],["end","End burner"]]},
+    {f:"grain.shape",type:"pick",label:"Grain shape",g:"shape",items:S.GRAIN_SHAPES,sub:x=>x.note},
     {f:"grain.segs",type:"step",label:cored?"Segments":"Grain pieces",g:"segments",min:1,max:12},
     {f:"grain.segLen",type:"slide",label:cored?"Segment length":"Piece length",g:"web",unit:"mm",min:10,max:Math.max(60,Math.round(d.case.id*5)),step:1},
-    cored&&{f:"grain.coreD",type:"slide",label:"Core diameter",g:"core",unit:"mm",min:2,max:r1(od-3),step:0.5}
+    cored&&{f:"grain.coreD",type:"slide",label:"Core diameter",g:"core",unit:"mm",min:2,max:r1(od-(sh.ls?4:3)),step:0.5},
+    u("pts")&&{f:"grain.pts",type:"step",label:gs==="star"?"Points":gs==="finocyl"?"Fins":"Slots",g:"starPoints",min:gs==="star"?3:2,max:12},
+    u("ptLen")&&{f:"grain.ptLen",type:"slide",label:gs==="star"?"Point reach past the core":gs==="finocyl"?"Fin reach past the core":"Slot reach past the core",g:"pointDepth",unit:"mm",min:1,max:r1(room),step:0.5},
+    u("ptW")&&{f:"grain.ptW",type:"slide",label:gs==="finocyl"?"Fin width":"Slot width",g:"slotWidth",unit:"mm",min:1,max:r1(Math.max(1.5,d.grain.coreD)),step:0.5},
+    u("finLen")&&{f:"grain.finLen",type:"slide",label:"Finned length (aft end)",g:"finLength",unit:"mm",min:5,max:Math.max(6,d.grain.segLen),step:1},
+    u("offset")&&{f:"grain.offset",type:"slide",label:"Core offset",g:"coreOffset",unit:"mm",min:0,max:r1(room),step:0.5}
   ].filter(Boolean);
   if(tab==="nozzle")return[
     {f:"nozzle.mat",type:"pick",label:"Throat material",g:"throatMat",items:S.THROATS,
@@ -1987,7 +2178,11 @@ function clampDesign(d){
   const c=d.case,g=d.grain,z=d.nozzle;
   c.wall=Math.min(c.wall,r1(c.id/4-0.1));c.linerThk=Math.min(c.linerThk,r1(c.id/6-0.1));
   const od=c.id-2*c.linerThk;
-  if(g.shape!=="end"){g.coreD=Math.max(2,Math.min(g.coreD,r1(od-3)));z.throatD=Math.min(z.throatD,r1(g.coreD-0.5));}
+  const sh=BURN_SIM.GRAIN_SHAPES[g.shape];BURN_SIM.normDesign(d);
+  if(g.shape!=="end"){g.coreD=Math.max(2,Math.min(g.coreD,r1(od-(sh&&sh.ls?4:3))));z.throatD=Math.min(z.throatD,r1(g.coreD-0.5));}
+  if(sh&&sh.ls){const room=Math.max(1,r1((od-g.coreD)/2-BURN_SIM.TUNING.lsWebMin));
+    g.ptLen=Math.max(1,Math.min(g.ptLen,room));g.offset=Math.max(0,Math.min(g.offset,room));g.ptW=Math.max(1,Math.min(g.ptW,g.coreD));
+    g.finLen=Math.max(5,Math.min(g.finLen,g.segLen));if(g.shape==="star")g.pts=Math.max(3,g.pts);}
   else z.throatD=Math.min(z.throatD,r1(od-1));
   z.throatD=Math.max(1,z.throatD);z.exitD=Math.max(z.exitD,z.throatD);
   return d;}
@@ -2077,7 +2272,8 @@ function dataRows(r){
     row("thrust","Thrust avg / peak",`${s.Fav.toFixed(0)} / ${s.Fmax.toFixed(0)} N`),row("burnTime","Burn time",s.tb.toFixed(2)+" s"),
     row("pressure","Pressure avg / peak",`${(s.Pav/1e6).toFixed(2)} / ${(s.Pmax/1e6).toFixed(2)} MPa`),row("isp","Isp",s.Isp.toFixed(1)+" s"),
     row("kn","Kn start / range",`${s.kn0.toFixed(0)} / ${s.knMin.toFixed(0)}–${s.knMax.toFixed(0)}`),row("portThroat","Port-to-throat",s.pt0.toFixed(2)),
-    row("massFlux","Peak mass flux",Math.round(s.gMax)+" kg/m²s"),row("sf","Case safety factor",s.sf.toFixed(2)+` (yield at ${(m.pYield/1e6).toFixed(1)} MPa)`),
+    row("massFlux","Peak mass flux",Math.round(s.gMax)+" kg/m²s"),
+    row("erosive","Erosive burning",s.eroPeak>1.005?`+${Math.round((s.eroPeak-1)*100)}% burn rate at ${s.tEro.toFixed(2)} s`:"none"),row("sf","Case safety factor",s.sf.toFixed(2)+` (yield at ${(m.pYield/1e6).toFixed(1)} MPa)`),
     row("retention","Closure margin",s.closureSf.toFixed(2)),row("liner","Liner rating",m.linerRating.toFixed(1)+" s"),
     row("igniter","Igniter strength",s.ign.strength.toFixed(2)),row("throatMat","Throat growth","+"+(s.throatGrowth*100).toFixed(2)+"%"),
     row("exit","Expansion ratio",m.eps0.toFixed(1)),
@@ -2135,6 +2331,7 @@ function initDesigner(){
 function openDesigner(){
   initDesigner();
   if(!DZ.d)DZ.d=clone(BURN_SIM.DEFAULT_DESIGN);
+  BURN_SIM.normDesign(DZ.d);   // an older save's design gets the newer grain fields
   showScreen("design");renderPanel();setView(DZ.view);
   $("dzScrub").value=Math.round(DZ.scrub*1000);
   DZ.res=null;schedule(false);

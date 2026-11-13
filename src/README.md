@@ -12,14 +12,15 @@
 | `data/tuning.js` | `TUNING`: every physics and warning constant |
 | `data/propellants.js` | `PROPELLANTS`: the fictional grades, as stat blocks only |
 | `data/materials.js` | `CASES`, `LINERS`, `THROATS`, `CLOSURES`, `IGNITERS` |
-| `data/designs.js` | `DEFAULT_DESIGN` and the `REF_DESIGNS` yardstick motors |
+| `data/designs.js` | `GRAIN_SHAPES` (with tiers), `GRAIN_DEFAULTS` and `normDesign`, `DEFAULT_DESIGN` and the `REF_DESIGNS` yardstick motors |
 | `data/variance.js` | `VARIANCE`: how a real firing differs from the prediction; `SLOTS`: dawn, noon, dusk temperatures |
 | `data/contracts.js` | `GRADING`, `STANDS` (with range fees and load cells), `CONTRACTS`: the work orders (tiers 1 and 2) with pay, days, repeats and a solution design |
 | `data/career.js` | `CAREER` (money, prices, pay, reputation, late cut, limits), `FACILITIES` (blockhouse instruments, Stand 2 lease) |
-| `sim/grain.js` | `buildGrain`: burning area, volume and port against web distance |
+| `sim/levelset.js` | level-set cross-sections (star, slotted, finocyl fins, moonburner): the port on a grid, a distance transform, then area, perimeter and port tables against web distance |
+| `sim/grain.js` | `buildGrain`: burning area, volume and port against web distance (analytic shapes, or level-set segments) |
 | `sim/nozzle.js` | isentropic nozzle, `thrustCoef` with separation, `chokedFrac`, `nozzleEta` |
 | `sim/motor.js` | `designErrors`, `motorFromDesign`: a design in mm to an SI motor with masses and ratings |
-| `sim/ballistics.js` | `simulate`: the firing, step by step (backward Euler lumped chamber) |
+| `sim/ballistics.js` | `simulate`: the firing, step by step (backward Euler lumped chamber), with erosive burning |
 | `sim/derive.js` | `summarize`, `warnings`, `impulseClass`, `predict` (the designer's one call) |
 | `sim/fire.js` | `fire`: a static firing with seeded variance, failure detection, the incident report's cause and factors |
 | `sim/grade.js` | `SPEC_INFO`, `specCheck`, `grade` (A, B, C or fail), `preFire` (stand fit, load cell, part tiers) |

@@ -9,11 +9,28 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 2. Designer | 0.3.0.0 | Done |
 | 3. Static fire and incident report (first playable) | 0.4.0.0 | Done |
 | 4. Career and saves | 0.5.0.0 | Done |
-| 5. Advanced grains and effects | 0.6.0.0 | Next |
+| 5. Advanced grains and effects | 0.6.0.0 | In progress (0.5.1.0: grains and erosive burning) |
 | 6. Flight tests | 0.7.0.0 | |
 | 7. The test stand in 3D | 0.8.0.0 | |
 | 8. Polish and modes | 0.9.0.0 | |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.5.1.0 — Stage 5, part 1: level-set grains and erosive burning
+
+- **Four new grain shapes** (`sim/levelset.js`): star and slotted (tier 2), finocyl and moonburner (tier 3). The port's
+  cross-section is drawn on a 256-cell grid and a distance transform gives every cell its distance from the port; the
+  burning surface at web x is where that distance equals x. Burning area, propellant left and port area come out as
+  tables the solver reads like the analytic shapes. New controls: points / slots / fins, their reach and width, the
+  finocyl's finned length, the moonburner's core offset. Shapes from a tier not yet open are locked in a career.
+- **The cross-section** draws the new shapes from their distance maps: the end view paints the burning front as it
+  moves, and the side cut shows the moonburner's thin side burning through first.
+- **Erosive burning** (plan 6.5): a narrow port speeds the burn where the mass flux passes the grade's threshold. The
+  predictor includes it, so the start-up spike shows on the curves; a new "Erosive spike" flag, a data sheet line, and a
+  factor in the incident report when it helped burst a case.
+- Older logbook entries regenerate with erosive burning now in the model; for almost every motor it is exactly zero.
+- Tests: `tools/sim-tests/levelset.js` (6 checks): a round core on the grid against the analytic tube (area and volume
+  within 1.3%), mass conservation for every new shape, deterministic tables, a regressive star, design limits and shape
+  tiers, and erosive burning growing as the port narrows.
 
 ## 0.5.0.0 — Stage 4: career and saves
 

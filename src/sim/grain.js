@@ -6,8 +6,10 @@
      port(x)   flow area of the port at the segment's aft end, m² (for port-to-throat ratio and mass flux)
    plus web, the x at which it has burned out. Beyond its web a segment has A = 0 and V = 0.
    Tier 1 shapes are analytic (closed forms): "bates" (cored segments, both ends burning), "tube" (a cored grain with its
-   ends inhibited), "end" (an end burner: a solid cylinder burning from its aft face). Stage 5 adds level-set shapes
-   (star, slotted, finocyl, moonburner) that produce the same three tables from a rasterised cross-section. */
+   ends inhibited), "end" (an end burner: a solid cylinder burning from its aft face). The level-set shapes (sim/levelset.js)
+   answer the same questions from a cross-section drawn on a grid, ends inhibited: "star" (a star-shaped port), "slots"
+   (a core with radial slots), "finocyl" (a plain core forward, the slotted section over the aft finLen of each segment)
+   and "moon" (a moonburner: a round core moved off the axis by offset). */
 const PI=Math.PI;
 /* one cored segment: outer radius R, core radius rc, length L, ends burning (true) or inhibited (false) */
 function coreSeg(R,rc,L,endsBurn){
@@ -27,9 +29,18 @@ function endSeg(R,L){
 }
 /* buildGrain({shape, segs, segLen, coreD, od}) in metres. Returns the segments and whole-grain helpers.
    Segments are listed forward to aft; the aft one carries the whole mass flow past its port. */
+function lsSegment(g,R){
+  const rc=g.coreD/2,base={R,rc,pts:g.pts,ptLen:g.ptLen,ptW:g.ptW,offset:g.offset};
+  if(g.shape==="finocyl"){
+    const Lf=Math.min(g.finLen,g.segLen),pieces=[];
+    if(g.segLen-Lf>1e-6)pieces.push({tab:lsTable({shape:"core",R,rc}),L:g.segLen-Lf});
+    pieces.push({tab:lsTable(Object.assign({},base,{shape:"slots"})),L:Lf});
+    return lsSeg(R,pieces,"finocyl");}
+  return lsSeg(R,[{tab:lsTable(Object.assign({},base,{shape:g.shape})),L:g.segLen}],g.shape);}
 function buildGrain(g){
   const R=g.od/2,segs=[];
   if(g.shape==="end")segs.push(endSeg(R,g.segLen*g.segs));
+  else if(GRAIN_SHAPES[g.shape]&&GRAIN_SHAPES[g.shape].ls)for(let i=0;i<g.segs;i++)segs.push(lsSegment(g,R));
   else for(let i=0;i<g.segs;i++)segs.push(coreSeg(R,g.coreD/2,g.segLen,g.shape==="bates"));
   const gaps=g.shape==="end"?0:(g.segs-1)*TUNING.segGap/1000;
   const len=(g.shape==="end"?g.segLen*g.segs:g.segLen*g.segs)+gaps;
@@ -38,6 +49,6 @@ function buildGrain(g){
     A:x=>segs.reduce((s,q)=>s+q.A(x),0),
     V:x=>segs.reduce((s,q)=>s+q.V(x),0),
     port:x=>segs[segs.length-1].port(x),
-    minPort:x=>Math.min(...segs.map(q=>q.port(x)))};
+    minPort:x=>Math.min(...segs.map(q=>q.minPort?q.minPort(x):q.port(x)))};
 }
-Object.assign(SIM,{buildGrain,coreSeg,endSeg});
+Object.assign(SIM,{buildGrain,coreSeg,endSeg,lsSegment});

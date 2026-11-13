@@ -13,7 +13,7 @@ const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
 const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
-  flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike"};
+  flux:"Mass flux",liner:"Liner",sep:"Over-expanded",ign:"Weak igniter",spike:"Igniter spike",ero:"Erosive spike"};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const getF=(d,f)=>f.split(".").reduce((o,k)=>o[k],d);
 function setF(d,f,v){const k=f.split(".");let o=d;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=v;}
@@ -21,14 +21,20 @@ const r1=v=>Math.round(v*10)/10;
 
 /* ---- the controls on each tab, as data. type: pick (cards), seg (segmented buttons), step (- n +), slide ---- */
 function controls(tab,d){
-  const S=BURN_SIM,od=d.case.id-2*d.case.linerThk,cored=d.grain.shape!=="end";
+  const S=BURN_SIM,od=d.case.id-2*d.case.linerThk,cored=d.grain.shape!=="end",sh=S.GRAIN_SHAPES[d.grain.shape]||{uses:[]},u=f=>sh.uses.includes(f);
+  const room=Math.max(1.5,(od-d.grain.coreD)/2-S.TUNING.lsWebMin),gs=d.grain.shape;
   if(tab==="grain")return[
     {f:"grain.prop",type:"pick",label:"Propellant grade",g:"grade",items:S.PROPELLANTS,
       sub:p=>`${p.rRef} mm/s at 5 MPa · n ${p.n.toFixed(2)} · ${p.rho} kg/m³ · c* ${p.cStar} m/s`},
-    {f:"grain.shape",type:"seg",label:"Grain shape",g:"shape",opts:[["bates","BATES"],["tube","Tube"],["end","End burner"]]},
+    {f:"grain.shape",type:"pick",label:"Grain shape",g:"shape",items:S.GRAIN_SHAPES,sub:x=>x.note},
     {f:"grain.segs",type:"step",label:cored?"Segments":"Grain pieces",g:"segments",min:1,max:12},
     {f:"grain.segLen",type:"slide",label:cored?"Segment length":"Piece length",g:"web",unit:"mm",min:10,max:Math.max(60,Math.round(d.case.id*5)),step:1},
-    cored&&{f:"grain.coreD",type:"slide",label:"Core diameter",g:"core",unit:"mm",min:2,max:r1(od-3),step:0.5}
+    cored&&{f:"grain.coreD",type:"slide",label:"Core diameter",g:"core",unit:"mm",min:2,max:r1(od-(sh.ls?4:3)),step:0.5},
+    u("pts")&&{f:"grain.pts",type:"step",label:gs==="star"?"Points":gs==="finocyl"?"Fins":"Slots",g:"starPoints",min:gs==="star"?3:2,max:12},
+    u("ptLen")&&{f:"grain.ptLen",type:"slide",label:gs==="star"?"Point reach past the core":gs==="finocyl"?"Fin reach past the core":"Slot reach past the core",g:"pointDepth",unit:"mm",min:1,max:r1(room),step:0.5},
+    u("ptW")&&{f:"grain.ptW",type:"slide",label:gs==="finocyl"?"Fin width":"Slot width",g:"slotWidth",unit:"mm",min:1,max:r1(Math.max(1.5,d.grain.coreD)),step:0.5},
+    u("finLen")&&{f:"grain.finLen",type:"slide",label:"Finned length (aft end)",g:"finLength",unit:"mm",min:5,max:Math.max(6,d.grain.segLen),step:1},
+    u("offset")&&{f:"grain.offset",type:"slide",label:"Core offset",g:"coreOffset",unit:"mm",min:0,max:r1(room),step:0.5}
   ].filter(Boolean);
   if(tab==="nozzle")return[
     {f:"nozzle.mat",type:"pick",label:"Throat material",g:"throatMat",items:S.THROATS,
@@ -58,7 +64,11 @@ function clampDesign(d){
   const c=d.case,g=d.grain,z=d.nozzle;
   c.wall=Math.min(c.wall,r1(c.id/4-0.1));c.linerThk=Math.min(c.linerThk,r1(c.id/6-0.1));
   const od=c.id-2*c.linerThk;
-  if(g.shape!=="end"){g.coreD=Math.max(2,Math.min(g.coreD,r1(od-3)));z.throatD=Math.min(z.throatD,r1(g.coreD-0.5));}
+  const sh=BURN_SIM.GRAIN_SHAPES[g.shape];BURN_SIM.normDesign(d);
+  if(g.shape!=="end"){g.coreD=Math.max(2,Math.min(g.coreD,r1(od-(sh&&sh.ls?4:3))));z.throatD=Math.min(z.throatD,r1(g.coreD-0.5));}
+  if(sh&&sh.ls){const room=Math.max(1,r1((od-g.coreD)/2-BURN_SIM.TUNING.lsWebMin));
+    g.ptLen=Math.max(1,Math.min(g.ptLen,room));g.offset=Math.max(0,Math.min(g.offset,room));g.ptW=Math.max(1,Math.min(g.ptW,g.coreD));
+    g.finLen=Math.max(5,Math.min(g.finLen,g.segLen));if(g.shape==="star")g.pts=Math.max(3,g.pts);}
   else z.throatD=Math.min(z.throatD,r1(od-1));
   z.throatD=Math.max(1,z.throatD);z.exitD=Math.max(z.exitD,z.throatD);
   return d;}
@@ -148,7 +158,8 @@ function dataRows(r){
     row("thrust","Thrust avg / peak",`${s.Fav.toFixed(0)} / ${s.Fmax.toFixed(0)} N`),row("burnTime","Burn time",s.tb.toFixed(2)+" s"),
     row("pressure","Pressure avg / peak",`${(s.Pav/1e6).toFixed(2)} / ${(s.Pmax/1e6).toFixed(2)} MPa`),row("isp","Isp",s.Isp.toFixed(1)+" s"),
     row("kn","Kn start / range",`${s.kn0.toFixed(0)} / ${s.knMin.toFixed(0)}–${s.knMax.toFixed(0)}`),row("portThroat","Port-to-throat",s.pt0.toFixed(2)),
-    row("massFlux","Peak mass flux",Math.round(s.gMax)+" kg/m²s"),row("sf","Case safety factor",s.sf.toFixed(2)+` (yield at ${(m.pYield/1e6).toFixed(1)} MPa)`),
+    row("massFlux","Peak mass flux",Math.round(s.gMax)+" kg/m²s"),
+    row("erosive","Erosive burning",s.eroPeak>1.005?`+${Math.round((s.eroPeak-1)*100)}% burn rate at ${s.tEro.toFixed(2)} s`:"none"),row("sf","Case safety factor",s.sf.toFixed(2)+` (yield at ${(m.pYield/1e6).toFixed(1)} MPa)`),
     row("retention","Closure margin",s.closureSf.toFixed(2)),row("liner","Liner rating",m.linerRating.toFixed(1)+" s"),
     row("igniter","Igniter strength",s.ign.strength.toFixed(2)),row("throatMat","Throat growth","+"+(s.throatGrowth*100).toFixed(2)+"%"),
     row("exit","Expansion ratio",m.eps0.toFixed(1)),
@@ -206,6 +217,7 @@ function initDesigner(){
 function openDesigner(){
   initDesigner();
   if(!DZ.d)DZ.d=clone(BURN_SIM.DEFAULT_DESIGN);
+  BURN_SIM.normDesign(DZ.d);   // an older save's design gets the newer grain fields
   showScreen("design");renderPanel();setView(DZ.view);
   $("dzScrub").value=Math.round(DZ.scrub*1000);
   DZ.res=null;schedule(false);

@@ -36,6 +36,8 @@ vis/flight.js
 vis/glb.js
 vis/stand3d.js
 vis/close.js
+# --- the sound block (BURN_SOUND): procedural WebAudio and vibration, driven by the app ---
+sound/synth.js
 # --- the app block: the page glue ---
 app/state.js
 app/pwa.js

@@ -11,9 +11,22 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 4. Career and saves | 0.5.0.0 | Done |
 | 5. Advanced grains and effects | 0.6.0.0 | Done |
 | 6. Flight tests | 0.7.0.0 | Done |
-| 7. The test stand in 3D | 0.8.0.0 | In progress (0.7.1.0 done) |
-| 8. Polish and modes | 0.9.0.0 | |
+| 7. The test stand in 3D | 0.8.0.0 | Done |
+| 8. Polish and modes | 0.9.0.0 | Next |
 | 9. Release and studio listing | 1.0.0.0 | |
+
+## 0.8.0.0 — Stage 7, part 2: sound and vibration
+
+- **Procedural sound** (decided: on by default, with a mute), all made in WebAudio while the game runs, no sound files:
+  the motor's roar follows the measured thrust (bigger motors sound deeper), it crackles when the pressure trace gets
+  rough, a burn-through hisses, and a climbing rocket fades into the distance. Countdown beeps, the firing relay's
+  click at ignition and burnout, the data logger's chirp when it arms and when it has saved the run, and a bang for a
+  burst (smaller for a nozzle popping out). The slow-motion replay plays it again, deeper.
+- **Vibration** on ignition and on each kind of failure (Android; iPhone browsers don't allow it).
+- **The speaker button** on the stand mutes sound and vibration together, remembered on this phone. Settings has
+  separate Sound and Vibration switches.
+- Fix: after a short burn that played slowed down, the stand idled in slow motion for up to 20 seconds before the replay
+  started; the time after the burn now plays at normal speed.
 
 ## 0.7.1.0 — Stage 7, part 1: the 3D stand and launches
 

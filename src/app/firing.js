@@ -7,13 +7,19 @@
    past burnout to apogee: the coast is sped up to take about four seconds. The first gauge reads height.
    Stage 7: when the 3D range is loaded (app/gfx.js) the stand and the launch play in 3D (vis/stand3d.js) instead of the
    2D drawings. A motor that fails destructively gets a slow-motion replay of the moment it went (0.3x, from half a second
-   before), once on its own and again from the "Watch it again" button. */
+   before), once on its own and again from the "Watch it again" button.
+   Sound and vibration (sound/synth.js) run off the same clock: countdown beeps, the relay's click, a roar that follows
+   the measured thrust and crackles when the pressure gets rough, a bang when it goes. The speaker button mutes both. */
 const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false};
+const SND={n:-1,lit:false,boom:false,out:false,saved:false};   // which sounds this run has made
 const REPLAY_SP=0.3,REPLAY_PRE=0.5,REPLAY_POST=1.4;   // replay speed, and seconds shown before and after the failure
 const COAST_S=4;   // seconds the coast to apogee takes on screen
-/* sim time at el seconds into the burn phase: the burn at FR.sp, then a launch's coast at FR.spC */
-const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb||!FR.tFly?el*FR.sp:FR.tEnd+(el-tb)*FR.spC;};
+/* sim time at el seconds into the burn phase: the burn at FR.sp, then a launch's coast at FR.spC, or real time after a
+   static burn (so a slowed short burn doesn't leave the stand idling in slow motion afterwards) */
+const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb?el*FR.sp:FR.tEnd+(el-tb)*(FR.tFly?FR.spC:1);};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
+/* AFTER in sim seconds at the speed the end of the run plays (real time, or a launch's sped-up coast) */
+const frAfter=()=>AFTER*(FR.tFly?FR.spC:1);
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
 function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
@@ -24,7 +30,8 @@ function openFiring(){
   $("fire").setAttribute("aria-label",fly?"Launch":"Static firing");
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
   FR.tFly=fly?Math.max(FR.tEnd,fly.lost?fly.tLost:fly.tApo):0;FR.spC=fly?Math.max(1,(FR.tFly-FR.tEnd)/COAST_S):1;
-  FR.fPk=Math.max(1,...f.plog.f);
+  FR.fPk=Math.max(1,...f.plog.f);FR.pPk=1;for(const p of f.log.p)if(p>FR.pPk)FR.pPk=p;
+  Object.assign(SND,{n:-1,lit:false,boom:false,out:false,saved:false});BURN_SOUND.stop();BURN_SOUND.chirp(false);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
   $("frNext").hidden=true;$("frAbort").hidden=false;$("frAbort").disabled=false;$("frReplay").hidden=true;$("frPlume").hidden=true;$("frSlow").hidden=true;
@@ -44,35 +51,58 @@ function setup3d(L){
     tBurn:fl&&fl.destructive?Math.min(fl.t,FR.tEnd):FR.tEnd,lost:fly.lost?fly.tLost:null});}
   BURN_VIS.s3.setup(o);}
 function frameFiring(now){
-  const L=GAME.last;if(!L||$("fire").hidden){FR.phase="idle";playing3d(false);return;}
-  const f=L.f,el=(now-FR.t0)/1000,still=reduced();playing3d(true);
-  if(FR.phase==="replay"){const t=FR.rp0+el*REPLAY_SP;drawFiring(Math.min(t,FR.rp1),still);
+  const L=GAME.last;if(!L||$("fire").hidden){FR.phase="idle";playing3d(false);BURN_SOUND.stop();return;}
+  const f=L.f,el=Math.max(0,(now-FR.t0)/1000),still=reduced();   // a frame can be stamped a moment before t0playing3d(true);
+  if(FR.phase==="replay"){const t=FR.rp0+el*REPLAY_SP;drawFiring(Math.min(t,FR.rp1),still);sndAt(Math.min(t,FR.rp1),true);
     if(t<FR.rp1)FR.raf=requestAnimationFrame(frameFiring);else endReplay();return;}
   if(FR.phase==="count"){
     const left=FIRE_COUNT-Math.floor(el/COUNT_STEP);
     $("frCount").textContent=left>0?String(left):"Fire";$("frCount").hidden=false;
+    if(left!==SND.n){SND.n=left;BURN_SOUND.beep(left<=0);}
     drawFiring(-1,still);
     if(el>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
   const t=frTime(el),tDone=Math.max(FR.tEnd,FR.tFly);
-  drawFiring(t,still);
-  if(t<tDone+AFTER*(FR.tFly?FR.spC:1))FR.raf=requestAnimationFrame(frameFiring);
+  drawFiring(t,still);sndAt(t,false);
+  if(t<tDone+frAfter())FR.raf=requestAnimationFrame(frameFiring);
   else if(FR.rp0>=0&&!FR.replayed&&!still)startReplay();
-  else{FR.phase="done";playing3d(false);if(FR.rp0>=0)$("frReplay").hidden=false;$("frPlume").hidden=!FR.d3;}
+  else{FR.phase="done";playing3d(false);sndDone();if(FR.rp0>=0)$("frReplay").hidden=false;$("frPlume").hidden=!FR.d3;}
   if(t>=tDone&&$("frNext").hidden){$("frNext").hidden=false;$("frAbort").hidden=true;$("frNext").focus({preventScroll:true});}}
 /* the slow-motion replay of a failure: the same seconds again at REPLAY_SP, from the close-up camera in 3D */
 function startReplay(){
-  FR.replayed=true;FR.phase="replay";FR.t0=performance.now();$("frSlow").hidden=false;$("frReplay").hidden=true;
+  FR.replayed=true;FR.phase="replay";FR.t0=performance.now();Object.assign(SND,{lit:false,boom:false,out:false});$("frSlow").hidden=false;$("frReplay").hidden=true;
   $("frSpeed").textContent=`slowed ×${REPLAY_SP}`;
   if(FR.d3){const S=BURN_VIS.s3.S,k=GAME.last.f.failure.key;FR.shot0=S.shot;
     if(GAME.last.f.flight){S.shot=1;S.orbit=null;}else if(k==="cato"){S.shot=0;S.orbit={az:-0.35,el:0.12,zoom:0.8};}else{S.shot=1;S.orbit=null;}}
   cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
 function endReplay(){
-  FR.phase="done";playing3d(false);$("frSlow").hidden=true;$("frReplay").hidden=false;
+  FR.phase="done";playing3d(false);sndDone();$("frSlow").hidden=true;$("frReplay").hidden=false;
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
   if(FR.d3){const S=BURN_VIS.s3.S;S.shot=FR.shot0||0;S.orbit=null;}
-  drawFiring(Math.max(FR.tEnd,FR.tFly)+AFTER,reduced());}
+  drawFiring(Math.max(FR.tEnd,FR.tFly)+frAfter(),reduced());}
+/* sound and vibration at sim time t (slow: in the replay, where nothing vibrates and the relay doesn't click again) */
+function sndAt(t,slow){
+  if(t<0)return;
+  const B=BURN_SOUND,f=GAME.last.f,lg=f.log,fl=f.failure,fly=f.flight,burning=t<=FR.tEnd;
+  if(!SND.lit){SND.lit=true;if(!slow){B.click();B.buzz(fl&&fl.key==="hangfire"?"hangfire":"ignite");}}
+  if(burning&&!B.motor.on())B.motor.start(Math.max(0,Math.min(1,(Math.log10(FR.fPk)-1.3)/3.2)));
+  const i=BURN_VIS.at(lg,Math.min(t,FR.tEnd)),j=Math.max(0,i-2);
+  B.motor.set({f:burning?lg.f[i]/FR.fPk:0,rough:burning?Math.min(1,Math.abs(lg.p[i]-lg.p[j])/FR.pPk*12):0,
+    jet:fl&&fl.key==="burnthrough"&&t>=fl.t&&burning?1:0,dist:fly?BURN_VIS.pathAt(fly.samples,Math.min(t,FR.tFly)).h:0,slow});
+  const boomAt=fl&&fl.destructive?fl.t:fly&&fly.lost?fly.tLost:null;
+  if(boomAt!=null&&t>=boomAt&&!SND.boom){SND.boom=true;const k=fl&&fl.destructive?fl.key:"lost";
+    B.bang(k==="cato"?1:k==="eject"?0.45:k==="burnthrough"?0.3:0.7);if(!slow)B.buzz(k);}
+  if(!burning&&!SND.out){SND.out=true;if(!slow&&!(fl&&fl.destructive))B.click();}}
+/* the run is over: the roar stops and, the first time, the logger chirps that it has saved the data */
+function sndDone(){BURN_SOUND.motor.stop();if(!SND.saved){SND.saved=true;BURN_SOUND.chirp(true);}}
+/* the speaker button: one switch for sound and vibration together (Kelbo, 13 November 2026) */
+const SPK_ON='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const SPK_OFF='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+function muteUI(){const on=SETTINGS.sound||SETTINGS.haptics,b=$("frMute");b.innerHTML=on?SPK_ON:SPK_OFF;b.setAttribute("aria-pressed",String(!on));
+  b.setAttribute("aria-label",on?"Mute sound and vibration":"Sound and vibration are off. Turn them on");}
+function toggleMute(){const on=!(SETTINGS.sound||SETTINGS.haptics);SETTINGS.sound=SETTINGS.haptics=on;saveSettings();
+  BURN_SOUND.setOn(on,on);if(on)BURN_SOUND.unlock();muteUI();toast(on?"Sound and vibration on.":"Muted.");}
 const playing3d=on=>{if(FR.d3)BURN_VIS.s3.S.playing=on;};
 function drawFiring(t,still){
   const L=GAME.last,f=L.f,lg=f.log,m=f.motor,fl=f.failure;
@@ -94,6 +124,10 @@ function abortFiring(){
   toast("Once it's lit, it's lit.");$("frAbort").disabled=true;}
 function initFiring(){
   $("frAbort").addEventListener("click",abortFiring);
-  $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";playing3d(false);openReport();});
+  $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";playing3d(false);BURN_SOUND.stop();openReport();});
+  $("frMute").addEventListener("click",toggleMute);muteUI();
+  /* phones only start audio from a tap: wake the audio on any tap or key while sound is on */
+  const wake=()=>{if(SETTINGS.sound)BURN_SOUND.unlock();};
+  document.addEventListener("pointerdown",wake,{capture:true,passive:true});document.addEventListener("keydown",wake,{capture:true});
   $("frReplay").addEventListener("click",startReplay);
-  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+AFTER,reduced());}});}
+  addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+frAfter(),reduced());}});}

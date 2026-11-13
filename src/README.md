@@ -39,6 +39,7 @@
 | `vis/glb.js` | `glbScene`: a small reader for `models/range.glb` (nodes, meshes, plain materials); `swapMats` for the graphics tiers |
 | `vis/stand3d.js` | `s3`: the 3D range in three.js: Stand 3 and the launch rail, the motor or rocket built from the design, the plume shader, smoke, failure effects, the set shots and orbit camera, Full/Lite tiers with automatic step-down |
 | `vis/close.js` | `return VIS;})();` and closes the `<script>` |
+| `sound/synth.js` | the `BURN_SOUND` block (opens and closes its own `<script>`): procedural WebAudio (the motor's roar, crackle and hiss, countdown beeps, the relay click, the logger chirp, a bang) and vibration patterns; `setOn`, `unlock`, `motor.start/set/stop` |
 | `app/state.js` | opens the app `<script>`; `VERSION`, settings (`brn-settings`), `toast`, `openSheet` / `closeSheet` |
 | `app/pwa.js` | service worker registration and the "New version ready" bar |
 | `app/save.js` | `S` (the saved game), `hydrate` (shape checks), `save` (debounced, to `brn-save`), save slots `brn-slot1..3` |
@@ -54,6 +55,6 @@
 | `app/boot.js` | `start()`: settings, loads the save, version line, hides the splash; closes the app `<script>` |
 | `html/tail.html` | `</body></html>` |
 
-Data tables go in `data/` inside the sim block; charts, the cross-section and later the 3D stand go in `vis/`; procedural audio in `sound/`.
+Data tables go in `data/` inside the sim block; charts, the cross-section and later the 3D stand go in `vis/`; procedural audio and vibration in `sound/`.
 
 Outside `src/`: `lib/three.min.js` (three.js, rebuilt by `tools/vendor-three.sh`) and `models/range.glb` (written by `tools/blender-range.py`) are fetched by the page at run time, not built into it.

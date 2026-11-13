@@ -54,7 +54,7 @@
 
   <!-- THE STAND (app/firing.js): countdown, the stand, the live strip chart -->
   <main id="fire" hidden aria-label="Static firing">
-    <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span></header>
+    <header class="sc-top"><div class="dz-name"><span class="site" id="frSite">Stand 3</span><b class="sign" id="frDes">—</b></div><span class="fr-speed mono" id="frSpeed"></span><button type="button" class="btn sm fr-mute" id="frMute" aria-pressed="false" aria-label="Mute sound and vibration"></button></header>
     <div class="fr-stand"><canvas id="frStand" aria-hidden="true"></canvas><canvas id="frStand3" hidden tabindex="0" aria-label="The stand in 3D. Tap or press Enter to change the camera, drag to look round"></canvas><div class="fr-count sign" id="frCount" hidden aria-live="assertive"></div><span class="fr-slow mono" id="frSlow" hidden>Slow-motion replay</span></div>
     <div class="fr-gauges" aria-live="off"><div><span id="frPL">Pressure</span><b class="mono" id="frP">0.00</b><small id="frPU">MPa</small></div><div><span>Thrust</span><b class="mono" id="frF">0</b><small>N</small></div><div><span>Time</span><b class="mono" id="frT">0.00</b><small>s</small></div></div>
     <div class="card fr-strip"><canvas id="frStrip" role="img" aria-label="Strip chart: measured pressure and thrust over the prediction"></canvas>

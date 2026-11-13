@@ -6,6 +6,8 @@
    SETTINGS.gfx (in brn-settings): "auto" (start Full or Lite from what the phone reports, step down if frames run slow),
    "full", "lite" or "2d". SETTINGS.gfxAuto remembers an automatic step-down to Lite so the next visit starts there. */
 const GFX={state:"idle",p:null};
+/* Ruslan's voice: [setting, button, the button text's language] */
+const VOICE_OPTS=[["en","English",""],["ru","Русский","ru"],["off","Off",""]];
 const GFX_OPTS=[["auto","Auto","Full on a quick phone; steps down to Lite if the stand stutters."],["full","Full","Shadows, metal and the most smoke."],
   ["lite","Lite","Plainer, for older phones and batteries."],["2d","2D","The flat drawing: no 3D at all."]];
 const gfxWant=()=>SETTINGS.gfx!=="2d";
@@ -31,7 +33,7 @@ function settingsSheet(){
   const g=SETTINGS.gfx||"auto",st=GFX.state==="failed"?`<p class="hint">This phone couldn't start the 3D stand, so the 2D one is used.</p>`:"";
   const onOff=(key,label,note)=>`<fieldset class="seg-f"><legend>${label}</legend><div class="seg two" role="radiogroup" aria-label="${label}">${[[true,"On"],[false,"Off"]].map(([v,n])=>
       `<button type="button" role="radio" aria-checked="${SETTINGS[key]===v}" data-set="${key}" data-v="${v}" class="btn sm${SETTINGS[key]===v?" on":""}">${n}</button>`).join("")}</div>${note}</fieldset>`;
-  const th=SETTINGS.theme||"light";
+  const th=SETTINGS.theme||"light";const vc=SETTINGS.voice||"en";
   openSheet("Settings",`<fieldset class="seg-f"><legend>Theme</legend><div class="seg three" role="radiogroup" aria-label="Theme">${THEME_OPTS.map(([k,n])=>
       `<button type="button" role="radio" aria-checked="${k===th}" data-theme-set="${k}" class="btn sm${k===th?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint">Night shift is the blockhouse after dark. Match phone follows your phone's dark mode.</p></fieldset>`+
@@ -39,6 +41,9 @@ function settingsSheet(){
       `<button type="button" role="radio" aria-checked="${k===g}" data-gfx="${k}" class="btn sm${k===g?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`+
     onOff("sound","Sound",`<p class="hint">The motor, the countdown and the stand's relays. The speaker button on the stand mutes sound and vibration together.</p>`)+
+    `<fieldset class="seg-f"><legend>Ruslan's voice</legend><div class="seg three" role="radiogroup" aria-label="Ruslan's voice">${VOICE_OPTS.map(([k,n,l])=>
+      `<button type="button" role="radio" aria-checked="${k===vc}" data-voice-set="${k}"${l?` lang="${l}"`:""} class="btn sm${k===vc?" on":""}">${n}</button>`).join("")}</div>
+    <p class="hint">The Range Safety Officer calls the countdown over the tannoy and reads his sign-off on each report. Needs Sound on. The voice is AI-generated.</p></fieldset>`+
     onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`)+
     onOff("coach","Coach cards",`<p class="hint">Short tips on your first job, each shown once. <button type="button" class="btn sm" id="coachAgain">Show them again</button></p>`));
   $("sheetBody").addEventListener("click",e=>{
@@ -46,6 +51,10 @@ function settingsSheet(){
     const th=e.target.closest("[data-theme-set]");
     if(th){SETTINGS.theme=th.dataset.themeSet;saveSettings();applyTheme();
       $("sheetBody").querySelectorAll("[data-theme-set]").forEach(x=>{const on=x===th;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});return;}
+    const vb=e.target.closest("[data-voice-set]");
+    if(vb){const v=vb.dataset.voiceSet;SETTINGS.voice=v;saveSettings();BURN_SOUND.voice.lang(v);
+      if(v!=="off"&&SETTINGS.sound){BURN_SOUND.unlock();voicePrep();BURN_SOUND.voice.say("armed",{pa:true});}   // a sample
+      $("sheetBody").querySelectorAll("[data-voice-set]").forEach(x=>{const on=x===vb;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});return;}
     const t=e.target.closest("[data-set]");
     if(t){const k=t.dataset.set,v=t.dataset.v==="true";SETTINGS[k]=v;saveSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
       if(k==="sound"&&v)BURN_SOUND.unlock();if(k==="haptics"&&v)BURN_SOUND.buzz("ignite");

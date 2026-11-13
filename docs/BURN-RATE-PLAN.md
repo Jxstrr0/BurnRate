@@ -25,7 +25,7 @@ sections below are updated to match.
 | 13 Nov 2026 | Late game | **Repeat orders and new jobs**: most tier 3 and 4 jobs come back as repeat orders (60% pay, as at tiers 1 and 2), plus about six new jobs (three at tier 3, three tier 4 tenders), each with a reference solution the balance bot delivers |
 | 13 Nov 2026 | Late-game mechanic | **The altitude chamber (vacuum upper stages)**: Site 41's old altitude test cell, leased after the tender register. It fires at near-vacuum back-pressure, so a big expansion-ratio nozzle pays off and ground over-expansion stops mattering; its jobs ask for vacuum specific impulse. The predictor and the firing both use the stand's back-pressure |
 | 13 Nov 2026 | Finale | **A capstone, then open play**: once every tier 4 tender is won, Altyn Space Agency puts out its orbital booster lot (in the chamber, the biggest pay in the game). Winning it shows a "The range is yours" card with the career's numbers; the career then carries on with repeat orders |
-| 13 Nov 2026 | Voice lines | **Two full runs, English and Russian, both wired in**: Ruslan's 8 range calls and 34 report sign-offs on the ElevenLabs Multilingual model with a stock voice, about 3,600 credits, capped at **6,000 credits for the whole project**. The script is `tools/voice-lines.json`; a setting picks English, Russian or off |
+| 13 Nov 2026 | Voice lines | **Two full runs, English and Russian, both wired in**: Ruslan's 8 range calls and 34 report sign-offs on the ElevenLabs Multilingual model with a stock voice, about 3,600 credits, capped at **6,000 credits for the whole project**. The script is `tools/voice-lines.json`; a setting picks English (the default), Russian or off. Built in 1.3.0.0: 84 clips, 3,748 credits |
 | 13 Nov 2026 | An empty board | **A free "Wait for orders" button**: when nothing is on the board, skip ahead to the day the next repeat order (or a lost tender) comes back, at no cost, so a player short of money for the next lease is never stuck |
 | 13 Nov 2026 | Daily Spec tries | **Unlimited, best kept**: fire the day's spec as often as you like; the phone keeps the best grade of the day and how many firings it took |
 | 13 Nov 2026 | Daily Spec parts | **A fixed kit per day**: each day's spec comes with its own parts list, the same for everyone and independent of the career |
@@ -454,9 +454,11 @@ gear on top. (The plan's retro "Range Data Sheet" paper look was dropped.)
   crackle with pressure roughness, chuffing pulses for real.
 - Countdown beeps, relay clicks, the data logger's chirp.
 - Haptics on ignition and failure (The Whip `src/haptics.js` table).
-- **Voice lines** (Range Safety Officer countdown and sign-offs) are optional
-  and would use ElevenLabs. **Never generate without quoting the credit cost
-  to Kelbo and getting a yes first.**
+- **Voice lines** (Range Safety Officer countdown and sign-offs): built in
+  1.3.0.0 from ElevenLabs clips in English and Russian (`sounds/voice/`,
+  script `tools/voice-lines.json`, Settings picks English, Russian or off).
+  **Never generate more without quoting the credit cost to Kelbo and getting
+  a yes first.**
 
 ### 9.5 Generated art
 

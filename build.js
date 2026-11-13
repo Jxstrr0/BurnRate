@@ -6,7 +6,8 @@
  *
  *   node build.js           concatenate the files listed in src/manifest.txt into index.html, then write sw.js
  *   node build.js --check   exit 1 if index.html or sw.js is not exactly what src/ builds (names the first differing src file);
- *                           both also refuse a script block that does not compile, or that declares a function twice
+ *                           both also refuse a script block that does not compile, or that declares a function twice,
+ *                           or a voice line without its clips (checkVoice)
  *
  * Changes from Scrapline: caches start "brn-" (Burn Rate's own prefix; the service worker only ever deletes "brn-" caches),
  * nothing comes from a CDN (fonts, three.js and the studio logo are files in this repo), and the --absorb / --split
@@ -101,14 +102,42 @@ function precacheList() {
   }
   return list;
 }
-/* models/, sounds/ and textures/ are cached as they are fetched; the media cache name hashes their listings (names + sizes) */
+/* models/, sounds/ and textures/ are cached as they are fetched; the media cache name hashes their listings (names + sizes,
+   subfolders included, such as sounds/voice/en/) */
 function mediaHash() {
   const h = crypto.createHash("sha256");
-  for (const dir of ["models", "sounds", "textures"]) {
-    const d = path.join(ROOT, dir);
-    if (fs.existsSync(d)) for (const n of fs.readdirSync(d).sort()) { const st = fs.statSync(path.join(d, n)); if (st.isFile()) h.update(dir + "/" + n + "\0" + st.size + "\0"); }
-  }
+  const walk = rel => {
+    const d = path.join(ROOT, rel);
+    if (fs.existsSync(d)) for (const n of fs.readdirSync(d).sort()) {
+      const st = fs.statSync(path.join(d, n));
+      if (st.isFile()) h.update(rel + "/" + n + "\0" + st.size + "\0"); else if (st.isDirectory()) walk(rel + "/" + n);
+    }
+  };
+  for (const dir of ["models", "sounds", "textures"]) walk(dir);
   return h.digest("hex").slice(0, 8);
+}
+/* Ruslan's voice: every line in tools/voice-lines.json has a clip in sounds/voice/en/ and sounds/voice/ru/, the sign-offs
+   match RSO_LINES in src/app/report.js (same keys, same count, same English), and the calls match VOICE_CALLS in
+   src/app/firing.js. A missing clip only means silence in the game, so this is the place that notices. */
+function checkVoice() {
+  const jf = path.join(ROOT, "tools", "voice-lines.json");
+  if (!fs.existsSync(jf)) return;
+  const j = JSON.parse(fs.readFileSync(jf, "utf8")), bad = [];
+  for (const l of [...j.calls, ...j.signoffs]) for (const lang of ["en", "ru"])
+    if (!fs.existsSync(path.join(ROOT, "sounds", "voice", lang, l.id + ".mp3"))) bad.push(`sounds/voice/${lang}/${l.id}.mp3 is missing`);
+  const rep = fs.readFileSync(path.join(SRC, "app", "report.js"), "utf8").match(/const RSO_LINES=(\{[\s\S]*?\});\n/);
+  if (!rep) bad.push("no RSO_LINES table in src/app/report.js");
+  else {
+    const R = vm.runInNewContext("(" + rep[1] + ")"), want = [];
+    for (const k of Object.keys(R)) R[k].forEach((t, i) => want.push({ id: k + "-" + (i + 1), en: t }));
+    const have = new Map(j.signoffs.map(l => [l.id, l.en]));
+    for (const w of want) if (!have.has(w.id)) bad.push(`voice-lines.json has no sign-off ${w.id}`); else if (have.get(w.id) !== w.en) bad.push(`sign-off ${w.id} differs from RSO_LINES: "${have.get(w.id)}"`);
+    if (j.signoffs.length !== want.length) bad.push(`voice-lines.json has ${j.signoffs.length} sign-offs, RSO_LINES ${want.length}`);
+  }
+  const fc = fs.readFileSync(path.join(SRC, "app", "firing.js"), "utf8").match(/const VOICE_CALLS=(\[[^\]]*\]);/);
+  if (!fc) bad.push("no VOICE_CALLS in src/app/firing.js");
+  else if (JSON.stringify(JSON.parse(fc[1])) !== JSON.stringify(j.calls.map(l => l.id))) bad.push("VOICE_CALLS in src/app/firing.js differs from the calls in voice-lines.json");
+  if (bad.length) die("voice clips:\n  " + bad.join("\n  "));
 }
 function version() {
   const f = path.join(SRC, "app", "state.js"), m = fs.existsSync(f) && fs.readFileSync(f, "latin1").match(/const VERSION="([^"]+)"/);
@@ -187,7 +216,7 @@ function where(ps, off) {
 
 function cmdBuild() {
   const ps = parts(), out = build(ps);
-  lint(ps, out);
+  lint(ps, out); checkVoice();
   const old = fs.existsSync(OUT) ? fs.readFileSync(OUT) : null, sw0 = fs.existsSync(SW_OUT) ? fs.readFileSync(SW_OUT, "utf8") : null;
   if (!(old && old.equals(out))) { fs.writeFileSync(OUT, out); console.log(`index.html written (${out.length} bytes, ${ps.length} files)`); }
   else console.log(`index.html unchanged (${out.length} bytes, ${ps.length} files)`);
@@ -196,7 +225,7 @@ function cmdBuild() {
 }
 function cmdCheck() {
   const ps = parts(), out = build(ps);
-  lint(ps, out);
+  lint(ps, out); checkVoice();
   if (!fs.existsSync(OUT)) die("index.html is missing; run node build.js");
   const cur = fs.readFileSync(OUT), d = firstDiff(out, cur);
   if (d < 0) {

@@ -1,5 +1,5 @@
 {
-  "about": "Ruslan Abenov's voice script (Range Safety Officer). Kelbo approved two ElevenLabs Multilingual runs, English and Russian, capped at 6000 credits for the whole project (13 Nov 2026). Each id becomes assets/voice/en/<id>.mp3 and assets/voice/ru/<id>.mp3. The sign-off ids are the RSO_LINES key in src/app/report.js plus the line's number (1-based); keep the English text here in step with that table.",
+  "about": "Ruslan Abenov's voice script (Range Safety Officer). Kelbo approved two ElevenLabs Multilingual runs, English and Russian, capped at 6000 credits for the whole project (13 Nov 2026). Each id becomes sounds/voice/en/<id>.mp3 and sounds/voice/ru/<id>.mp3 (node build.js checks they all exist). The sign-off ids are the RSO_LINES key in src/app/report.js plus the line's number (1-based); keep the English text here in step with that table.",
   "calls": [
     {"id": "armed", "en": "Stand is armed. Range is clear.", "ru": "Стенд готов. Полигон чист."},
     {"id": "count-3", "en": "Three.", "ru": "Три."},

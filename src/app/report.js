@@ -29,11 +29,17 @@ const RSO_LINES={
   lotA:["Five motors, one curve. That's what a supplier looks like.","I couldn't tell them apart on the plot. Good."],
   flyA:["Straight up, straight down, right where they wanted it. Signed.","The altimeter agrees with you. So do I."]};
 const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
-const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
+const rsoKey=key=>RSO_LINES[key]?key:"free";
+const rsoIdx=(key,n)=>{const len=RSO_LINES[rsoKey(key)].length;return(((n-1)%len)+len)%len;};
+const rsoLine=(key,n)=>RSO_LINES[rsoKey(key)][rsoIdx(key,n)];
+/* the sign-off's voice clip (sounds/voice/<lang>/<key>-<n>.mp3, n from 1; the ids in tools/voice-lines.json) */
+const rsoClip=(key,n)=>rsoKey(key)+"-"+(rsoIdx(key,n)+1);
+let rsoSaid="";   // the clip for the report on screen, which openReport hands to Ruslan
 const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
 /* the report's number: S-n in the sandbox, D<daily no>-n on the Daily Spec, 41-nnn otherwise */
 const reportNo=L=>L.sandbox?`S-${L.n}`:L.daily?`D${L.c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`;
-function openReport(){renderReport();showScreen("report");coachReport();}
+/* a fresh report gets Ruslan's sign-off read out (after "Range is safe", if he's still saying it); a logbook one doesn't */
+function openReport(){renderReport();showScreen("report");coachReport();if(GAME.last&&!GAME.last.replay&&rsoSaid)BURN_SOUND.voice.say(rsoSaid);}
 function renderReport(){
   const L=GAME.last;if(!L)return;
   /* a lot: the details below are for the selected motor; the stamp is the lot's */
@@ -42,6 +48,7 @@ function renderReport(){
   let pass=c?g.pass:!fl,key=lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");
   let stamp=lost?"Rocket lost":c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
   if(LT){const G=LT.gl;pass=G.pass;key=G.pass?(G.letter==="A"&&!G.fails?"lotA":G.letter):"lot";stamp=G.pass?`Lot accepted · ${G.letter}`:"Tender lost";}
+  rsoSaid=rsoClip(key,L.n);
   /* the spec, line by line: band, predicted at this temperature, measured */
   const checks=c?g.checks.length?g.checks:BURN_SIM.specCheck(c.spec,ms,m):[];
   const predChecks=c?BURN_SIM.specCheck(c.spec,fly&&f.fpred?Object.assign({},ps,{apogee:f.fpred.apogee}):ps,m):[];

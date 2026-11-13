@@ -8,14 +8,20 @@
    Vibration (navigator.vibrate, Android only: iPhones ignore it) buzzes on ignition and on failures.
    The app owns the settings: it calls setOn(sound, haptics) at start-up and when the player changes them, and unlock()
    from a tap, because phones only let a page start audio from a user gesture. The audio context sleeps while the page is
-   hidden. Nothing here reads the game state: app/firing.js drives it. */
+   hidden. Nothing here reads the game state: app/firing.js drives it.
+   Ruslan's voice (1.3) is the one exception to "no sound files": short recorded clips, sounds/voice/<en or ru>/<id>.mp3
+   (AI-generated, see CREDITS.md and tools/voice-lines.json), fetched when first needed, decoded once and played through
+   the same output, so the speaker button and the Sound switch silence him too. Range calls go through a tannoy filter;
+   the report's sign-off is played plain. One clip at a time: a new call cuts the old one, a sign-off waits its turn. */
 const BURN_SOUND=(()=>{"use strict";
 const AC=window.AudioContext||window.webkitAudioContext;
 let ctx=null,out=null,bufs=null,M=null,sndOn=true,hapOn=true;
 /* the vibration patterns, in milliseconds (buzz, pause, buzz...) */
 const HAPTIC={ignite:[28],cato:[90,40,220],eject:[60,40,90],burnthrough:[30,30,30,30,70],lost:[70,40,140],hangfire:[15,60,15]};
 /* mixing levels: the roar's layers at full thrust, and the one-off sounds */
-const MIX={master:0.8,rumble:0.9,roar:0.38,crackle:0.55,hiss:0.3,beep:0.22,click:0.45,chirp:0.11,bang:1.0};
+const MIX={master:0.8,rumble:0.9,roar:0.38,crackle:0.55,hiss:0.3,beep:0.22,click:0.45,chirp:0.11,bang:1.0,voice:0.95,tannoy:1.25};
+/* the tannoy: the range's loudspeakers pass roughly 300 Hz to 3.4 kHz */
+const TANNOY={lo:300,hi:3400};
 
 function noise(kind,sec){
   const n=Math.floor(ctx.sampleRate*sec),b=ctx.createBuffer(1,n,ctx.sampleRate),d=b.getChannelData(0);
@@ -94,6 +100,36 @@ function bang(size){if(!ensure())return;
   o.connect(og);og.connect(out);og.gain.setValueAtTime(MIX.bang*0.9*sz,t);og.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.7);
   o.start(t);o.stop(t+dur);}
 
+/* ---- Ruslan's voice ---- */
+let vLang="off",vGen=0,vSrc=null,vQ=[];
+const vBufs={},vReady={};   // "en/fire": the decoding promise, and the decoded buffer once it's ready
+function voiceLang(l){vLang=l==="en"||l==="ru"?l:"off";if(vLang==="off")voiceStop();}
+/* fetch and decode one clip (the callback form of decodeAudioData, which older Safari needs); null if it can't load */
+function vLoad(id){
+  const k=vLang+"/"+id;if(vBufs[k])return vBufs[k];
+  vBufs[k]=fetch("sounds/voice/"+k+".mp3").then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+    .then(a=>new Promise((res,rej)=>ctx.decodeAudioData(a,res,rej))).then(b=>{vReady[k]=b;return b;})
+    .catch(()=>{delete vBufs[k];return null;});
+  return vBufs[k];}
+/* load clips ahead (the range calls, so the countdown never waits on the network) */
+function voicePreload(ids){if(vLang==="off"||!ensure())return;for(const id of ids)vLoad(id);}
+const voiceReady=id=>vLang!=="off"&&!!vReady[vLang+"/"+id];
+function vPlay(b,pa,gen){
+  const s=ctx.createBufferSource();s.buffer=b;let n=s;
+  if(pa){const hp=filt("highpass",TANNOY.lo),lp=filt("lowpass",TANNOY.hi);s.connect(hp);hp.connect(lp);n=lp;}
+  const g=gain(pa?MIX.voice*MIX.tannoy:MIX.voice);n.connect(g);g.connect(out);
+  s.onended=()=>{if(gen===vGen&&vSrc===s){vSrc=null;vNext(gen);}};vSrc=s;s.start();}
+function vNext(gen){
+  const it=vQ.shift();if(!it)return;vSrc="wait";
+  it.p.then(b=>{if(gen!==vGen)return;if(!b||!ctx){vSrc=null;vNext(gen);return;}vPlay(b,it.pa,gen);});}
+/* say(id, {pa, now}): pa plays it over the tannoy; now cuts whatever he's saying and plays it at once, but only if the
+   clip is already decoded (returns false if not, so a countdown can beep instead). Without now it joins the queue. */
+function say(id,o){
+  o=o||{};if(vLang==="off"||!ensure())return false;
+  if(o.now){const b=vReady[vLang+"/"+id];if(!b)return false;voiceStop();vPlay(b,!!o.pa,vGen);return true;}
+  vQ.push({p:vLoad(id),pa:!!o.pa});if(!vSrc)vNext(vGen);return true;}
+function voiceStop(){vGen++;vQ=[];if(vSrc&&vSrc!=="wait")try{vSrc.onended=null;vSrc.stop();}catch(e){}vSrc=null;}
+
 /* ---- vibration ---- */
 const canBuzz=()=>typeof navigator!=="undefined"&&typeof navigator.vibrate==="function";
 function buzz(key){if(!hapOn||!canBuzz())return;const p=HAPTIC[key];if(p)try{navigator.vibrate(p);}catch(e){}}
@@ -101,10 +137,10 @@ function buzz(key){if(!hapOn||!canBuzz())return;const p=HAPTIC[key];if(p)try{nav
 /* ---- switches ---- */
 function setOn(sound,haptics){
   sndOn=!!sound;hapOn=!!haptics;
-  if(!sndOn){motorStop(0);if(ctx&&ctx.state==="running")ctx.suspend().catch(()=>{});}
+  if(!sndOn){motorStop(0);voiceStop();if(ctx&&ctx.state==="running")ctx.suspend().catch(()=>{});}
   if(!hapOn&&canBuzz())try{navigator.vibrate(0);}catch(e){}}
 function stop(){motorStop(0.25);}
 document.addEventListener("visibilitychange",()=>{if(!ctx)return;
   if(document.hidden)ctx.suspend().catch(()=>{});else if(sndOn)ctx.resume().catch(()=>{});});
-return{unlock,setOn,stop,beep,click,chirp,bang,buzz,canBuzz,motor:{start:motorStart,set:motorSet,stop:motorStop,on:()=>!!M},HAPTIC};})();
+return{unlock,setOn,stop,beep,voice:{lang:voiceLang,preload:voicePreload,ready:voiceReady,say,stop:voiceStop},click,chirp,bang,buzz,canBuzz,motor:{start:motorStart,set:motorSet,stop:motorStop,on:()=>!!M},HAPTIC};})();
 </script>

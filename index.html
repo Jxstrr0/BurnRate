@@ -2688,14 +2688,20 @@ return VIS;})();
    Vibration (navigator.vibrate, Android only: iPhones ignore it) buzzes on ignition and on failures.
    The app owns the settings: it calls setOn(sound, haptics) at start-up and when the player changes them, and unlock()
    from a tap, because phones only let a page start audio from a user gesture. The audio context sleeps while the page is
-   hidden. Nothing here reads the game state: app/firing.js drives it. */
+   hidden. Nothing here reads the game state: app/firing.js drives it.
+   Ruslan's voice (1.3) is the one exception to "no sound files": short recorded clips, sounds/voice/<en or ru>/<id>.mp3
+   (AI-generated, see CREDITS.md and tools/voice-lines.json), fetched when first needed, decoded once and played through
+   the same output, so the speaker button and the Sound switch silence him too. Range calls go through a tannoy filter;
+   the report's sign-off is played plain. One clip at a time: a new call cuts the old one, a sign-off waits its turn. */
 const BURN_SOUND=(()=>{"use strict";
 const AC=window.AudioContext||window.webkitAudioContext;
 let ctx=null,out=null,bufs=null,M=null,sndOn=true,hapOn=true;
 /* the vibration patterns, in milliseconds (buzz, pause, buzz...) */
 const HAPTIC={ignite:[28],cato:[90,40,220],eject:[60,40,90],burnthrough:[30,30,30,30,70],lost:[70,40,140],hangfire:[15,60,15]};
 /* mixing levels: the roar's layers at full thrust, and the one-off sounds */
-const MIX={master:0.8,rumble:0.9,roar:0.38,crackle:0.55,hiss:0.3,beep:0.22,click:0.45,chirp:0.11,bang:1.0};
+const MIX={master:0.8,rumble:0.9,roar:0.38,crackle:0.55,hiss:0.3,beep:0.22,click:0.45,chirp:0.11,bang:1.0,voice:0.95,tannoy:1.25};
+/* the tannoy: the range's loudspeakers pass roughly 300 Hz to 3.4 kHz */
+const TANNOY={lo:300,hi:3400};
 
 function noise(kind,sec){
   const n=Math.floor(ctx.sampleRate*sec),b=ctx.createBuffer(1,n,ctx.sampleRate),d=b.getChannelData(0);
@@ -2774,6 +2780,36 @@ function bang(size){if(!ensure())return;
   o.connect(og);og.connect(out);og.gain.setValueAtTime(MIX.bang*0.9*sz,t);og.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.7);
   o.start(t);o.stop(t+dur);}
 
+/* ---- Ruslan's voice ---- */
+let vLang="off",vGen=0,vSrc=null,vQ=[];
+const vBufs={},vReady={};   // "en/fire": the decoding promise, and the decoded buffer once it's ready
+function voiceLang(l){vLang=l==="en"||l==="ru"?l:"off";if(vLang==="off")voiceStop();}
+/* fetch and decode one clip (the callback form of decodeAudioData, which older Safari needs); null if it can't load */
+function vLoad(id){
+  const k=vLang+"/"+id;if(vBufs[k])return vBufs[k];
+  vBufs[k]=fetch("sounds/voice/"+k+".mp3").then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+    .then(a=>new Promise((res,rej)=>ctx.decodeAudioData(a,res,rej))).then(b=>{vReady[k]=b;return b;})
+    .catch(()=>{delete vBufs[k];return null;});
+  return vBufs[k];}
+/* load clips ahead (the range calls, so the countdown never waits on the network) */
+function voicePreload(ids){if(vLang==="off"||!ensure())return;for(const id of ids)vLoad(id);}
+const voiceReady=id=>vLang!=="off"&&!!vReady[vLang+"/"+id];
+function vPlay(b,pa,gen){
+  const s=ctx.createBufferSource();s.buffer=b;let n=s;
+  if(pa){const hp=filt("highpass",TANNOY.lo),lp=filt("lowpass",TANNOY.hi);s.connect(hp);hp.connect(lp);n=lp;}
+  const g=gain(pa?MIX.voice*MIX.tannoy:MIX.voice);n.connect(g);g.connect(out);
+  s.onended=()=>{if(gen===vGen&&vSrc===s){vSrc=null;vNext(gen);}};vSrc=s;s.start();}
+function vNext(gen){
+  const it=vQ.shift();if(!it)return;vSrc="wait";
+  it.p.then(b=>{if(gen!==vGen)return;if(!b||!ctx){vSrc=null;vNext(gen);return;}vPlay(b,it.pa,gen);});}
+/* say(id, {pa, now}): pa plays it over the tannoy; now cuts whatever he's saying and plays it at once, but only if the
+   clip is already decoded (returns false if not, so a countdown can beep instead). Without now it joins the queue. */
+function say(id,o){
+  o=o||{};if(vLang==="off"||!ensure())return false;
+  if(o.now){const b=vReady[vLang+"/"+id];if(!b)return false;voiceStop();vPlay(b,!!o.pa,vGen);return true;}
+  vQ.push({p:vLoad(id),pa:!!o.pa});if(!vSrc)vNext(vGen);return true;}
+function voiceStop(){vGen++;vQ=[];if(vSrc&&vSrc!=="wait")try{vSrc.onended=null;vSrc.stop();}catch(e){}vSrc=null;}
+
 /* ---- vibration ---- */
 const canBuzz=()=>typeof navigator!=="undefined"&&typeof navigator.vibrate==="function";
 function buzz(key){if(!hapOn||!canBuzz())return;const p=HAPTIC[key];if(p)try{navigator.vibrate(p);}catch(e){}}
@@ -2781,19 +2817,19 @@ function buzz(key){if(!hapOn||!canBuzz())return;const p=HAPTIC[key];if(p)try{nav
 /* ---- switches ---- */
 function setOn(sound,haptics){
   sndOn=!!sound;hapOn=!!haptics;
-  if(!sndOn){motorStop(0);if(ctx&&ctx.state==="running")ctx.suspend().catch(()=>{});}
+  if(!sndOn){motorStop(0);voiceStop();if(ctx&&ctx.state==="running")ctx.suspend().catch(()=>{});}
   if(!hapOn&&canBuzz())try{navigator.vibrate(0);}catch(e){}}
 function stop(){motorStop(0.25);}
 document.addEventListener("visibilitychange",()=>{if(!ctx)return;
   if(document.hidden)ctx.suspend().catch(()=>{});else if(sndOn)ctx.resume().catch(()=>{});});
-return{unlock,setOn,stop,beep,click,chirp,bang,buzz,canBuzz,motor:{start:motorStart,set:motorSet,stop:motorStop,on:()=>!!M},HAPTIC};})();
+return{unlock,setOn,stop,beep,voice:{lang:voiceLang,preload:voicePreload,ready:voiceReady,say,stop:voiceStop},click,chirp,bang,buzz,canBuzz,motor:{start:motorStart,set:motorSet,stop:motorStop,on:()=>!!M},HAPTIC};})();
 </script>
 <script>
 /* ===================== app/state.js: version, settings, small helpers, the sheet =====================
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="1.2.0.0";
+const VERSION="1.3.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -2801,7 +2837,7 @@ const degC=t=>(t<0?"−":"")+Math.abs(t)+" °C";
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---- settings (this phone only): brn-settings ---- */
-const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,gfx:"auto",coach:true,seen:{}};
+const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,voice:"en",gfx:"auto",coach:true,seen:{}};
 let SETTINGS=Object.assign({},SET_DEF);
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem(SET_KEY)||"null");if(o&&typeof o==="object"&&!Array.isArray(o))SETTINGS=Object.assign({},SET_DEF,o);}catch(e){}}
 function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS));}catch(e){}}
@@ -2947,6 +2983,8 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-g]");if(!
    SETTINGS.gfx (in brn-settings): "auto" (start Full or Lite from what the phone reports, step down if frames run slow),
    "full", "lite" or "2d". SETTINGS.gfxAuto remembers an automatic step-down to Lite so the next visit starts there. */
 const GFX={state:"idle",p:null};
+/* Ruslan's voice: [setting, button, the button text's language] */
+const VOICE_OPTS=[["en","English",""],["ru","Русский","ru"],["off","Off",""]];
 const GFX_OPTS=[["auto","Auto","Full on a quick phone; steps down to Lite if the stand stutters."],["full","Full","Shadows, metal and the most smoke."],
   ["lite","Lite","Plainer, for older phones and batteries."],["2d","2D","The flat drawing: no 3D at all."]];
 const gfxWant=()=>SETTINGS.gfx!=="2d";
@@ -2972,7 +3010,7 @@ function settingsSheet(){
   const g=SETTINGS.gfx||"auto",st=GFX.state==="failed"?`<p class="hint">This phone couldn't start the 3D stand, so the 2D one is used.</p>`:"";
   const onOff=(key,label,note)=>`<fieldset class="seg-f"><legend>${label}</legend><div class="seg two" role="radiogroup" aria-label="${label}">${[[true,"On"],[false,"Off"]].map(([v,n])=>
       `<button type="button" role="radio" aria-checked="${SETTINGS[key]===v}" data-set="${key}" data-v="${v}" class="btn sm${SETTINGS[key]===v?" on":""}">${n}</button>`).join("")}</div>${note}</fieldset>`;
-  const th=SETTINGS.theme||"light";
+  const th=SETTINGS.theme||"light";const vc=SETTINGS.voice||"en";
   openSheet("Settings",`<fieldset class="seg-f"><legend>Theme</legend><div class="seg three" role="radiogroup" aria-label="Theme">${THEME_OPTS.map(([k,n])=>
       `<button type="button" role="radio" aria-checked="${k===th}" data-theme-set="${k}" class="btn sm${k===th?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint">Night shift is the blockhouse after dark. Match phone follows your phone's dark mode.</p></fieldset>`+
@@ -2980,6 +3018,9 @@ function settingsSheet(){
       `<button type="button" role="radio" aria-checked="${k===g}" data-gfx="${k}" class="btn sm${k===g?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint" id="gfxNote">${esc(GFX_OPTS.find(o=>o[0]===g)[2])}</p>${st}</fieldset>`+
     onOff("sound","Sound",`<p class="hint">The motor, the countdown and the stand's relays. The speaker button on the stand mutes sound and vibration together.</p>`)+
+    `<fieldset class="seg-f"><legend>Ruslan's voice</legend><div class="seg three" role="radiogroup" aria-label="Ruslan's voice">${VOICE_OPTS.map(([k,n,l])=>
+      `<button type="button" role="radio" aria-checked="${k===vc}" data-voice-set="${k}"${l?` lang="${l}"`:""} class="btn sm${k===vc?" on":""}">${n}</button>`).join("")}</div>
+    <p class="hint">The Range Safety Officer calls the countdown over the tannoy and reads his sign-off on each report. Needs Sound on. The voice is AI-generated.</p></fieldset>`+
     onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`)+
     onOff("coach","Coach cards",`<p class="hint">Short tips on your first job, each shown once. <button type="button" class="btn sm" id="coachAgain">Show them again</button></p>`));
   $("sheetBody").addEventListener("click",e=>{
@@ -2987,6 +3028,10 @@ function settingsSheet(){
     const th=e.target.closest("[data-theme-set]");
     if(th){SETTINGS.theme=th.dataset.themeSet;saveSettings();applyTheme();
       $("sheetBody").querySelectorAll("[data-theme-set]").forEach(x=>{const on=x===th;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});return;}
+    const vb=e.target.closest("[data-voice-set]");
+    if(vb){const v=vb.dataset.voiceSet;SETTINGS.voice=v;saveSettings();BURN_SOUND.voice.lang(v);
+      if(v!=="off"&&SETTINGS.sound){BURN_SOUND.unlock();voicePrep();BURN_SOUND.voice.say("armed",{pa:true});}   // a sample
+      $("sheetBody").querySelectorAll("[data-voice-set]").forEach(x=>{const on=x===vb;x.classList.toggle("on",on);x.setAttribute("aria-checked",on);});return;}
     const t=e.target.closest("[data-set]");
     if(t){const k=t.dataset.set,v=t.dataset.v==="true";SETTINGS[k]=v;saveSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
       if(k==="sound"&&v)BURN_SOUND.unlock();if(k==="haptics"&&v)BURN_SOUND.buzz("ignite");
@@ -3573,7 +3618,7 @@ const curScreen=()=>SCREENS.find(s=>!$(s).hidden)||"title";
 function parentScreen(id){return id==="board"?"title":id==="logbook"?"board":id==="design"?(inCareer()?"board":"title"):
   id==="report"?(GAME.last&&GAME.last.replay?"logbook":"design"):id==="fire"?"fire":"title";}
 function showScreen(id){
-  coachOff();
+  coachOff();if(id!=="fire"&&id!=="report")BURN_SOUND.voice.stop();   // Ruslan stops talking when you leave the stand and the report
   for(const s of SCREENS)$(s).hidden=s!==id;
   document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);
@@ -4012,8 +4057,11 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet button[da
    2D drawings. A motor that fails destructively gets a slow-motion replay of the moment it went (0.3x, from half a second
    before), once on its own and again from the "Watch it again" button.
    Sound and vibration (sound/synth.js) run off the same clock: countdown beeps, the relay's click, a roar that follows
-   the measured thrust and crackles when the pressure gets rough, a bang when it goes. The speaker button mutes both. */
-const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false};
+   the measured thrust and crackles when the pressure gets rough, a bang when it goes. The speaker button mutes both.
+   Ruslan's voice (1.3, Settings: English, Russian or off): once his range calls are loaded the countdown opens with
+   "Stand is armed. Range is clear." and he calls three, two, one, fire over the tannoy in place of the beeps; a hold
+   during the countdown gets "Hold, hold, hold" and "Countdown held", and the end of a run "Range is safe". */
+const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false,pre:0};
 const SND={n:-1,lit:false,boom:false,out:false,saved:false};   // which sounds this run has made
 const REPLAY_SP=0.3,REPLAY_PRE=0.5,REPLAY_POST=1.4;   // replay speed, and seconds shown before and after the failure
 const COAST_S=4;   // seconds the coast to apogee takes on screen
@@ -4021,6 +4069,10 @@ const COAST_S=4;   // seconds the coast to apogee takes on screen
    static burn (so a slowed short burn doesn't leave the stand idling in slow motion afterwards) */
 const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb?el*FR.sp:FR.tEnd+(el-tb)*(FR.tFly?FR.spC:1);};
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
+const ARMED_S=2.4;   // seconds before "3" while Ruslan says the stand is armed (only when his voice is on and loaded)
+const VOICE_CALLS=["armed","count-3","count-2","count-1","fire","hold","held","safe"];
+/* load his range calls ahead, so the countdown never waits on the network */
+const voicePrep=()=>{if(SETTINGS.sound&&SETTINGS.voice!=="off")BURN_SOUND.voice.preload(VOICE_CALLS);};
 /* AFTER in sim seconds at the speed the end of the run plays (real time, or a launch's sped-up coast) */
 const frAfter=()=>AFTER*(FR.tFly?FR.spC:1);
 const FAIL_LABEL={cato:"burst",eject:"nozzle out",burnthrough:"burn-through"};
@@ -4044,6 +4096,7 @@ function openFiring(){
   if(FR.d3)setup3d(L);
   const fl=f.failure;FR.replayed=false;FR.rp0=fl&&fl.destructive?Math.max(0,fl.t-REPLAY_PRE):-1;FR.rp1=fl&&fl.destructive?fl.t+REPLAY_POST:-1;
   FR.phase=reduced()?"burn":"count";FR.t0=performance.now();
+  voicePrep();FR.pre=FR.phase==="count"&&BURN_SOUND.voice.ready("armed")?ARMED_S:0;
   cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
 /* hand the firing to the 3D stand: motor size, nozzle, thrust curve, and for a launch the rocket and its path */
 function setup3d(L){
@@ -4059,11 +4112,15 @@ function frameFiring(now){
   if(FR.phase==="replay"){const t=FR.rp0+el*REPLAY_SP;drawFiring(Math.min(t,FR.rp1),still);sndAt(Math.min(t,FR.rp1),true);
     if(t<FR.rp1)FR.raf=requestAnimationFrame(frameFiring);else endReplay();return;}
   if(FR.phase==="count"){
-    const left=FIRE_COUNT-Math.floor(el/COUNT_STEP);
+    const ec=el-FR.pre,V=BURN_SOUND.voice;
+    if(ec<0){$("frCount").textContent="Armed";$("frCount").hidden=false;
+      if(SND.n!=="armed"){SND.n="armed";V.say("armed",{pa:true,now:true});}
+      drawFiring(-1,still);FR.raf=requestAnimationFrame(frameFiring);return;}
+    const left=FIRE_COUNT-Math.floor(ec/COUNT_STEP);
     $("frCount").textContent=left>0?String(left):"Fire";$("frCount").hidden=false;
-    if(left!==SND.n){SND.n=left;BURN_SOUND.beep(left<=0);}
+    if(left!==SND.n){SND.n=left;if(!V.say(left>0?"count-"+left:"fire",{pa:true,now:true}))BURN_SOUND.beep(left<=0);}
     drawFiring(-1,still);
-    if(el>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
+    if(ec>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
   const t=frTime(el),tDone=Math.max(FR.tEnd,FR.tFly);
@@ -4098,7 +4155,7 @@ function sndAt(t,slow){
     B.bang(k==="cato"?1:k==="eject"?0.45:k==="burnthrough"?0.3:0.7);if(!slow)B.buzz(k);}
   if(!burning&&!SND.out){SND.out=true;if(!slow&&!(fl&&fl.destructive))B.click();}}
 /* the run is over: the roar stops and, the first time, the logger chirps that it has saved the data */
-function sndDone(){BURN_SOUND.motor.stop();if(!SND.saved){SND.saved=true;BURN_SOUND.chirp(true);}}
+function sndDone(){BURN_SOUND.motor.stop();if(!SND.saved){SND.saved=true;BURN_SOUND.chirp(true);BURN_SOUND.voice.say("safe",{pa:true});}}
 /* the speaker button: one switch for sound and vibration together (Kelbo, 13 November 2026) */
 const SPK_ON='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const SPK_OFF='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -4123,14 +4180,15 @@ function drawFiring(t,still){
   const tt=t<0?0:Math.min(t,fly?FR.tFly:FR.tEnd);
   $("frP").textContent=fly?String(Math.round(t<0?0:BURN_VIS.pathAt(fly.samples,Math.min(t,FR.tFly)).h)):(t<0?0:lg.p[i]/1e6).toFixed(2);$("frF").textContent=String(Math.round(t<0?0:lg.f[i]));$("frT").textContent=tt.toFixed(2);}
 function abortFiring(){
-  if(FR.phase==="count"){cancelAnimationFrame(FR.raf);FR.phase="idle";undoFiring();toast("Countdown held. The motor is still on the stand.");showScreen("design");return;}
+  if(FR.phase==="count"){cancelAnimationFrame(FR.raf);FR.phase="idle";undoFiring();toast("Countdown held. The motor is still on the stand.");showScreen("design");
+    if(BURN_SOUND.voice.say("hold",{pa:true,now:true}))BURN_SOUND.voice.say("held",{pa:true});return;}
   toast("Once it's lit, it's lit.");$("frAbort").disabled=true;}
 function initFiring(){
   $("frAbort").addEventListener("click",abortFiring);
   $("frNext").addEventListener("click",()=>{cancelAnimationFrame(FR.raf);FR.phase="idle";playing3d(false);BURN_SOUND.stop();openReport();});
   $("frMute").addEventListener("click",toggleMute);muteUI();
   /* phones only start audio from a tap: wake the audio on any tap or key while sound is on */
-  const wake=()=>{if(SETTINGS.sound)BURN_SOUND.unlock();};
+  const wake=()=>{if(SETTINGS.sound){BURN_SOUND.unlock();voicePrep();}};
   document.addEventListener("pointerdown",wake,{capture:true,passive:true});document.addEventListener("keydown",wake,{capture:true});
   $("frReplay").addEventListener("click",startReplay);
   addEventListener("resize",()=>{if(!$("fire").hidden&&FR.phase==="done"){drawFiring(Math.max(FR.tEnd,FR.tFly)+frAfter(),reduced());}});}
@@ -4165,11 +4223,17 @@ const RSO_LINES={
   lotA:["Five motors, one curve. That's what a supplier looks like.","I couldn't tell them apart on the plot. Good."],
   flyA:["Straight up, straight down, right where they wanted it. Signed.","The altimeter agrees with you. So do I."]};
 const FAIL_GLOSS={cato:"cato",eject:"nozzleEject",burnthrough:"burnThrough",hangfire:"hangFire",chuff:"chuffing"};
-const rsoLine=(key,n)=>{const a=RSO_LINES[key]||RSO_LINES.free;return a[(n-1)%a.length];};
+const rsoKey=key=>RSO_LINES[key]?key:"free";
+const rsoIdx=(key,n)=>{const len=RSO_LINES[rsoKey(key)].length;return(((n-1)%len)+len)%len;};
+const rsoLine=(key,n)=>RSO_LINES[rsoKey(key)][rsoIdx(key,n)];
+/* the sign-off's voice clip (sounds/voice/<lang>/<key>-<n>.mp3, n from 1; the ids in tools/voice-lines.json) */
+const rsoClip=(key,n)=>rsoKey(key)+"-"+(rsoIdx(key,n)+1);
+let rsoSaid="";   // the clip for the report on screen, which openReport hands to Ruslan
 const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
 /* the report's number: S-n in the sandbox, D<daily no>-n on the Daily Spec, 41-nnn otherwise */
 const reportNo=L=>L.sandbox?`S-${L.n}`:L.daily?`D${L.c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`;
-function openReport(){renderReport();showScreen("report");coachReport();}
+/* a fresh report gets Ruslan's sign-off read out (after "Range is safe", if he's still saying it); a logbook one doesn't */
+function openReport(){renderReport();showScreen("report");coachReport();if(GAME.last&&!GAME.last.replay&&rsoSaid)BURN_SOUND.voice.say(rsoSaid);}
 function renderReport(){
   const L=GAME.last;if(!L)return;
   /* a lot: the details below are for the selected motor; the stamp is the lot's */
@@ -4178,6 +4242,7 @@ function renderReport(){
   let pass=c?g.pass:!fl,key=lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");
   let stamp=lost?"Rocket lost":c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
   if(LT){const G=LT.gl;pass=G.pass;key=G.pass?(G.letter==="A"&&!G.fails?"lotA":G.letter):"lot";stamp=G.pass?`Lot accepted · ${G.letter}`:"Tender lost";}
+  rsoSaid=rsoClip(key,L.n);
   /* the spec, line by line: band, predicted at this temperature, measured */
   const checks=c?g.checks.length?g.checks:BURN_SIM.specCheck(c.spec,ms,m):[];
   const predChecks=c?BURN_SIM.specCheck(c.spec,fly&&f.fpred?Object.assign({},ps,{apogee:f.fpred.apogee}):ps,m):[];
@@ -4482,7 +4547,7 @@ function debugPage(){
 /* ===================== app/boot.js: start-up and the title screen =====================
    start() runs once the page has parsed: settings, the save, the title, then the loading splash goes. */
 function start(){
-  loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
+  loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);BURN_SOUND.voice.lang(SETTINGS.voice);
   applyTheme();
   $("verLbl").textContent="v"+VERSION;
   loadSave();renderTitle();initTitle();initBoard();

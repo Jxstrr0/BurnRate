@@ -41,7 +41,7 @@
 | `vis/glb.js` | `glbScene`: a small reader for `models/range.glb` (nodes, meshes, plain materials); `swapMats` for the graphics tiers |
 | `vis/stand3d.js` | `s3`: the 3D range in three.js: Stand 3 and the launch rail, the motor or rocket built from the design, the plume shader, smoke, failure effects, the set shots and orbit camera, Full/Lite tiers with automatic step-down |
 | `vis/close.js` | `return VIS;})();` and closes the `<script>` |
-| `sound/synth.js` | the `BURN_SOUND` block (opens and closes its own `<script>`): procedural WebAudio (the motor's roar, crackle and hiss, countdown beeps, the relay click, the logger chirp, a bang) and vibration patterns; `setOn`, `unlock`, `motor.start/set/stop` |
+| `sound/synth.js` | the `BURN_SOUND` block (opens and closes its own `<script>`): procedural WebAudio (the motor's roar, crackle and hiss, countdown beeps, the relay click, the logger chirp, a bang) and vibration patterns; `setOn`, `unlock`, `motor.start/set/stop`; Ruslan's voice clips (`voice.lang/preload/ready/say/stop`, `sounds/voice/en/` and `ru/`, tannoy filter for range calls) |
 | `app/state.js` | opens the app `<script>`; `VERSION`, settings (`brn-settings`), `toast`, `openSheet` / `closeSheet` |
 | `app/pwa.js` | service worker registration and the "New version ready" bar |
 | `app/save.js` | `S` (the saved game), `hydrate` (shape checks), `save` (debounced, to `brn-save`), save slots `brn-slot1..3` |
@@ -53,8 +53,8 @@
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |
 | `app/daily.js` | the Daily Spec's app side: today's order sheet, best grade and marks, the streak, sharing, the title button |
 | `app/sandbox.js` | the Sandbox: practise any job up to the career's tier with no money or deadlines, its own bench per job |
-| `app/firing.js` | the stand screen: countdown, live strip chart and gauges, the Abort button, the 3D or 2D stand, the slow-motion replay |
-| `app/report.js` | the range report / incident report: cause, factors, where-to-fix, the bill, Ruslan Abenov's sign-off |
+| `app/firing.js` | the stand screen: countdown (Ruslan's armed call and voiced count when his voice is on, `VOICE_CALLS`), live strip chart and gauges, the Abort button, the 3D or 2D stand, the slow-motion replay |
+| `app/report.js` | the range report / incident report: cause, factors, where-to-fix, the bill, Ruslan Abenov's sign-off (read aloud on a fresh report: `rsoClip`) |
 | `app/coach.js` | the coach-card tour on the first job: one-off cards that ring what they talk about; switch and "seen" in `brn-settings` |
 | `app/share.js` | the motor data sheet: a 1080 × 1350 picture of a passed motor's certificate, shared as a PNG or saved |
 | `app/debug.js` | the `?debug=1` bench: reference motors, predicted curves, data sheet |

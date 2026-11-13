@@ -1,7 +1,7 @@
 /* ===================== app/boot.js: start-up and the title screen =====================
    start() runs once the page has parsed: settings, the save, the title, then the loading splash goes. */
 function start(){
-  loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);
+  loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);BURN_SOUND.voice.lang(SETTINGS.voice);
   applyTheme();
   $("verLbl").textContent="v"+VERSION;
   loadSave();renderTitle();initTitle();initBoard();

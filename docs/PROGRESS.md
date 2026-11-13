@@ -14,7 +14,27 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 7. The test stand in 3D | 0.8.0.0 | Done |
 | 8. Polish and modes | 0.9.0.0 | Done |
 | 9. Release and studio listing | 1.0.0.0 | Done |
-| After 1.0: night shift, voice, tier 3+ clients | 1.2.0.0 | In progress |
+| After 1.0: night shift, voice, tier 3+ clients | 1.3.0.0 | Done |
+
+## 1.3.0.0 — After 1.0: Ruslan's voice (after-1.0 list done)
+
+- **Ruslan speaks**, in English or Russian (Settings, Ruslan's voice: English, the default, Русский, or Off). The two
+  ElevenLabs runs Kelbo approved: all 42 lines in both languages, 84 clips, **3,748 credits** of the 6,000 cap, one take
+  each, no retries. The clips were trimmed, levelled to the same loudness and re-encoded at 48 kbps mono: 1.6 MB in all,
+  in `sounds/voice/en/` and `sounds/voice/ru/`.
+- **On the stand**: once his calls have loaded (they load on the first tap, about 100 KB), the countdown opens with
+  "Stand is armed. Range is clear." (an "Armed" sign for 2.4 s), and he calls three, two, one, fire over the tannoy (a
+  band-pass filter) in place of the beeps. Until they've loaded, or with the voice off, it beeps as before. Abort in the
+  countdown gets "Hold, hold, hold. Countdown held." The end of a run gets "Range is safe" (skipped if you tap on
+  before it ends).
+- **On the report**: he reads the sign-off printed at the foot (the same line, the same pick), plainly, not over the
+  tannoy. Logbook reports stay quiet. Leaving the stand and the report stops him mid-line.
+- He goes through the same audio as everything else, so Sound off or the speaker button silences him. No new storage
+  key: `voice` lives in `brn-settings`. The service worker caches each clip the first time it plays (`sounds/` is
+  already a runtime-cached folder), so an installed copy keeps the lines it has heard.
+- **`node build.js` checks the clips**: every line in `tools/voice-lines.json` must have both mp3s, the sign-offs must
+  match `RSO_LINES` in `src/app/report.js` word for word, and the calls must match `VOICE_CALLS` in
+  `src/app/firing.js`. CI runs it, so a new sign-off without its clips fails the build.
 
 ## 1.2.0.0 — After 1.0: the late game, the altitude chamber and the capstone
 

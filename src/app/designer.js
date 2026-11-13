@@ -278,7 +278,7 @@ const curScreen=()=>SCREENS.find(s=>!$(s).hidden)||"title";
 function parentScreen(id){return id==="board"?"title":id==="logbook"?"board":id==="design"?(inCareer()?"board":"title"):
   id==="report"?(GAME.last&&GAME.last.replay?"logbook":"design"):id==="fire"?"fire":"title";}
 function showScreen(id){
-  coachOff();
+  coachOff();if(id!=="fire"&&id!=="report")BURN_SOUND.voice.stop();   // Ruslan stops talking when you leave the stand and the report
   for(const s of SCREENS)$(s).hidden=s!==id;
   document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);

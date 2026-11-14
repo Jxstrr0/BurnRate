@@ -19,7 +19,7 @@ const S3_AIR=101325,S3_N={full:720,lite:260};
 const SHOTS={stand:["Side on","Nozzle close-up","Blockhouse window"],launch:["Chase","Pad camera","Downrange"]};
 /* deterministic per-particle randomness (0..1): the same smoke every replay */
 const h01=k=>{const s=Math.sin(k*127.1+311.7)*43758.5453;return s-Math.floor(s);};
-function s3Init(cv,buf,tier){
+function s3Init(cv,buf,tier,kit){
   const T=THREE;S3.cv=cv;S3.full=tier!=="lite";
   try{S3.R=new T.WebGLRenderer({canvas:cv,antialias:S3.full,powerPreference:"high-performance"});}catch(e){S3.ok=false;return false;}
   const R=S3.R;R.toneMapping=T.NoToneMapping;R.shadowMap.enabled=S3.full;
@@ -40,16 +40,11 @@ function s3Init(cv,buf,tier){
   sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:200});sun.shadow.bias=-0.0006;
   sc.add(sun);sc.add(sun.target);
   S3.fire=new T.PointLight(0xFFB868,0,30,2);sc.add(S3.fire);
-  /* the salt flat: a big plane with a cracked-crust texture drawn once on a canvas */
-  const tc=document.createElement("canvas");tc.width=tc.height=512;const g=tc.getContext("2d"),rng=BURN_SIM.makeRng("salt");
-  g.fillStyle="#E4DED1";g.fillRect(0,0,512,512);
-  for(let i=0;i<900;i++){g.fillStyle=`rgba(${rng.int(150,200)},${rng.int(140,185)},${rng.int(120,160)},${rng.float(0.03,0.09)})`;g.beginPath();g.arc(rng.float(0,512),rng.float(0,512),rng.float(4,26),0,7);g.fill();}
-  g.strokeStyle="rgba(150,140,120,0.22)";g.lineWidth=1.2;
-  for(let i=0;i<70;i++){let x=rng.float(0,512),y=rng.float(0,512);g.beginPath();g.moveTo(x,y);for(let j=0;j<6;j++){x+=rng.float(-40,40);y+=rng.float(-40,40);g.lineTo(x,y);}g.stroke();}
-  /* one texture tile is 40 m. The plane is cut into 64 x 64 cells (huge single triangles break depth on some GPUs) and
-     follows the camera in whole tiles, growing with height, so the crust stays put while the edge stays in the haze */
-  const tex=new T.CanvasTexture(tc);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(50,50);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;
-  const ground=S3.ground=new T.Mesh(new T.PlaneGeometry(2000,2000,64,64),new T.MeshLambertMaterial({map:tex}));
+  /* the salt flat: a big plane with the salt-crust texture (textures/salt.jpg, one tile is 20 m; its normal map on Full).
+     The plane is cut into 64 x 64 cells (huge single triangles break depth on some GPUs) and follows the camera in whole
+     tiles, growing with height, so the crust stays put while the edge stays in the haze */
+  const sm=new T.MeshLambertMaterial({color:0xEAE4D6,map:texGet("salt",false,true)});S3.groundRep=100;
+  const ground=S3.ground=new T.Mesh(new T.PlaneGeometry(2000,2000,64,64),sm);
   ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;ground.userData.keepMat=true;sc.add(ground);
   /* far hills: a ring of low ridges, blue-grey in the haze */
   const hr=BURN_SIM.makeRng("hills"),n=180,pos=[],rid=[],q=(a,r,h)=>[Math.cos(a)*r,h,Math.sin(a)*r],ph=[hr.float(0,6),hr.float(0,6),hr.float(0,6)];
@@ -61,6 +56,8 @@ function s3Init(cv,buf,tier){
   const hills=new T.Mesh(hg,new T.MeshLambertMaterial({color:0xA9AEAF,side:T.DoubleSide,flatShading:true}));hills.userData.keepMat=true;sc.add(hills);
   /* the range model */
   const W=glbScene(buf,S3.full);S3.world=W.root;S3.nodes=W.nodes;S3.mats=W.mats;sc.add(W.root);W.root.updateMatrixWorld(true);
+  /* the motor and rocket parts (models/kit.glb): not in the scene; s3Setup clones what each design needs */
+  if(kit){const K=glbScene(kit,S3.full);K.root.traverse(o=>{if(o.material)o.material.userData.shared=true;});S3.kit={nodes:K.nodes,mats:K.mats,root:K.root};}
   /* sprites: smoke (normal blending) and glow (additive), one Points each, positions rewritten every frame */
   S3.smoke=s3Points(S3_N.full,false);S3.glow=s3Points(60,true);sc.add(S3.smoke.pts,S3.glow.pts);
   /* debris: small dark chunks, one instanced mesh */
@@ -292,7 +289,7 @@ function s3Camera(d,fail,age,still){
   cam.near=Math.max(0.02,Math.min(dist*0.05,5));cam.far=40000;cam.updateProjectionMatrix();
   S3.sky.position.copy(pos);
   const alt=Math.max(0,pos.y);S3.sc.fog.near=400+alt;S3.sc.fog.far=7000+alt*3;
-  const gs=Math.ceil((S3.sc.fog.far*2.2)/2000);S3.ground.scale.set(gs,gs,1);S3.ground.material.map.repeat.set(50*gs,50*gs);
+  const gs=Math.ceil((S3.sc.fog.far*2.2)/2000);S3.ground.scale.set(gs,gs,1);for(const m of[S3.ground.material.map,S3.ground.material.normalMap])if(m)m.repeat.set(S3.groundRep*gs,S3.groundRep*gs);
   S3.ground.position.set(Math.round(pos.x/40)*40,0,Math.round(pos.z/40)*40);
   /* the sun's shadow box follows what we look at */
   S3.sun.target.position.copy(tgt);S3.sun.position.copy(tgt).add(new T.Vector3(35,60,-50));
@@ -327,6 +324,8 @@ function s3Size(){
 function s3Tier(t){
   S3.full=t==="full";S3.dpr=Math.min(window.devicePixelRatio||1,S3.full?2:1)*(S3.stepped>1?0.75:1);
   if(!S3.R)return;S3.R.shadowMap.enabled=S3.full;S3.sun.castShadow=S3.full;
+  /* the ground's normal map only on Full (it is the biggest thing on screen) */
+  if(S3.ground){const gm=S3.ground.material;gm.normalMap=S3.full?(S3.groundN=S3.groundN||texGet("salt",true,true)):null;if(gm.normalMap)gm.normalScale.set(0.8,-0.8);gm.needsUpdate=true;}
   if(S3.world)swapMats(S3.world,S3.full);if(S3.rig)swapMats(S3.rig,S3.full);
   S3.sc.traverse(o=>{if(o.material&&o.material.needsUpdate!==undefined&&o.isMesh)o.material.needsUpdate=true;});}
 /* auto step-down: if frames run slow for a couple of seconds while a firing plays, drop to Lite (then to fewer pixels) */

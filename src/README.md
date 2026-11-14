@@ -40,7 +40,7 @@
 | `vis/strip.js` | `strip`: the firing's strip chart, measured over predicted, pressure above thrust |
 | `vis/stand.js` | `stand`: the 2D test stand placeholder with the plume and the failure effects |
 | `vis/flight.js` | `altitude` (height against time, predicted and flown), `sky` (the launch drawn to scale), `pathAt` |
-| `vis/glb.js` | `glbScene`: a small reader for `models/range.glb` (nodes, meshes, plain materials); `swapMats` for the graphics tiers |
+| `vis/glb.js` | `glbScene`: a small reader for `models/range.glb` and `models/kit.glb` (nodes, meshes, UVs, baked AO, materials with a texture key); the shared `textures/` loader (`texGet`, `texMat`, `uvScale`); `swapMats` for the graphics tiers |
 | `vis/stand3d.js` | `s3`: the 3D range in three.js: Stand 3 and the launch rail, the motor or rocket built from the design, the plume shader, smoke, failure effects, the set shots and orbit camera, Full/Lite tiers with automatic step-down |
 | `vis/close.js` | `return VIS;})();` and closes the `<script>` |
 | `sound/synth.js` | the `BURN_SOUND` block (opens and closes its own `<script>`): procedural WebAudio (the motor's roar, crackle and hiss, countdown beeps, the relay click, the logger chirp, a bang) and vibration patterns; `setOn`, `unlock`, `motor.start/set/stop`; Ruslan's voice clips (`voice.lang/preload/ready/say/stop`, `sounds/voice/en/` and `ru/`, tannoy filter for range calls) |
@@ -49,7 +49,7 @@
 | `app/save.js` | `S` (the saved game), `hydrate` (shape checks), `save` (debounced, to `brn-save`), save slots `brn-slot1..3` |
 | `app/savecode.js` | Back up / Restore: the `BRN1:` save code (LZW + checksum), the backup file, the reminder bar |
 | `app/gloss.js` | `GLOSS`, the tap-to-explain glossary; any `data-g="key"` opens its entry |
-| `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js` and `models/range.glb`, builds the 3D range), the Settings sheet |
+| `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js`, `models/range.glb` and `models/kit.glb`, builds the 3D range), the Settings sheet |
 | `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control; `showScreen` |
 | `app/scatter.js` | the bench's Scatter button: runs the virtual motors in chunks after the design settles, the band and the summary line (1.4) |
 | `app/game.js` | `GAME` (what's on the bench), taking a job, the bench's bottom bar, pre-fire checks, the slot sheet and bill, `startFiring` (fire, grade, settle, log), `replayFiring` |
@@ -66,4 +66,4 @@
 
 Data tables go in `data/` inside the sim block; charts, the cross-section and later the 3D stand go in `vis/`; procedural audio and vibration in `sound/`.
 
-Outside `src/`: `lib/three.min.js` (three.js, rebuilt by `tools/vendor-three.sh`) and `models/range.glb` (written by `tools/blender-range.py`) are fetched by the page at run time, not built into it.
+Outside `src/`: `lib/three.min.js` (three.js, rebuilt by `tools/vendor-three.sh`) `models/range.glb` and `models/kit.glb` (written by `tools/blender-range.py` and `tools/blender-kit.py`) and `textures/` (`tools/blender-textures.py`) are fetched by the page at run time, not built into it. The Blender scripts share `tools/blender_lib.py`.

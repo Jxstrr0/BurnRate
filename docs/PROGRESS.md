@@ -17,6 +17,33 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: night shift, voice, tier 3+ clients | 1.3.0.0 | Done |
 | After 1.0: why it differed, scatter, tap the curve | 1.4.0.0 | Done |
 | After 1.0: the high-quality Blender pass (range, motor, rocket) | 1.5.0.0 | Done |
+| After 1.0: the hush house and the larger visual pass | 1.6.0.0 | Done |
+
+## 1.6.0.0 — The hush house and the larger visual pass
+
+Kelbo asked for a harder, larger visual pass, with a 3D build bay and hush house, testing indoors the way Prairie Engine
+Works tests engines in the garage. Decisions are in plan section 0 (five rows, 14 November 2026).
+- **The hush house is home base** (`models/hush.glb`, `tools/blender-hush.py`): Site 41's old jet-engine hush house,
+  replacing the blue container. Its build bay has the assembly bench; **every Stand 3 firing happens in its indoor test
+  cell**, the smoke drawn into the augmenter tube and up the stack. Each hush house firing opens in the bay and the camera
+  flies through the blast door to the stand over the countdown. Shots: side on, nozzle close-up, the control room window,
+  the build bay.
+- **Every stand its own place** (`src/vis/places3d.js`, `PLACES`): Stand 2 is the outdoor stand at the origin
+  (`models/range.glb`), Stand 1 has its own pad and bunker (`models/stand1.glb`), and the altitude chamber is a vacuum
+  tank where the plume balloons out (`models/chamber.glb`, both from `tools/blender-stands.py`). A free firing goes to
+  the smallest stand that takes the motor.
+- **A bigger Site 41** (`models/site.glb`, `tools/blender-site.py`): the road in with the gatehouse, hangars and barracks,
+  the rail spur, the control tower and range town, power lines, marker masts out to the horizon.
+- **Time of day and weather**: the firing slot sets the light (dawn, noon, dusk; now and then a night firing under the
+  floodlights), and each range day has its weather (clear, haze, overcast, dust), seeded so a replay looks the same.
+- **Post effects on Full** (`src/vis/post3d.js`): a tone curve that rolls the plume off to white, bloom, heat shimmer
+  behind the plume, a colour grade per time of day, soft sky reflections on metal. Lite and 2D are unchanged.
+- **The 3D bench**: the design screen's view has a third tab, 3D, once the 3D stand has loaded: your motor on the bay
+  bench, rebuilt live as you change it, to drag round, pinch to zoom and tap for the next camera.
+- **The climate plant**: the Conditioning hut became the hush house's climate plant (same 3,500 cr, reputation 14). The
+  cell itself is heated or chilled, so there's no overnight hold and no fee per firing. Old saves that own the hut keep it.
+- Loading: the hush house loads with the range; the rest of the site right after; Stand 1 and the chamber once the career
+  leases them, a firing needs them, or the Sandbox opens. All of it is kept offline by the service worker.
 
 ## 1.5.1.0 — Undo and Reset on the design bench
 

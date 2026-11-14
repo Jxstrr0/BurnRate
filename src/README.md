@@ -41,7 +41,9 @@
 | `vis/stand.js` | `stand`: the 2D test stand placeholder with the plume and the failure effects |
 | `vis/flight.js` | `altitude` (height against time, predicted and flown), `sky` (the launch drawn to scale), `pathAt` |
 | `vis/glb.js` | `glbScene`: a small reader for `models/range.glb` and `models/kit.glb` (nodes, meshes, UVs, baked AO, materials with a texture key); the shared `textures/` loader (`texGet`, `texMat`, `uvScale`); `swapMats` for the graphics tiers |
-| `vis/stand3d.js` | `s3`: the 3D range in three.js: Stand 3 and the launch rail, the motor or rocket built from the design, the plume shader, smoke, failure effects, the set shots and orbit camera, Full/Lite tiers with automatic step-down |
+| `vis/post3d.js` | `p3`: the Full tier's post effects (1.6): the scene into a half-float target, bloom, the tone curve, heat shimmer behind the plume, colour grade, vignette; `env` (a soft sky reflection map) |
+| `vis/stand3d.js` | `s3`: the 3D range in three.js: the stand and the launch rail, the motor or rocket built from the design, the plume shader, smoke, failure effects, the set shots and orbit camera, Full/Lite tiers with automatic step-down |
+| `vis/places3d.js` | `PLACES` (1.6): each stand's place (the hush house's test cell, Stand 2 outdoors, Stand 1, the altitude chamber, the bay bench, the launch rail) with its nodes, shots and lights; the time of day and weather (`s3Day`); the hush house's fly-in; keeping the camera inside walls; `s3Mount` (lends the 3D canvas to the bench) |
 | `vis/close.js` | `return VIS;})();` and closes the `<script>` |
 | `sound/synth.js` | the `BURN_SOUND` block (opens and closes its own `<script>`): procedural WebAudio (the motor's roar, crackle and hiss, countdown beeps, the relay click, the logger chirp, a bang) and vibration patterns; `setOn`, `unlock`, `motor.start/set/stop`; Ruslan's voice clips (`voice.lang/preload/ready/say/stop`, `sounds/voice/en/` and `ru/`, tannoy filter for range calls) |
 | `app/state.js` | opens the app `<script>`; `VERSION`, settings (`brn-settings`), `toast`, `openSheet` / `closeSheet` |
@@ -49,8 +51,8 @@
 | `app/save.js` | `S` (the saved game), `hydrate` (shape checks), `save` (debounced, to `brn-save`), save slots `brn-slot1..3` |
 | `app/savecode.js` | Back up / Restore: the `BRN1:` save code (LZW + checksum), the backup file, the reminder bar |
 | `app/gloss.js` | `GLOSS`, the tap-to-explain glossary; any `data-g="key"` opens its entry |
-| `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js`, `models/range.glb` and `models/kit.glb`, builds the 3D range), the Settings sheet |
-| `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control, Undo and Reset (1.5.1); `showScreen` |
+| `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js`, `models/range.glb`, `models/kit.glb` and `models/hush.glb`, builds the 3D range), `gfxPlace` / `gfxStand` (the far places, `models/site.glb`, `stand1.glb`, `chamber.glb`, when first wanted), the Settings sheet |
+| `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control, Undo and Reset (1.5.1), the 3D view of the motor on the bay bench (1.6, `dz3d*`); `showScreen` |
 | `app/scatter.js` | the bench's Scatter button: runs the virtual motors in chunks after the design settles, the band and the summary line (1.4) |
 | `app/game.js` | `GAME` (what's on the bench), taking a job, the bench's bottom bar, pre-fire checks, the slot sheet and bill, `startFiring` (fire, grade, settle, log), `replayFiring` |
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |

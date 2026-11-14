@@ -202,6 +202,8 @@ p{margin:0 0 .7em}
 .dz-name b{font-size:1.5rem;font-weight:400;color:var(--ink)}
 .dz-view{margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px 4px}
 .dz-view canvas{display:block;width:100%;margin-top:4px;touch-action:pan-y}
+.dz-3d{position:relative;margin-top:4px;border-radius:6px;overflow:hidden;background:var(--ground2)}
+.dz-3d canvas{margin-top:0;touch-action:none;cursor:grab}
 .dz-scrub{display:flex;align-items:center;gap:8px;margin-top:2px}
 .dz-scrub input{flex:1;min-width:0;min-height:32px;accent-color:var(--muted)}
 .dz-scat{display:flex;align-items:center;gap:8px;margin:2px 0 2px;font-size:.72rem;color:var(--muted);line-height:1.3}.dz-scat .btn.sm{min-height:30px;padding:2px 10px;font-size:.78rem;flex:none}
@@ -438,8 +440,8 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
         <button type="button" class="btn sm" id="dzSheet">Data sheet</button>
       </header>
       <section class="dz-view" id="dzView">
-        <div class="segbar mini" role="tablist" aria-label="View"><button type="button" role="tab" data-view="curves">Curves</button><button type="button" role="tab" data-view="section">Cross-section</button></div>
-        <canvas id="dzCv" role="img"></canvas>
+        <div class="segbar mini" role="tablist" aria-label="View"><button type="button" role="tab" data-view="curves">Curves</button><button type="button" role="tab" data-view="section">Cross-section</button><button type="button" role="tab" data-view="3d" hidden>3D</button></div>
+        <canvas id="dzCv" role="img"></canvas><div class="dz-3d" id="dz3d" hidden role="img" aria-label="Your motor on the assembly bench in 3D. Drag to look round, pinch to zoom, tap to change the camera"></div>
         <div class="dz-scrub"><input type="range" id="dzScrub" min="0" max="1000" step="1" value="500" aria-label="Scrub through the burn"><output id="dzScrubV" class="mono"></output><button type="button" class="gl gib" data-g="scrub" aria-label="What the time slider does"><span class="gi" aria-hidden="true">i</span></button></div>
         <p class="dz-scat" id="dzScat" hidden></p>
       </section>
@@ -702,20 +704,20 @@ const VARIANCE={
   ventTau:0.04,        // after a burst, an ejected nozzle or a burn-through, the chamber empties with this time constant, s
   chuffHz:7            // the puffing rate drawn on a chuffing trace, Hz
 };
-/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. The hut slot
-   (a facility) fires at whatever temperature the player sets, or the one a contract asks for (sim/career.js slotTemp). */
+/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. The climate slot
+   (the hush house's climate plant, a facility; its id is still hut) fires at whatever temperature the player sets, or the one a contract asks for (sim/career.js slotTemp). */
 const SLOTS={
   dawn:{name:"Dawn",tGrain:-6,note:"Cold grain: slower burn, lower pressure, more cracks."},
   noon:{name:"Noon",tGrain:31,note:"Hot grain: faster burn, higher pressure."},
   dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."},
-  hut:{name:"Hut",tGrain:20,hut:true,note:"Held overnight in the conditioning hut at the temperature you set."}
+  hut:{name:"Climate",tGrain:20,hut:true,note:"The climate plant holds the test cell at the temperature you set."}
 };
 /* the scatter predictor (the Computing room facility, 1.4; sim/scatter.js): n virtual motors of the design on the bench,
    each with its own dice (seeds "scatter/1" ... "scatter/n", the same set every time, so the band moves only when the
    design does), fired at fewer solver steps than a real firing (fast enough for a phone), drawn as the band between
    the lo and hi fractions of the motors at each moment, on a grid of this many points */
 const SCATTER={n:40,steps:140,dtMul:3,lo:0.1,hi:0.9,grid:90};
-/* the conditioning hut's range, °C, and its step */
+/* the climate plant's range, °C, and its step */
 const HUT={min:-20,max:50,step:5};
 Object.assign(SIM,{VARIANCE,SCATTER,SLOTS,HUT});
 /* ===================== data/contracts.js: the stands and the work orders (stages 3 and 4) =====================
@@ -724,7 +726,7 @@ Object.assign(SIM,{VARIANCE,SCATTER,SLOTS,HUT});
      pay (cr, before the grade), days (range days from taking it to the deadline), repeat ({pay, every}: once delivered,
      the client orders again after `every` days for this share of the pay; optional),
      slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id; "hut" with tGrain: conditioned to that
-     temperature, which needs the hut), spec (criteria, sim/grade.js),
+     temperature, which needs the climate plant), spec (criteria, sim/grade.js),
      flight ({payload} in kg: a flight job, sim/flight.js; the motor flies in a rocket from the launch rail instead of
      firing on a stand, which then only sets the size class), lot (true: a tier 4 tender, delivered as a lot of
      CAREER.lot.n motors; sim/career.js gradeLot), final (true: the capstone, offered once every other tender is won), start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
@@ -732,7 +734,7 @@ Object.assign(SIM,{VARIANCE,SCATTER,SLOTS,HUT});
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
 /* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
 const STANDS={
-  s3:{name:"Stand 3",len:420,dia:64,cell:2000,fee:150,note:"The smallest stand: a concrete pad, a load cell rated 2 kN, one camera."},
+  s3:{name:"Stand 3",len:420,dia:64,cell:2000,fee:150,note:"The smallest stand, in the hush house's test cell: a steel thrust bench, a load cell rated 2 kN, one camera."},
   s2:{name:"Stand 2",len:900,dia:110,cell:10000,fee:400,note:"The medium stand: a thrust frame in a blast bay, a 10 kN load cell, two cameras."},
   s1:{name:"Stand 1",len:2000,dia:170,cell:40000,fee:1200,note:"The old state booster stand: a horizontal thrust frame in a bunkered bay, a 40 kN load cell."},
   /* pAmb: the back-pressure the motor fires against, Pa (the open stands use TUNING.pAmb). The old programme's altitude
@@ -818,11 +820,11 @@ const CONTRACTS=[
     spec:[{k:"massFrac",lo:80},{k:"I",lo:6000,hi:10000},{k:"Pmax",hi:7.5}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:174.9,coreD:40.2,pts:8,ptLen:19.6,ptW:1.2,finLen:156.2,offset:13.8},case:{mat:"composite",id:97.4,wall:0.4,liner:"ablative",linerThk:0.9,closure:"bolts",bolts:16},nozzle:{mat:"graphite",throatD:28.1,exitD:28.1,half:15},igniter:"xl"}},
   {id:"burkit-hot",client:"Bürkit Aerospace",title:"Desert qualification",tier:3,stand:"s1",slot:"hut",tGrain:45,pay:13000,days:12,repeat:{pay:0.6,every:6},
-    brief:"Bürkit is selling boosters to a launch site in the southern desert. Qualify one with the grain at 45 °C, held overnight in the conditioning hut: about two kilonewtons, and the peak pressure no higher than 6.5 MPa when it's hot.",
+    brief:"Bürkit is selling boosters to a launch site in the southern desert. Qualify one with the grain at 45 °C, conditioned in the hush house's climate plant: about two kilonewtons, and the peak pressure no higher than 6.5 MPa when it's hot.",
     spec:[{k:"Fav",lo:1500,hi:2500},{k:"I",lo:3000,hi:5000},{k:"Pmax",hi:6.5}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:166.1,coreD:82,pts:3,ptLen:5.9,ptW:4.9,finLen:122.2,offset:6.8},case:{mat:"composite",id:100.2,wall:0.4,liner:"rubber",linerThk:0.7,closure:"bolts",bolts:14},nozzle:{mat:"insert",throatD:26.1,exitD:54.7,half:15},igniter:"xl"}},
   {id:"ozen-arctic",client:"Ozen Survey Instruments",title:"Arctic qualification",tier:3,stand:"s1",slot:"hut",tGrain:-20,pay:13000,days:12,repeat:{pay:0.6,every:6},
-    brief:"Ozen is taking its survey rockets north of the tree line. Prove a motor that lights and burns steadily with the grain at −20 °C: held overnight in the conditioning hut, then a long, moderate burn.",
+    brief:"Ozen is taking its survey rockets north of the tree line. Prove a motor that lights and burns steadily with the grain at −20 °C: conditioned in the climate plant, then a long, moderate burn.",
     spec:[{k:"Fav",lo:800,hi:1400},{k:"I",lo:4000,hi:7000},{k:"tb",lo:4}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:148.4,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:32.5,exitD:62.1,half:15},igniter:"xl"}},
   {id:"kumtal-booster",client:"Kumtal Weather Service",title:"Sounding booster",tier:3,stand:"s1",slot:null,pay:18000,days:14,repeat:{pay:0.6,every:6},
@@ -860,7 +862,7 @@ const CONTRACTS=[
     spec:[{k:"prog",hi:0.5},{k:"I",lo:6000,hi:7400},{k:"Pmax",hi:6}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"finocyl",segs:3,segLen:120,coreD:40.9,pts:8,ptLen:11.2,ptW:4.5,finLen:56.9,offset:24},case:{mat:"mild",id:95.3,wall:1.5,liner:"ablative",linerThk:2,closure:"bolts",bolts:14},nozzle:{mat:"steel",throatD:21,exitD:46,half:15},igniter:"l"}},
   {id:"ozen-lot",client:"Ozen Survey Instruments",title:"Northern survey lot",tier:4,stand:"s1",slot:"hut",tGrain:-10,lot:true,pay:40000,days:18,repeat:{pay:0.6,every:10},
-    brief:"Ozen's northern survey season needs a lot of motors that light and burn alike in the cold. Each is held overnight in the hut at −10 °C. Long burns, and the pressure kept low: four of the five must pass.",
+    brief:"Ozen's northern survey season needs a lot of motors that light and burn alike in the cold. Each is conditioned in the climate plant at −10 °C. Long burns, and the pressure kept low: four of the five must pass.",
     spec:[{k:"I",lo:5600,hi:7000},{k:"tb",lo:3.6},{k:"Pmax",hi:3}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:160,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:31,exitD:60,half:15},igniter:"xl"}},
   {id:"agency-lot",client:"Altyn Space Agency",title:"Upper stage qualification",tier:4,stand:"s1",slot:null,lot:true,pay:36000,days:18,repeat:{pay:0.6,every:10},
@@ -868,7 +870,7 @@ const CONTRACTS=[
     spec:[{k:"massFrac",lo:78},{k:"I",lo:9400,hi:11200},{k:"Pmax",hi:4}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:165,coreD:40.2,pts:8,ptLen:19.6,ptW:1.2,finLen:156.2,offset:13.8},case:{mat:"composite",id:97.4,wall:0.4,liner:"ablative",linerThk:0.9,closure:"bolts",bolts:16},nozzle:{mat:"graphite",throatD:27,exitD:40,half:15},igniter:"xl"}},
   {id:"burkit-lot",client:"Bürkit Aerospace",title:"Desert booster lot",tier:4,stand:"s1",slot:"hut",tGrain:40,lot:true,pay:38000,days:16,repeat:{pay:0.6,every:10},
-    brief:"Bürkit's southern launch site has placed its first order: boosters that behave alike in the desert heat. Each motor sits overnight in the hut at 40 °C before it fires, and a hot grain burns faster. Five from one design, four to pass, the hot peak pressure under 6.5 MPa.",
+    brief:"Bürkit's southern launch site has placed its first order: boosters that behave alike in the desert heat. Each motor is conditioned at 40 °C before it fires, and a hot grain burns faster. Five from one design, four to pass, the hot peak pressure under 6.5 MPa.",
     spec:[{k:"Fav",lo:1600,hi:2400},{k:"I",lo:4200,hi:5400},{k:"Pmax",hi:6.5}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr9",shape:"bates",segs:1,segLen:505.2,coreD:62.2},case:{mat:"composite",id:84,wall:3,liner:"ablative",linerThk:1,closure:"bolts",bolts:12},nozzle:{mat:"insert",throatD:17.7,exitD:44.1,half:15},igniter:"l"}},
   /* ---- the altitude chamber (stand s0, leased after the tender register): upper stages, fired at near-vacuum ---- */
@@ -900,7 +902,6 @@ const CAREER={
   shopBase:30,         // machining a motor: a flat charge, cr
   shopPerMm:0.8,       // ... plus this per mm of case bore (bigger cases, bigger lathe time), cr
   perBolt:2,           // ... plus this per closure bolt, cr
-  hutFee:60,           // holding a motor in the conditioning hut overnight, per firing, cr
   gradePay:{A:1.2,B:1,C:0.8},   // a pass pays the job's fee times this
   rep:{A:3,B:2,C:1},   // reputation for a first delivery (repeat orders earn half, rounded down)
   lateCut:0.1,         // each range day past the deadline takes this share off the pay ...
@@ -910,7 +911,7 @@ const CAREER={
   logMax:120,          // logbook entries kept in the save (the oldest go first)
   logRate:{0:120,1:400}, // the data logger's sample rate by blockhouse level, Hz
   /* tier 4 range tenders (Kelbo, 13 November 2026): a lot of five motors from one design fires on one range day for one
-     stand fee (and one hut fee); four must pass. One failure still delivers but cuts the pay; two or more lose the
+     stand fee; four must pass. One failure still delivers but cuts the pay; two or more lose the
      tender, which the range puts out again some days later. The lot's grade is its worst passing motor's. */
   lot:{n:5,need:4,failPay:0.7,retender:6}
 };
@@ -921,8 +922,10 @@ const FACILITIES={
     note:"A faster data logger and the full blockhouse readout: 400 samples a second instead of 120, and every deviation the motor rolled shows on the report."},
   s2:{name:"Stand 2 lease",cost:5000,need:10,give:{stand:"s2",tier:2},
     note:"The medium stand: motors up to 900 mm long and 110 mm across, a 10 kN load cell. Opens tier 2 work and tier 2 parts."},
-  hut:{name:"Conditioning hut",cost:3500,need:14,give:{hut:1},
-    note:"An insulated hut that holds a motor at the temperature you set, −20 to 50 °C, overnight before it fires. Some qualification jobs need it. 60 cr a firing."},
+  /* the hush house's climate plant (Kelbo, 14 November 2026; was the Conditioning hut, so the save still calls it hut):
+     the test cell is heated or chilled to the setting, no overnight hold and no fee per firing */
+  hut:{name:"Hush house climate plant",cost:3500,need:14,give:{hut:1},
+    note:"The hush house's old heating and refrigeration plant, brought back to life: it heats or chills the test cell and the bay to the temperature you set, −20 to 50 °C, so a motor fires at that temperature with no overnight hold. Motors for the outdoor stands are conditioned in the bay and trucked out. Some qualification jobs need it. No charge per firing."},
   compute:{name:"Computing room",cost:6000,need:18,give:{compute:1},
     note:"The old programme's computing room, its racks rewired for one job: firing your design 40 times over with the real dice, before the stand fires it once. The bench gets a Scatter button: the spread of the real motors drawn round the prediction, and how many of them would burst, chuff or miss the spec."},
   s1:{name:"Stand 1 lease",cost:16000,need:24,give:{stand:"s1",tier:3},
@@ -1841,19 +1844,19 @@ Object.assign(SIM,{airframeOf,defaultAirframe,rocketOf,airframeCost,machMul,fly,
    Pure functions on a career object (the save holds it as JSON; app/save.js keeps it). Nothing random here: the board
    is the contract list in order, filtered by tier and what's done; each firing's dice come from fire()'s seed.
      car = {seed, name, day, money, tier, rep, stands:{s3:true}, bunker, jobs:{id:job}, done:{id:{letter,day,paid,times,again}},
-            log:[entry], no (report counter), broke (tier restarts), hut (conditioning hut owned: 1),
+            log:[entry], no (report counter), broke (tier restarts), hut (the hush house's climate plant owned: 1; it was the conditioning hut),
             retender:{id:day} (lost tenders, back on the board from that day),
             won (the day the capstone was first won), wonSeen (1 once its card has been read)}
      job = {taken, due, pay, n (motors fired)}
    A tier 4 tender (contract.lot) is delivered by a lot: fireLot fires CAREER.lot.n motors of one design, gradeLot judges
    them (four of five to pass; one failure cuts the pay; the lot's grade is its worst passing motor's), and settle with
    {lot:true} pays or loses the tender. A single firing on a tender is a development motor: settle with {dev:true}.
-   buildCost / firingCost price a motor (the hut adds its fee); slotTemp gives a slot's grain temperature; board lists the work orders on offer; takeJob, settle and buy change the career. */
+   buildCost / firingCost price a motor; slotTemp gives a slot's grain temperature; board lists the work orders on offer; takeJob, settle and buy change the career. */
 const CR=v=>Math.round(v);
 function newCareer(seed,name){
   return{seed:String(seed),name:String(name||"").slice(0,28)||"Saltpan Propulsion",day:1,money:CAREER.startMoney[1],tier:1,rep:0,
     stands:{s3:true},bunker:0,hut:0,compute:0,jobs:{},done:{},log:[],no:0,broke:0};}
-/* a firing slot's grain temperature: the hut fires at the contract's temperature, or the one the player set (hutT) */
+/* a firing slot's grain temperature: the climate plant fires at the contract's temperature, or the one the player set (hutT) */
 function slotTemp(slot,c,hutT){const s=SLOTS[slot]||SLOTS.dusk;if(!s.hut)return s.tGrain;
   if(c&&c.tGrain!=null)return c.tGrain;return Math.max(HUT.min,Math.min(HUT.max,hutT!=null?hutT:s.tGrain));}
 /* the motor's build cost, item by item: [{k, label, cr}] and the total */
@@ -1868,11 +1871,11 @@ function buildCost(m,d){
     {k:"igniter",label:I.name,cr:CR(I.cost)},
     {k:"shop",label:"Machining and closures",cr:CR(C.shopBase+C.shopPerMm*d.case.id+(d.case.closure==="bolts"?C.perBolt*d.case.bolts:0))}];
   return{items,total:items.reduce((s,x)=>s+x.cr,0)};}
-function firingCost(standId,m,d,slot,launch,count){const st=STANDS[standId],b=buildCost(m,d),hut=slot&&SLOTS[slot]&&SLOTS[slot].hut?CAREER.hutFee:0;
+function firingCost(standId,m,d,slot,launch,count){const st=STANDS[standId],b=buildCost(m,d);
   /* a launch pays the rail's fee and the rocket's build instead of the stand's fee (sim/flight.js airframeCost) */
   const fee=launch?FLIGHT.fee:st.fee,air=launch?airframeCost(d,m):0,n=Math.max(1,count|0);
-  /* a tender's lot: one fee (and one hut fee) for the day, n motors' materials */
-  return{fee,hut,air,build:b,n,motors:b.total*n,total:fee+hut+air+b.total*n};}
+  /* a tender's lot: one fee for the day, n motors' materials (the climate plant charges nothing) */
+  return{fee,air,build:b,n,motors:b.total*n,total:fee+air+b.total*n};}
 /* a tender's lot: n motors of one design, fired one after another from one seed (motor i rolls seed/m<i>) */
 function fireLot(d,cond,seed,n){const out=[];for(let i=1;i<=(n||CAREER.lot.n);i++)out.push(fire(d,cond,seed+"/m"+i));return out;}
 /* judge a lot: {pass, letter (worst passing motor's), fails, payMul, grades (one per motor)} */
@@ -1911,7 +1914,7 @@ function canTake(car,id){
   if(car.jobs[id])return"You already have this job.";
   if(Object.keys(car.jobs).length>=CAREER.maxJobs)return`You can hold ${CAREER.maxJobs} jobs at once. Finish or drop one first.`;
   if(!car.stands[c.stand])return`This job needs ${STANDS[c.stand].name}.`;
-  if(c.slot==="hut"&&!car.hut)return"This job is fired from the conditioning hut. Lease one from Facilities first.";
+  if(c.slot==="hut"&&!car.hut)return"This job fires at a set temperature: it needs the hush house's climate plant. Lease it from Facilities first.";
   if(!board(car).includes(c))return"That work order isn't on the board.";
   return"";}
 function takeJob(car,id){const e=canTake(car,id);if(e)return e;const c=contractById(id);
@@ -2436,6 +2439,9 @@ Object.assign(VIS,{altitude,sky,pathAt});
    Materials are Lambert (cheap) on the Lite tier and Standard (with normal maps) on Full; swapMats(root, full) switches
    them when the tier changes. texMat() and uvScale() let stand3d.js texture the parts it builds itself. */
 const TEXL={c:new Map()};
+/* metalCap: without an environment map true metal goes black, so metalness is capped; the stand raises it when the post
+   chain gives it one (vis/stand3d.js) */
+const GLB={metalCap:0.35};
 /* one shared texture by key ("concrete", "rust"...); normal: its normal map. own: a separate texture object (its own
    repeat) that still fills in when the image lands. ph: a canvas to show until then */
 function texGet(key,normal,own,ph){
@@ -2456,7 +2462,7 @@ function makeMat(full,color,metal,rough,tex,vc,emit){
   let m;
   if(full){if(tex)o.normalMap=texGet(tex,true);
     /* no environment map, so true metal would go black: cap metalness and let the texture carry the metal look */
-    m=new T.MeshStandardMaterial(Object.assign(o,{metalness:Math.min(metal,0.35),roughness:rough}));
+    m=new T.MeshStandardMaterial(Object.assign(o,{metalness:Math.min(metal,GLB.metalCap),roughness:rough}));
     if(tex)m.normalScale.set(0.9,-0.9);}   // glTF UVs, derivative tangents: green flips (as GLTFLoader does)
   else m=new T.MeshLambertMaterial(o);
   Object.assign(m.userData,{metal,rough,tex:tex||null,vc:!!vc,emit:emit||null});return m;}
@@ -2516,6 +2522,197 @@ function swapMats(root,full){
       n.side=m.side;n.name=m.name;n.userData.shared=u.shared;TWIN.set(m,n);TWIN.set(n,m);}
     o.material=n;});}
 Object.assign(VIS,{glbScene,swapMats,texGet,texMat,uvScale});
+/* ===================== vis/post3d.js: post effects for the 3D range (1.6) =====================
+   A small, phone-sized post chain for the stand (src/vis/stand3d.js): the scene is drawn into an HDR (half-float,
+   multisampled) target in linear colour, then one composite pass puts it on the canvas with bloom on the bright things
+   (the plume core, lamps, sun glints, the beacon, the flash), heat shimmer behind a nozzle, exposure, a soft highlight
+   roll-off, a small colour grade, a vignette, the sRGB encoding and a tiny dither against banding in the sky.
+     p3Init(renderer, o)  once; true if the chain can run here (WebGL2, half-float targets). o: {samples} (MSAA, default 4,
+                          0 for none). False: render straight to the canvas as before.
+     p3Size(w, h, pr)     the canvas size in CSS pixels and the pixel ratio (the same numbers as renderer.setSize and
+                          setPixelRatio); the targets follow the drawing buffer. Cheap when nothing changed.
+     p3Render(scene, camera, opt)  draws one frame. opt (all optional): bloom (0..2, default 1), exposure (default 1),
+                          shimmer (null or {x, y, dx, dy, len, w, k}), grade (null or {tint:[r,g,b], sat, contrast}),
+                          vignette (0..1, default 0.25), time (s, for the shimmer).
+                          shimmer: x, y the nozzle exit on screen (0..1, origin bottom left); dx, dy the way the plume runs
+                          on screen, in pixels (any length, normalised here); len its length and w its half-width, both as
+                          fractions of the screen height; k the strength 0..1. p3Aim() fills one from 3D points.
+     p3Aim(camera, exit, end, radius, k, out)  projects a plume (exit and end as world Vector3s, radius in metres at the
+                          exit) into a shimmer object (out, reused: no allocation per frame). Null when it is off screen.
+     p3Samples(n)         change the MSAA samples (a tier change); p3Dispose() frees everything.
+     p3Env(renderer, top, horizon, ground, sun)  a PMREM environment map from a gradient sky (three colours as hex) with a
+                          soft sun spot (sun: a direction, default the stand's sun), for scene.environment, so standard
+                          materials with real metalness read as metal. The last one made is freed by the next and by
+                          p3Dispose.
+   Linear colour: the HDR target gets three's linear working colour with no tone mapping (three only applies tone mapping
+   and the output colour space when drawing to the canvas), so this file does both. A raw ShaderMaterial (the sky dome,
+   the plume, the smoke sprites) gets no conversion either way: its gl_FragColor lands in the target as it is, so a colour
+   written as a display (sRGB) value must be made linear to look the same through the chain (see P3_GLSL.lin).
+   Cost: the scene pass, a threshold pass at half size, three smaller downsamples (1/4, 1/8, 1/16), three upsamples back
+   to half size, and the full-size composite (three texture reads a pixel). Every target and material is made once; p3Render allocates nothing. */
+const P3={ok:false,R:null,samples:4,W:0,H:0,rt:null,down:[],up:[],quad:null,cam:null,mats:null,env:null,
+  /* the highlight roll-off: identity up to knee, then a soft shoulder that approaches white (sharp: how quickly) */
+  tone:{knee:0.62,white:1.0,sharp:2.2},
+  /* bloom: only what is brighter than thr (linear, with a soft knee) blooms */
+  bloomThr:1.0,bloomKnee:0.4,bloomGain:1.1};
+/* GLSL snippets a ShaderMaterial elsewhere can use. lin: display (sRGB) colour to linear, for shaders whose colours were
+   tuned for drawing straight to the canvas */
+const P3_GLSL={lin:"vec3 p3Lin(vec3 c){return mix(c/12.92,pow((c+0.055)/1.055,vec3(2.4)),step(0.04045,c));}"};
+const P3_VS="varying vec2 vUv;void main(){vUv=position.xy*0.5+0.5;gl_Position=vec4(position.xy,0.0,1.0);}";
+function p3Mat(fs,uni){
+  return new THREE.ShaderMaterial({vertexShader:P3_VS,fragmentShader:fs,uniforms:uni,depthTest:false,depthWrite:false,toneMapped:false});}
+function p3Target(w,h,o){
+  const T=THREE;return new T.WebGLRenderTarget(w,h,Object.assign({type:T.HalfFloatType,format:T.RGBAFormat,minFilter:T.LinearFilter,
+    magFilter:T.LinearFilter,wrapS:T.ClampToEdgeWrapping,wrapT:T.ClampToEdgeWrapping,depthBuffer:false,generateMipmaps:false},o||{}));}
+/* can this GPU render to and filter half-float targets? A raw check (three would only log an error) */
+function p3Can(R){
+  const gl=R.getContext();if(typeof WebGL2RenderingContext==="undefined"||!(gl instanceof WebGL2RenderingContext))return false;
+  if(!gl.getExtension("EXT_color_buffer_float")&&!gl.getExtension("EXT_color_buffer_half_float"))return false;
+  let ok=false;const tx=gl.createTexture(),fb=gl.createFramebuffer();
+  try{gl.bindTexture(gl.TEXTURE_2D,tx);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,4,4,0,gl.RGBA,gl.HALF_FLOAT,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tx,0);
+    ok=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE&&!gl.isContextLost();}catch(e){ok=false;}
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.bindTexture(gl.TEXTURE_2D,null);gl.deleteFramebuffer(fb);gl.deleteTexture(tx);
+  R.resetState();return ok;}
+function p3Init(R,o){
+  const T=THREE;p3Dispose();P3.R=R;if(!R||!p3Can(R))return P3.ok=false;
+  const gl=R.getContext();P3.samples=Math.max(0,Math.min(o&&o.samples!=null?o.samples:4,gl.getParameter(gl.MAX_SAMPLES)|0));
+  /* the scene target: full size, depth, multisampled, linear half float */
+  P3.rt=p3Target(4,4,{depthBuffer:true,samples:P3.samples});
+  for(let i=0;i<4;i++)P3.down.push(p3Target(4,4));
+  for(let i=0;i<3;i++)P3.up.push(p3Target(4,4));
+  /* one big triangle covers the screen; its shaders ignore the camera */
+  const geo=new T.BufferGeometry();geo.setAttribute("position",new T.Float32BufferAttribute([-1,-1,0,3,-1,0,-1,3,0],3));
+  P3.quad=new T.Mesh(geo,null);P3.quad.frustumCulled=false;P3.scene=new T.Scene();P3.scene.add(P3.quad);
+  P3.cam=new T.OrthographicCamera(-1,1,1,-1,0,1);
+  const V2=()=>new T.Vector2(1,1);
+  /* threshold + first downsample (full -> half): four bilinear taps over a 4x4 block, each weighted by 1/(1+luma) so a
+     single hot pixel (a sun glint) can't flicker the whole bloom, then the soft-knee threshold */
+  const pre=p3Mat("uniform sampler2D src;uniform vec2 tx;uniform float thr,knee;varying vec2 vUv;"+
+    "vec3 s(vec2 o){return min(texture2D(src,vUv+o*tx).rgb,vec3(256.0));}"+
+    "float w(vec3 c){return 1.0/(1.0+dot(c,vec3(0.2126,0.7152,0.0722)));}"+
+    "void main(){vec3 a=s(vec2(-1.0,-1.0)),b=s(vec2(1.0,-1.0)),c=s(vec2(-1.0,1.0)),d=s(vec2(1.0,1.0));"+
+    "float wa=w(a),wb=w(b),wc=w(c),wd=w(d);vec3 m=(a*wa+b*wb+c*wc+d*wd)/(wa+wb+wc+wd);"+
+    "float br=max(m.r,max(m.g,m.b));float q=clamp(br-thr+knee,0.0,2.0*knee);q=q*q/(4.0*knee+1e-4);"+
+    "m*=max(q,br-thr)/max(br,1e-4);gl_FragColor=vec4(max(m,vec3(0.0)),1.0);}",
+    {src:{value:null},tx:{value:V2()},thr:{value:1},knee:{value:0.3}});
+  /* dual-filter downsample: the centre and four diagonal bilinear taps */
+  const down=p3Mat("uniform sampler2D src;uniform vec2 tx;varying vec2 vUv;"+
+    "void main(){vec3 c=texture2D(src,vUv).rgb*4.0+texture2D(src,vUv+vec2(-tx.x,-tx.y)).rgb+texture2D(src,vUv+vec2(tx.x,-tx.y)).rgb"+
+    "+texture2D(src,vUv+vec2(-tx.x,tx.y)).rgb+texture2D(src,vUv+tx).rgb;gl_FragColor=vec4(c*0.125,1.0);}",
+    {src:{value:null},tx:{value:V2()}});
+  /* dual-filter upsample (a tent of eight taps from the smaller level) plus this level's own downsample, so every level
+     adds its own width to the glow */
+  const UP="vec3 up(sampler2D t,vec2 x){vec3 c=(texture2D(t,vUv+vec2(-x.x,0.0)).rgb+texture2D(t,vUv+vec2(x.x,0.0)).rgb"+
+    "+texture2D(t,vUv+vec2(0.0,-x.y)).rgb+texture2D(t,vUv+vec2(0.0,x.y)).rgb)"+
+    "+(texture2D(t,vUv+vec2(-x.x,-x.y)*0.5).rgb+texture2D(t,vUv+vec2(x.x,-x.y)*0.5).rgb"+
+    "+texture2D(t,vUv+vec2(-x.x,x.y)*0.5).rgb+texture2D(t,vUv+vec2(x.x,x.y)*0.5).rgb)*2.0;return c/12.0;}";
+  const up=p3Mat("uniform sampler2D src,add;uniform vec2 tx;varying vec2 vUv;"+UP+
+    "void main(){gl_FragColor=vec4(up(src,tx)+texture2D(add,vUv).rgb,1.0);}",
+    {src:{value:null},add:{value:null},tx:{value:V2()}});
+  /* the composite: shimmer -> scene + bloom -> exposure -> roll-off -> grade -> sRGB -> contrast -> vignette -> dither */
+  const comp=p3Mat("uniform sampler2D scn,blm;uniform float bloom,expo,vig,time,aspect,sat,con;"+
+    "uniform vec4 shA;uniform vec3 shB,tint,tone;varying vec2 vUv;"+
+    "float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}"+
+    "float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);"+
+      "return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}"+
+    "vec3 roll(vec3 x){float k=tone.x,s=tone.z;vec3 e=max(x-k,0.0);return min(x,vec3(k))+e/pow(1.0+pow(e/(tone.y-k),vec3(s)),vec3(1.0/s));}"+
+    "vec3 enc(vec3 c){return mix(c*12.92,1.055*pow(c,vec3(1.0/2.4))-0.055,step(0.0031308,c));}"+
+    "void main(){vec2 uv=vUv;"+
+    /* heat shimmer: a soft cone from the nozzle along the plume; two octaves of value noise, scrolling down the plume,
+       push the lookup about. Strongest at the nozzle, gone by the end */
+    "if(shB.z>0.0){vec2 d=normalize(shA.zw+vec2(1e-6,0.0)),p=(uv-shA.xy)*vec2(aspect,1.0);"+
+      "float a=dot(p,d),r=dot(p,vec2(-d.y,d.x)),s=a/shB.x,sc=clamp(s,0.0,1.0),wd=shB.y*(1.0+1.2*sc);"+
+      "float m=smoothstep(-0.04,0.06,s)*(1.0-smoothstep(0.5,1.0,s))*exp(-r*r/(wd*wd))*(1.0-0.6*sc);"+
+      "if(m>0.002){vec2 q=vec2(a,r)/shB.y,t=vec2(time*7.0,0.0);"+
+        "vec2 n=vec2(vn(q*vec2(1.1,1.6)-t),vn(q*vec2(1.1,1.6)-t+vec2(17.3,5.1)))-0.5;"+
+        "n+=0.5*(vec2(vn(q*2.7-t*1.7+vec2(3.7,9.2)),vn(q*2.7-t*1.7+vec2(31.1,2.3)))-0.5);"+
+        "uv+=n*(shB.z*m*shB.y*0.22)*vec2(1.0/aspect,1.0);}}"+
+    "vec3 c=texture2D(scn,uv).rgb;"+
+    "c+=texture2D(blm,vUv).rgb*bloom;"+
+    "c=roll(max(c*expo,0.0))*tint;"+
+    "float l=dot(c,vec3(0.2126,0.7152,0.0722));c=max(mix(vec3(l),c,sat),0.0);"+
+    "c=enc(min(c,1.0));c=(c-0.5)*con+0.5;"+
+    "vec2 v=(vUv-0.5)*2.0;c*=1.0-vig*0.6*smoothstep(0.4,2.0,dot(v,v));"+
+    "c+=(hash(gl_FragCoord.xy+fract(time*7.13)*91.7)-0.5)/255.0;"+
+    "gl_FragColor=vec4(clamp(c,0.0,1.0),1.0);}",
+    {scn:{value:null},blm:{value:null},bloom:{value:1},expo:{value:1},vig:{value:0.25},time:{value:0},
+     aspect:{value:1},sat:{value:1},con:{value:1},shA:{value:new T.Vector4(0,0,1,0)},shB:{value:new T.Vector3(0,0,0)},
+     tint:{value:new T.Vector3(1,1,1)},tone:{value:new T.Vector3(P3.tone.knee,P3.tone.white,P3.tone.sharp)}});
+  P3.mats={pre,down,up,comp};P3.W=P3.H=0;P3.ok=true;
+  const sz=R.getDrawingBufferSize(new T.Vector2());p3Resize(sz.x,sz.y);
+  return true;}
+/* the drawing buffer is w*pr by h*pr (as three's setSize rounds it) */
+function p3Size(w,h,pr){if(P3.ok)p3Resize(Math.floor(w*(pr||1)),Math.floor(h*(pr||1)));}
+function p3Resize(W,H){
+  W=Math.max(1,W|0);H=Math.max(1,H|0);if(W===P3.W&&H===P3.H)return;P3.W=W;P3.H=H;
+  P3.rt.setSize(W,H);let w=W,h=H;
+  for(let i=0;i<4;i++){w=Math.max(1,w>>1);h=Math.max(1,h>>1);P3.down[i].setSize(w,h);if(i<3)P3.up[i].setSize(w,h);}}
+function p3Samples(n){
+  if(!P3.ok)return;const gl=P3.R.getContext();n=Math.max(0,Math.min(n|0,gl.getParameter(gl.MAX_SAMPLES)|0));
+  if(n===P3.samples)return;P3.samples=n;P3.rt.dispose();P3.rt.samples=n;}
+function p3Pass(mat,target){P3.quad.material=mat;P3.R.setRenderTarget(target);P3.R.render(P3.scene,P3.cam);}
+function p3Render(scene,camera,opt){
+  const R=P3.R,M=P3.mats,o=opt||{},D=P3.down,U=P3.up;if(!P3.ok)return;
+  const prevTarget=R.getRenderTarget(),prevClear=R.autoClear;
+  R.setRenderTarget(P3.rt);R.render(scene,camera);R.autoClear=false;
+  const bl=o.bloom==null?1:Math.max(0,Math.min(2,o.bloom));
+  if(bl>0){
+    /* threshold to half size, then down to a sixteenth, then back up to half size, each level adding its own glow */
+    let u=M.pre.uniforms;u.src.value=P3.rt.texture;u.tx.value.set(1/P3.W,1/P3.H);u.thr.value=P3.bloomThr;u.knee.value=P3.bloomKnee;p3Pass(M.pre,D[0]);
+    u=M.down.uniforms;
+    for(let i=1;i<4;i++){const s=D[i-1];u.src.value=s.texture;u.tx.value.set(1/s.width,1/s.height);p3Pass(M.down,D[i]);}
+    u=M.up.uniforms;
+    for(let i=2;i>=0;i--){const s=i===2?D[3]:U[i+1];u.src.value=s.texture;u.add.value=D[i].texture;u.tx.value.set(1/s.width,1/s.height);p3Pass(M.up,U[i]);}}
+  const c=M.comp.uniforms;c.scn.value=P3.rt.texture;c.blm.value=U[0].texture;
+  /* four levels add up, so a quarter each; the gain sets how strong bloom 1 is */
+  c.bloom.value=bl*P3.bloomGain*0.25;c.expo.value=o.exposure==null?1:o.exposure;c.vig.value=o.vignette==null?0.25:o.vignette;
+  c.time.value=o.time||0;c.aspect.value=P3.W/P3.H;c.tone.value.set(P3.tone.knee,P3.tone.white,P3.tone.sharp);
+  const sh=o.shimmer;
+  if(sh&&sh.k>0&&sh.len>0&&sh.w>0){c.shA.value.set(sh.x,sh.y,sh.dx,sh.dy);c.shB.value.set(sh.len,sh.w,Math.min(1,sh.k));}else c.shB.value.z=0;
+  const g=o.grade;
+  if(g){const t=g.tint||[1,1,1];c.tint.value.set(t[0],t[1],t[2]);c.sat.value=g.sat==null?1:g.sat;c.con.value=g.contrast==null?1:g.contrast;}
+  else{c.tint.value.set(1,1,1);c.sat.value=1;c.con.value=1;}
+  p3Pass(M.comp,null);
+  R.autoClear=prevClear;if(prevTarget)R.setRenderTarget(prevTarget);}
+/* a shimmer object from the plume in 3D: exit and end (world Vector3), radius (m at the exit), k the strength */
+const P3_V=[];
+function p3Aim(camera,exit,end,radius,k,out){
+  if(!P3_V.length)P3_V.push(new THREE.Vector3(),new THREE.Vector3());
+  const a=P3_V[0].copy(exit).project(camera),b=P3_V[1].copy(end).project(camera);
+  /* behind the camera, or the exit well off screen: no shimmer */
+  if(a.z>1||a.z<-1||Math.abs(a.x)>1.6||Math.abs(a.y)>1.6)return null;
+  const asp=P3.W&&P3.H?P3.W/P3.H:camera.aspect||1;
+  const x=a.x*0.5+0.5,y=a.y*0.5+0.5,dx=(b.x-a.x)*0.5*asp,dy=(b.y-a.y)*0.5,len=Math.hypot(dx,dy);
+  if(len<1e-4)return null;
+  /* the radius at the exit as a fraction of the screen height */
+  const dist=P3_V[1].copy(exit).applyMatrix4(camera.matrixWorldInverse).z,th=Math.tan((camera.fov||30)*Math.PI/360);
+  const w=Math.max(0.004,radius/(2*Math.max(0.05,-dist)*th));
+  out=out||{};out.x=x;out.y=y;out.dx=dx;out.dy=dy;out.len=len;out.w=w;out.k=k;return out;}
+/* a PMREM environment from a gradient sky with a soft sun spot. Colours are hex in sRGB (made linear here) */
+function p3Env(R,top,horizon,ground,sun){
+  const T=THREE;if(!R)return null;
+  const tc=new T.Color(top),hc=new T.Color(horizon),gc=new T.Color(ground);
+  const sd=sun?new T.Vector3().copy(sun).normalize():new T.Vector3(0.42,0.62,-0.6).normalize();
+  const sc=new T.Scene(),geo=new T.SphereGeometry(10,32,16);
+  const mat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,toneMapped:false,
+    uniforms:{top:{value:new T.Vector3(tc.r,tc.g,tc.b)},hor:{value:new T.Vector3(hc.r,hc.g,hc.b)},gnd:{value:new T.Vector3(gc.r,gc.g,gc.b)},sun:{value:sd}},
+    vertexShader:"varying vec3 vd;void main(){vd=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}",
+    fragmentShader:"uniform vec3 top,hor,gnd,sun;varying vec3 vd;void main(){vec3 d=normalize(vd);float y=d.y;"+
+      "vec3 c=y>0.0?mix(hor,top,pow(y,0.55)):mix(hor,gnd,smoothstep(0.0,0.25,-y));"+
+      "float s=max(dot(d,sun),0.0);c+=vec3(1.0,0.92,0.78)*(pow(s,12.0)*0.6+pow(s,300.0)*14.0);"+
+      "gl_FragColor=vec4(c,1.0);}"});
+  sc.add(new T.Mesh(geo,mat));
+  const pm=new T.PMREMGenerator(R),tgt=pm.fromScene(sc,0.02,0.1,100,{size:256});
+  pm.dispose();geo.dispose();mat.dispose();
+  if(P3.env)P3.env.dispose();P3.env=tgt;return tgt.texture;}
+function p3Dispose(){
+  if(P3.rt)P3.rt.dispose();for(const t of P3.down.concat(P3.up))t.dispose();
+  if(P3.mats)for(const k in P3.mats)P3.mats[k].dispose();if(P3.quad)P3.quad.geometry.dispose();
+  if(P3.env)P3.env.dispose();
+  Object.assign(P3,{ok:false,rt:null,down:[],up:[],mats:null,quad:null,scene:null,env:null,W:0,H:0});}
+Object.assign(VIS,{p3:{P:P3,GLSL:P3_GLSL,init:p3Init,size:p3Size,render:p3Render,aim:p3Aim,samples:p3Samples,env:p3Env,dispose:p3Dispose}});
 /* ===================== vis/stand3d.js: the test range in 3D (stage 7, plan section 9.3) =====================
    three.js (lib/three.min.js, loaded by app/gfx.js) draws Aqsor Range: the salt flat, far hills, the range model from
    models/range.glb (tools/blender-range.py: Stand 3, the blockhouse, the launch pad, the clutter), and, built here
@@ -2536,30 +2733,43 @@ Object.assign(VIS,{glbScene,swapMats,texGet,texMat,uvScale});
 const S3={ok:false,R:null,sc:null,cam:null,cv:null,full:true,dpr:1,world:null,nodes:{},mats:null,o:null,last:null,
   shot:0,orbit:null,ptr:new Map(),drag:null,flash:null,label:null,labelT:0,frames:[],stepped:0,onStep:null,onShot:null};
 const S3_AIR=101325,S3_N={full:720,lite:260};
-const SHOTS={stand:["Side on","Nozzle close-up","Blockhouse window"],launch:["Chase","Pad camera","Downrange"]};
+/* the hand-written shaders (sky, plume, smoke) write display colours; through the post chain (vis/post3d.js), which works
+   in linear light and encodes at the end, they are made linear first (lin = 1) so they look the same either way */
+const S3_LIN="uniform float lin;vec3 s3Lin(vec3 c){return lin>0.5?mix(c/12.92,pow((c+0.055)/1.055,vec3(2.4)),step(0.04045,c)):c;}";
+/* a sky colour as a display value (the sky shader mixes display colours, like the hand-tuned values it replaced) */
+const s3Hex=(c,x)=>c.setHex(x,THREE.LinearSRGBColorSpace);
 /* deterministic per-particle randomness (0..1): the same smoke every replay */
 const h01=k=>{const s=Math.sin(k*127.1+311.7)*43758.5453;return s-Math.floor(s);};
 function s3Init(cv,buf,tier,kit){
   const T=THREE;S3.cv=cv;S3.full=tier!=="lite";
-  try{S3.R=new T.WebGLRenderer({canvas:cv,antialias:S3.full,powerPreference:"high-performance"});}catch(e){S3.ok=false;return false;}
+  /* where the post chain can run it does the antialiasing itself, so the canvas needn't be multisampled too */
+  const canPost=!!VIS.p3&&s3CanPost();
+  try{S3.R=new T.WebGLRenderer({canvas:cv,antialias:S3.full&&!canPost,powerPreference:"high-performance"});}catch(e){S3.ok=false;return false;}
   const R=S3.R;R.toneMapping=T.NoToneMapping;R.shadowMap.enabled=S3.full;
+  /* the post chain (Full only) and, with it, an environment map so metal can be metal */
+  S3.post=canPost&&VIS.p3.init(R,{samples:4});
+  if(S3.post){S3.env=VIS.p3.env(R,0x8FB0CC,0xE9E4D8,0xB9B09C);GLB.metalCap=0.85;}
   const sc=S3.sc=new T.Scene();
   sc.fog=new T.Fog(0xE9E4D8,400,7000);
   S3.cam=new T.PerspectiveCamera(30,1,0.05,40000);
   /* the sky: a gradient dome that follows the camera, faded steppe blue to a pale dusty horizon, with a sun glow */
   const sky=new T.Mesh(new T.SphereGeometry(20000,24,12),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,fog:false,
-    uniforms:{sun:{value:new T.Vector3(0.42,0.62,-0.6).normalize()}},
+    uniforms:{sun:{value:new T.Vector3(0.40,0.69,-0.58).normalize()},hor:{value:s3Hex(new T.Color(),0xE9E4D8)},zen:{value:s3Hex(new T.Color(),0x8FB0CC)},
+      sunC:{value:s3Hex(new T.Color(),0xFFF2DC)},glow:{value:1},stars:{value:0},lin:{value:0}},
     vertexShader:"varying vec3 vd;void main(){vd=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_Position.z=gl_Position.w;}",
-    fragmentShader:"uniform vec3 sun;varying vec3 vd;void main(){float y=max(vd.y,0.0);vec3 hor=vec3(0.914,0.894,0.847),zen=vec3(0.56,0.69,0.80);"+
-      "vec3 c=mix(hor,zen,pow(y,0.55));float s=max(dot(vd,sun),0.0);c+=vec3(1.0,0.93,0.78)*(pow(s,40.0)*0.35+pow(s,600.0)*0.6);"+
-      "if(vd.y<0.0)c=hor;gl_FragColor=vec4(c,1.0);}"}));
+    fragmentShader:S3_LIN+"uniform vec3 sun,hor,zen,sunC;uniform float glow,stars;varying vec3 vd;void main(){float y=max(vd.y,0.0);"+
+      "vec3 c=mix(hor,zen,pow(y,0.55));float s=max(dot(vd,sun),0.0);c+=sunC*glow*(pow(s,40.0)*0.35+pow(s,600.0)*0.6);"+
+      "if(stars>0.0){vec3 q=floor(vd*420.0);float h=fract(sin(dot(q,vec3(12.9898,78.233,37.719)))*43758.5453);c+=vec3(0.85,0.88,1.0)*step(0.9965,h)*stars*smoothstep(0.02,0.25,vd.y);}"+
+      "if(vd.y<0.0)c=hor;gl_FragColor=vec4(s3Lin(c),1.0);}"}));
   sky.renderOrder=-1;sky.frustumCulled=false;sc.add(sky);S3.sky=sky;
   /* lights: the steppe sun and a bright sky bounce; the plume's own light sits at the nozzle */
-  sc.add(new T.HemisphereLight(0xF4F2EC,0xB9B09C,1.9));
+  S3.hemi=new T.HemisphereLight(0xF4F2EC,0xB9B09C,1.9);sc.add(S3.hemi);
   const sun=S3.sun=new T.DirectionalLight(0xFFF2DC,1.6);sun.position.set(35,60,-50);sun.castShadow=true;
   sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:200});sun.shadow.bias=-0.0006;
   sc.add(sun);sc.add(sun.target);
   S3.fire=new T.PointLight(0xFFB868,0,30,2);sc.add(S3.fire);
+  /* two more: the place's lamps indoors, or its floodlights on a night firing (always two, so no shader is rebuilt) */
+  S3.lamps=[0,1].map(()=>{const l=new T.PointLight(0xFFF0D8,0,16,2);sc.add(l);return l;});
   /* the salt flat: a big plane with the salt-crust texture (textures/salt.jpg, one tile is 20 m; its normal map on Full).
      The plane is cut into 64 x 64 cells (huge single triangles break depth on some GPUs) and follows the camera in whole
      tiles, growing with height, so the crust stays put while the edge stays in the haze */
@@ -2575,7 +2785,7 @@ function s3Init(cv,buf,tier,kit){
   const hg=new T.BufferGeometry();hg.setAttribute("position",new T.Float32BufferAttribute(pos,3));hg.computeVertexNormals();
   const hills=new T.Mesh(hg,new T.MeshLambertMaterial({color:0xA9AEAF,side:T.DoubleSide,flatShading:true}));hills.userData.keepMat=true;sc.add(hills);
   /* the range model */
-  const W=glbScene(buf,S3.full);S3.world=W.root;S3.nodes=W.nodes;S3.mats=W.mats;sc.add(W.root);W.root.updateMatrixWorld(true);
+  const W=glbScene(buf,S3.full);S3.world=W.root;S3.nodes=W.nodes;S3.mats=W.mats;sc.add(W.root);W.root.updateMatrixWorld(true);S3.roots={};
   /* the motor and rocket parts (models/kit.glb): not in the scene; s3Setup clones what each design needs */
   if(kit){const K=glbScene(kit,S3.full);K.root.traverse(o=>{if(o.material)o.material.userData.shared=true;});S3.kit={nodes:K.nodes,mats:K.mats,root:K.root};}
   /* sprites: smoke (normal blending) and glow (additive), one Points each, positions rewritten every frame */
@@ -2594,36 +2804,36 @@ function s3Points(n,add){
   geo.setAttribute("alpha",new T.BufferAttribute(A,1).setUsage(T.DynamicDrawUsage));geo.setAttribute("seed",new T.BufferAttribute(C,1));
   for(let i=0;i<n;i++)C[i]=h01(i*3.1);
   const mat=new T.ShaderMaterial({transparent:true,depthWrite:false,blending:add?T.AdditiveBlending:T.NormalBlending,
-    uniforms:{scale:{value:500},tint:{value:add?new T.Vector3(1,0.72,0.38):new T.Vector3(0.70,0.69,0.67)}},
+    uniforms:{scale:{value:500},tint:{value:add?new T.Vector3(1,0.72,0.38):new T.Vector3(0.70,0.69,0.67)},lin:{value:0}},
     vertexShader:"attribute float size;attribute float alpha;attribute float seed;uniform float scale;varying float va;varying float vs;"+
       "void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(size*scale/max(0.05,-mv.z),0.0,700.0);va=alpha*clamp((-mv.z-size*0.25)/(size*0.5),0.0,1.0);vs=seed;}",
-    fragmentShader:add?"uniform vec3 tint;varying float va;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float a=va*pow(max(0.0,1.0-d),2.0);"+
-        "gl_FragColor=vec4(mix(tint,vec3(1.0,0.97,0.88),pow(max(0.0,1.0-d),5.0))*a,a);}"
-      :"uniform vec3 tint;varying float va;varying float vs;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float lump=0.82+0.18*sin(atan(q.y,q.x)*3.0+vs*40.0);"+
-        "float a=va*(1.0-smoothstep(0.35*lump,1.0*lump,d));if(a<0.004)discard;vec3 c=tint*(1.06-0.22*gl_PointCoord.y);gl_FragColor=vec4(c,a);}"});
+    fragmentShader:add?S3_LIN+"uniform vec3 tint;varying float va;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float a=va*pow(max(0.0,1.0-d),2.0);"+
+        "gl_FragColor=vec4(s3Lin(mix(tint,vec3(1.0,0.97,0.88),pow(max(0.0,1.0-d),5.0)))*a,a);}"
+      :S3_LIN+"uniform vec3 tint;varying float va;varying float vs;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float lump=0.82+0.18*sin(atan(q.y,q.x)*3.0+vs*40.0);"+
+        "float a=va*(1.0-smoothstep(0.35*lump,1.0*lump,d));if(a<0.004)discard;vec3 c=tint*(1.06-0.22*gl_PointCoord.y);gl_FragColor=vec4(s3Lin(c),a);}"});
   const pts=new T.Points(geo,mat);pts.frustumCulled=false;pts.renderOrder=2;
   return{pts,P,Z,A,n,geo};}
 /* the plume: a shell whose radius profile and glow come from a shader. Local +X is the exhaust direction, origin the exit */
 function s3Plume(core){
   const T=THREE,geo=new T.CylinderGeometry(1,1,1,22,32,true);geo.translate(0,0.5,0);geo.rotateZ(-Math.PI/2);
   const mat=new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,
-    uniforms:{L:{value:1},R:{value:0.02},F:{value:0},time:{value:0},dia:{value:0},pinch:{value:0},flick:{value:1},core:{value:core?1:0}},
-    vertexShader:"uniform float L,R,F,dia,pinch,time,flick,core;varying float vu;varying vec3 vn;varying vec3 vv;"+
-      "void main(){float u=position.x;vu=u;float spread=core>0.5?0.8:2.4+1.8*F;"+
+    uniforms:{L:{value:1},R:{value:0.02},F:{value:0},time:{value:0},dia:{value:0},pinch:{value:0},flick:{value:1},core:{value:core?1:0},wide:{value:0},lin:{value:0}},
+    vertexShader:"uniform float L,R,F,dia,pinch,time,flick,core,wide;varying float vu;varying vec3 vn;varying vec3 vv;"+
+      "void main(){float u=position.x;vu=u;float spread=core>0.5?0.8+0.6*wide:(2.4+1.8*F)*(1.0+1.5*wide);"+
       "float r=R*(1.0+spread*u)*(1.0-0.75*smoothstep(0.55,1.0,u));"+
       "r*=1.0+dia*0.22*sin(u*18.0)*(1.0-u);r*=1.0-pinch*0.35*sin(min(u*5.0,3.1416));"+
       "r*=1.0+flick*0.05*sin(time*53.0+u*9.0);"+
       "vec3 p=vec3(u*L,position.y*r,position.z*r);vec4 mv=modelViewMatrix*vec4(p,1.0);vv=normalize(-mv.xyz);vn=normalize(normalMatrix*vec3(0.0,position.y,position.z));"+
       "gl_Position=projectionMatrix*mv;}",
-    fragmentShader:"uniform float F,dia,time,flick,core;varying float vu;varying vec3 vn;varying vec3 vv;"+
+    fragmentShader:S3_LIN+"uniform float F,dia,time,flick,core,wide;varying float vu;varying vec3 vn;varying vec3 vv;"+
       "void main(){float face=pow(abs(dot(vn,vv)),core>0.5?1.2:2.2);"+
       "vec3 hot=vec3(1.0,0.97,0.86),mid=vec3(1.0,0.66,0.26),cool=vec3(0.86,0.32,0.14);"+
       "vec3 c=vu<0.25?mix(hot,mid,vu/0.25):mix(mid,cool,(vu-0.25)/0.75);"+
       "float fade=(1.0-smoothstep(0.35,1.0,vu))*smoothstep(0.0,0.03,vu+0.03);"+
       "float fl=1.0+flick*(0.12*sin(time*71.0+vu*23.0)+0.08*sin(time*137.0-vu*41.0));"+
       "float dm=dia*exp(-pow(fract(vu*5.5)-0.5,2.0)*60.0)*(1.0-vu)*1.4;"+
-      "float a=face*fade*fl*(core>0.5?0.95:0.55)*clamp(F*1.4,0.0,1.0)+dm*face;"+
-      "gl_FragColor=vec4((c+dm*hot)*a,a);}"});
+      "float a=face*fade*fl*(core>0.5?0.95:0.55*(1.0-0.4*wide))*clamp(F*1.4,0.0,1.0)+dm*face;"+
+      "gl_FragColor=vec4(s3Lin(c+dm*hot)*a,a);}"});
   const m=new T.Mesh(geo,mat);m.frustumCulled=false;m.renderOrder=3;return m;}
 /* ---- per firing ---- */
 /* Texture tiles (m) for the parts made or re-materialled here: a texture repeats every tile metres */
@@ -2637,17 +2847,31 @@ const S3_ROCKET={kraft:{body:[0xFFFFFF,0,0.85,"kraft"],fin:[0xFFFFFF,0,0.75,"woo
   glass:{body:[0xE6E2D6,0.05,0.5,"glass"],fin:[0x2A55C9,0.05,0.5,"glass"],nose:[0xEDEBE5,0.05,0.45,"glass"],ring:[0x3E4247,0.3,0.6,"paint"],tip:true},
   carbon:{body:[0x4A4D52,0.25,0.4,"carbon"],fin:[0x4A4D52,0.25,0.4,"carbon"],nose:[0xEDEBE5,0.05,0.35,null],ring:[0x3E4247,0.3,0.6,"paint"],tip:true}};
 function s3Setup(o){
-  const T=THREE;S3.o=o;S3.shot=0;S3.orbit=null;S3.lastT=null;
+  const T=THREE;S3.o=o;S3.shot=0;S3.orbit=null;S3.lastT=null;S3.introOff=false;S3.lightKey=null;
+  S3.pl=s3Place(o);S3.day=o.day||{tod:"noon",wx:"clear"};S3.fogNF=S3_WX.clear.fog;
   /* free the last firing's pieces; the kit's geometry and the shared (cached) materials stay */
   if(S3.rig){S3.sc.remove(S3.rig);S3.rig.traverse(x=>{if(x.isInstancedMesh)x.dispose();if(x.geometry&&!x.geometry.userData.kit)x.geometry.dispose();
     const m=x.material;if(m&&m.dispose&&!x.userData.shared&&!(m.userData&&m.userData.shared))m.dispose();});}
   const rig=S3.rig=new T.Group();S3.sc.add(rig);
   Object.assign(S3,{motor:null,rocket:null,nozzle:null,caseMesh:null,ign:null,keep:null,boltA:null,jet:null,halves:[],exitL:null,lift:0.02});
-  if(o.mode==="stand")(S3.kit?s3KitStand:s3PlainStand)(o,rig);
+  if(o.mode!=="launch")(S3.kit?s3KitStand:s3PlainStand)(o,rig);
   else{(S3.kit?s3KitLaunch:s3PlainLaunch)(o,rig);
     /* the wind blows along this direction (horizontal); the sim's drift x is along it */
     S3.wdir=new T.Vector3(0.8,0,0.6).normalize();}
-  S3.deb.count=0;S3.flash.style.opacity=0;s3Label();return S3.R!=null;}
+  /* indoors, the smoke goes into the augmenter or the diffuser at x = inX */
+  const pl=S3.pl,inl=s3Node(pl.inlet),tb=pl.tank&&s3Node(pl.tank[1]);S3.inX=inl?inl.x:tb?tb.x-0.5:Infinity;
+  /* the floor thrown parts land on: the cell's slab, the tank's bottom, or the salt */
+  const bx=pl.box&&s3Node(pl.box[0]),bx2=pl.box&&s3Node(pl.box[1]);S3.floorY=bx&&bx2?Math.min(bx.y,bx2.y):tb?tb.y-pl.tank[2]+0.12:0;
+  S3.deb.count=0;S3.flash.style.opacity=0;if(o.mode!=="bench")s3Label();return S3.R!=null;}
+/* where the motor sits at this place: base (the load-cell face, or on the bench), the cradle tops {x, y} and the height
+   a single post starts from */
+function s3Cradles(o){
+  const T=THREE,pl=S3.pl,r=o.dia/2;
+  if(pl.bench){const b=s3Node(pl.bench)||new T.Vector3(-56,0.95,12),base=new T.Vector3(b.x-o.len*0.5,b.y+1.15*r+0.022,b.z);
+    return{base,cr:[0.22,0.78].map(f=>({x:base.x+o.caseLen*f,y:b.y})),low:b.y};}
+  const base=s3Node(pl.mount)||new T.Vector3(-0.04,0.85,0),lw=pl.lowNode&&s3Node(pl.lowNode);
+  const cr=Object.keys(S3.nodes).filter(k=>pl.cradle.test(k)).map(k=>{const p=s3Node(k);return{x:p.x,y:p.y};});
+  return{base,cr,low:lw?lw.y:(pl.low??base.y-0.4)};}
 /* a material made here, cached for the tier and flagged shared (teardown keeps it, swapMats converts it on a tier change) */
 function s3Mat(c,metal,rough,tex,vc,side){
   const C=S3.mc||(S3.mc=new Map()),k=[S3.full?1:0,c,metal,rough,tex||"",vc?1:0,side||0].join("|");let m=C.get(k);
@@ -2720,7 +2944,7 @@ function s3FinGeo(P,th,w,tile){
   geo.computeVertexNormals();return geo;}
 /* the motor on Stand 3, assembled from the kit to this design. Group origin: the load-cell face (motorMount); +X aft */
 function s3KitStand(o,rig){
-  const T=THREE,V=(x,y,z)=>new T.Vector3(x,y,z),Q0=new T.Quaternion(),mt=S3.nodes.motorMount,base=mt?mt.position.clone():V(-0.04,0.85,0);
+  const T=THREE,V=(x,y,z)=>new T.Vector3(x,y,z),Q0=new T.Quaternion(),CR=s3Cradles(o),base=CR.base;
   const r=o.dia/2,s=r,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
   /* the closures keep their shape (scaled by r) but give way on a stubby case: together at most 40% of its length */
   const kx=Math.min(1,cl*0.4/(0.42*s)),x0=0.30*s*kx,x1=cl-0.12*s*kx,tl=Math.max(0.001,x1-x0);
@@ -2731,7 +2955,7 @@ function s3KitStand(o,rig){
   const bw=Math.min(tl*0.08,Math.max(0.012,0.5*r)),pt=S3_TILE.paint;
   if(tl>bw*4)s3Kit("caseBand",g,V(x0+0.12*tl,0,0),V(bw,r,r),s3Mat(0xA8322A,0,0.8,"paint"),[r/pt,bw/pt]);
   /* the label goes where no saddle strap crosses it */
-  const xs=Object.keys(S3.nodes).filter(k=>/^cradle/.test(k)).map(k=>S3.nodes[k].position.x).filter(x=>x>base.x+x0+0.04&&x<base.x+x1-0.04);
+  const cin=CR.cr.filter(c=>c.x>base.x+x0+0.04&&c.x<base.x+x1-0.04),xs=cin.map(c=>c.x);
   const one=!xs.length;if(one)xs.push(base.x+x0+tl*0.5);
   const sx=Math.max(0.035,Math.min(0.1,r)),lw=Math.min(r,tl*0.45/1.6);
   const lx=[0.22,0.3,0.14,0.4,0.5].map(f=>x0+f*tl).find(a=>a+1.6*lw<x1-0.3*r&&xs.every(x=>x-base.x+0.12*sx<a||x-base.x-0.12*sx>a+1.6*lw));
@@ -2755,9 +2979,9 @@ function s3KitStand(o,rig){
   /* saddles at the stand's cradles (or one in the middle of a short motor): strap and block on the case, a post below */
   const SM=xs.map(x=>new T.Matrix4().compose(V(x-base.x,0,0),Q0,V(sx,r,r)));
   for(const nm of["saddleBand","saddleBlock"])s3KitInst(nm,g,SM).forEach(m=>keep.add(m));
-  const y0=one?0.42:0.64,ph=Math.max(0.005,base.y-1.15*r-y0),pw=Math.max(0.03,0.3*sx),pd=Math.max(0.04,1.6*r);
+  const pw=Math.max(0.03,0.3*sx),pd=Math.max(0.04,1.6*r);
   const posts=new T.InstancedMesh(new T.BoxGeometry(1,1,1),s3Mat(0x3E4247,0.3,0.7,"paint"),xs.length);
-  xs.forEach((x,i)=>posts.setMatrixAt(i,new T.Matrix4().compose(V(x,y0+ph/2,0),Q0,V(pw,ph,pd))));
+  xs.forEach((x,i)=>{const y0=one?CR.low:cin[i].y,ph=Math.max(0.005,base.y-1.15*r-y0);posts.setMatrixAt(i,new T.Matrix4().compose(V(x,y0+ph/2,base.z),Q0,V(pw,ph,pd)));});
   posts.instanceMatrix.needsUpdate=true;posts.computeBoundingSphere();posts.castShadow=posts.receiveShadow=true;rig.add(posts);
   /* plume (outer and core), the side jet for a burn-through */
   S3.plume=s3Plume(false);S3.core=s3Plume(true);S3.plume.position.copy(S3.exit);S3.core.position.copy(S3.exit);g.add(S3.plume,S3.core);
@@ -2830,7 +3054,7 @@ function s3KitLaunch(o,rig){
 function s3PlainMat(c,metal,rough){const T=THREE,m=S3.full?new T.MeshStandardMaterial({color:c,metalness:Math.min(metal,0.4),roughness:rough}):new T.MeshLambertMaterial({color:c});m.userData.metal=metal;m.userData.rough=rough;return m;}
 function s3PlainStand(o,rig){
   const T=THREE,mat=s3PlainMat,CASEC={phenolic:[0x8A5A3A,0,0.8],mild:[0x5F646B,0.6,0.5],al6061:[0xB4B9BF,0.7,0.38],cromo:[0x4E5359,0.65,0.45],composite:[0x2B2D30,0.2,0.5]};
-  const mt=S3.nodes.motorMount,base=mt?mt.position.clone():new T.Vector3(-0.04,0.85,0),r=o.dia/2,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
+  const CR=s3Cradles(o),base=CR.base,r=o.dia/2,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
   const g=S3.motor=new T.Group();g.position.copy(base);rig.add(g);
   const cc=CASEC[o.caseMat]||CASEC.al6061,caseM=mat(cc[0],cc[1],cc[2]);
   const cyl=(rad,len,x,m,seg)=>{const c=new T.Mesh(new T.CylinderGeometry(rad,rad,len,seg||28),m);c.rotation.z=-Math.PI/2;c.position.x=x;c.castShadow=c.receiveShadow=true;return c;};
@@ -2845,10 +3069,10 @@ function s3PlainStand(o,rig){
   const lat=new T.Mesh(new T.LatheGeometry(prof,28),mat(0x2E3034,0.1,0.7));lat.material.side=T.DoubleSide;lat.rotation.z=-Math.PI/2;lat.castShadow=true;nz.add(lat);
   S3.exit=new T.Vector3(cl+nl,0,0);
   /* saddles under the case at the stand's cradles (or one in the middle of a short motor) */
-  const sad=mat(0x3E4247,0.5,0.5),xs=Object.keys(S3.nodes).filter(k=>/^cradle/.test(k)).map(k=>S3.nodes[k].position.x).filter(x=>x>base.x+0.05&&x<base.x+cl-0.05);
-  const top=0.64;if(!xs.length)xs.push(base.x+cl/2);
-  for(const x of xs){const y0=xs.length===1&&x===base.x+cl/2?0.42:top,hgt=Math.max(0.01,base.y-r-y0);
-    const s=new T.Mesh(new T.BoxGeometry(0.05,hgt,Math.max(0.04,r*1.4)),sad);s.position.set(x,y0+hgt/2,0);s.castShadow=true;rig.add(s);
+  const sad=mat(0x3E4247,0.5,0.5),cin=CR.cr.filter(c=>c.x>base.x+0.05&&c.x<base.x+cl-0.05);
+  if(!cin.length)cin.push({x:base.x+cl/2,y:CR.low});
+  for(const{x,y:y0}of cin){const hgt=Math.max(0.01,base.y-r-y0);
+    const s=new T.Mesh(new T.BoxGeometry(0.05,hgt,Math.max(0.04,r*1.4)),sad);s.position.set(x,y0+hgt/2,base.z);s.castShadow=true;rig.add(s);
     const band=new T.Mesh(new T.CylinderGeometry(r*1.06,r*1.06,0.03,24,1,true),sad);band.rotation.z=-Math.PI/2;band.position.set(x-base.x,0,0);g.add(band);}
   /* plume (outer and core), the side jet for a burn-through */
   S3.plume=s3Plume(false);S3.core=s3Plume(true);S3.plume.position.copy(S3.exit);S3.core.position.copy(S3.exit);g.add(S3.plume,S3.core);
@@ -2882,21 +3106,40 @@ function s3Draw(d){
   s3Size();s3Perf();
   const flame=t>=0&&d.f>0.003&&!(fail&&(fail.key==="cato"||fail.key==="eject")&&age>0.02)&&!(fail&&fail.key==="hangfire");
   if(S3.ign)S3.ign.visible=t<0.02||!!(fail&&fail.key==="hangfire");   // the igniter goes with the first flame
-  const pr=d.p*(o.prE||0.05)/S3_AIR,diam=flame&&pr>1.15?Math.min(1,Math.log(pr)/1.2):0,pinch=flame&&pr<0.75?Math.min(1,(0.75-pr)*2):0;
+  /* the back-pressure: the air, or the altitude chamber's near-vacuum, where the plume balloons out and the diamonds
+     go faint and far apart */
+  const vac=!!S3.pl.vacuum,pr=d.p*(o.prE||0.05)/(vac?(o.pAmb||3000):S3_AIR);
+  const diam=flame&&pr>1.15?Math.min(1,Math.log(pr)/1.2)*(vac?0.3:1):0,pinch=flame&&pr<0.75?Math.min(1,(0.75-pr)*2):0;
   const fl=Math.max(0.03,Math.min(1.25,d.f)),re=Math.max(0.004,o.re);
-  const L=re*(12+46*fl)*(o.mode==="launch"?1.3:1);
-  for(const[p,k]of[[S3.plume,1],[S3.core,0.32]]){const u=p.material.uniforms;p.visible=flame;u.L.value=L*k;u.R.value=re*(k<1?0.75:1);u.F.value=fl;u.time.value=t;u.dia.value=k<1?0:diam;u.pinch.value=pinch;u.flick.value=still?0:1;}
+  const L=re*(12+46*fl)*(o.mode==="launch"?1.3:vac?1.35:1);
+  for(const[p,k]of[[S3.plume,1],[S3.core,0.32]]){const u=p.material.uniforms;p.visible=flame;u.L.value=L*k;u.R.value=re*(k<1?0.75:1);u.F.value=fl;u.time.value=t;u.dia.value=k<1?0:diam;u.pinch.value=pinch;u.flick.value=still?0:1;u.wide.value=vac?1:0;}
   /* nozzle light */
   const ex=new T.Vector3();
-  if(o.mode==="stand"){ex.copy(S3.exit);S3.motor.localToWorld(ex);}
+  if(o.mode!=="launch"){ex.copy(S3.exit);S3.motor.localToWorld(ex);}
   else{s3Rocket(t,d);if(S3.exitL)ex.copy(S3.exitL);else ex.set(0,-o.rocket.D*0.3,0);S3.rocket.localToWorld(ex);}
   S3.fire.position.copy(ex).add(new T.Vector3(re*6,o.mode==="launch"?-re*4:0.15,0));const reach=Math.max(0.3,o.len+L);S3.fire.intensity=flame?(still?1:0.85+0.15*Math.sin(t*61))*fl*2.2*reach*reach:0;S3.fire.distance=reach*8;
-  if(o.mode==="stand")s3Fail(d,fail,age,still);
-  s3Smoke(d,fail,age,ex);
+  if(o.mode!=="launch")s3Fail(d,fail,age,still);
   s3Camera(d,fail,age,still);
+  s3Smoke(d,fail,age,ex);
   /* the flash after a burst (a short soft fade with reduced motion) */
   S3.flash.style.opacity=fail&&fail.key==="cato"&&age>=0&&age<0.5?((still?0.5:0.9)*(1-age/0.5)).toFixed(3):"0";
-  S3.R.render(S3.sc,S3.cam);}
+  s3Render(d,ex,flame,fl,L);}
+/* one frame to the canvas: straight, or (Full, where it can run) through the post chain with bloom, heat shimmer behind
+   the nozzle, the day's colour grade and a vignette */
+function s3Render(d,ex,flame,fl,L){
+  const T=THREE,o=S3.o,post=S3.post&&S3.full,lin=post?1:0;
+  for(const p of[S3.sky,S3.smoke.pts,S3.glow.pts,S3.plume,S3.core,S3.jet])if(p)p.material.uniforms.lin.value=lin;
+  if(!post){S3.R.render(S3.sc,S3.cam);return;}
+  const P=VIS.p3,sz=S3.R.getSize(S3.v2||(S3.v2=new T.Vector2()));P.size(sz.x,sz.y,S3.R.getPixelRatio());
+  /* the shimmer: along the plume while it burns, then a fainter one off the hot nozzle for a few seconds */
+  let sh=null;const after=o.mode!=="launch"&&d.t>o.tEnd&&d.t<o.tEnd+4&&!(d.fail&&d.fail.key!=="hangfire");
+  if(!d.still&&ex&&(flame||after)){const dir=o.mode==="launch"?new T.Vector3(0,-1,0).applyQuaternion(S3.rocket.quaternion):new T.Vector3(1,0,0);
+    const k=flame?0.3+0.45*Math.min(1,fl):0.22*(1-(d.t-o.tEnd)/4),len=flame?L*1.25:Math.max(0.15,o.dia*5);
+    sh=P.aim(S3.cam,ex,ex.clone().addScaledVector(dir,len),Math.max(0.004,o.re)*1.4,k,S3.shObj||(S3.shObj={}));}
+  P.render(S3.sc,S3.cam,{bloom:d.fail&&d.fail.key==="cato"&&d.fail.age<0.6?1.5:1,exposure:1,shimmer:sh,grade:S3.grade,vignette:0.22,time:d.t>0?d.t:0});}
+/* can this phone run the post chain? (WebGL2 and float colour targets, checked on a throwaway canvas) */
+function s3CanPost(){try{const gl=document.createElement("canvas").getContext("webgl2");if(!gl)return false;
+  const ok=!!(gl.getExtension("EXT_color_buffer_float")||gl.getExtension("EXT_color_buffer_half_float"));const lc=gl.getExtension("WEBGL_lose_context");if(lc)lc.loseContext();return ok;}catch(e){return false;}}
 function s3Redraw(){if(S3.last)s3Draw(S3.last);}
 /* failure pieces on the stand: the case halves after a burst, the thrown nozzle, the side jet of a burn-through, debris */
 function s3Fail(d,fail,age,still){
@@ -2907,18 +3150,18 @@ function s3Fail(d,fail,age,still){
   /* a body thrown from p0 with velocity v, stopping where it lands */
   const toss=(p0,v,a,floor)=>{const tl=(v.y+Math.sqrt(v.y*v.y+2*G*Math.max(0,p0.y-floor)))/G,tt=Math.min(a,tl);
     return{p:new T.Vector3(p0.x+v.x*tt,Math.max(floor,p0.y+v.y*tt-0.5*G*tt*tt),p0.z+v.z*tt),tt};};
-  S3.halves.forEach((h,i)=>{h.visible=split;if(!split)return;const s=i?1:-1,v=new T.Vector3(1.2,4+2*o.dia*0,s*2.6),q=toss(new T.Vector3(b.x+cl/2,b.y,s*r*0.3),v,age,r*0.5);
-    h.position.copy(q.p);h.rotation.set(s*q.tt*3,0,-Math.PI/2+q.tt*1.3);});
+  S3.halves.forEach((h,i)=>{h.visible=split;if(!split)return;const s=i?1:-1,v=new T.Vector3(1.2,4+2*o.dia*0,s*2.6),q=toss(new T.Vector3(b.x+cl/2,b.y,b.z+s*r*0.3),v,age,S3.floorY+r*0.5);
+    s3Keep(q.p,r);h.position.copy(q.p);h.rotation.set(s*q.tt*3,0,-Math.PI/2+q.tt*1.3);});
   /* the nozzle: thrown downrange after an ejection (a burst throws it too, shorter) */
   const nz=S3.nozzle;
-  if(key==="eject"||key==="cato"){const v=key==="eject"?new T.Vector3(22,5,1.5):new T.Vector3(6,3.5,-1),q=toss(new T.Vector3(b.x+cl,b.y,0),v,age,0.05);
-    g.worldToLocal(q.p);nz.position.copy(q.p);nz.rotation.set(q.tt*5,q.tt*2,q.tt*7);}
+  if(key==="eject"||key==="cato"){const v=key==="eject"?new T.Vector3(22,5,1.5):new T.Vector3(6,3.5,-1),q=toss(new T.Vector3(b.x+cl,b.y,b.z),v,age,S3.floorY+0.05);
+    s3Keep(q.p,r);g.worldToLocal(q.p);nz.position.copy(q.p);nz.rotation.set(q.tt*5,q.tt*2,q.tt*7);}
   else{nz.position.set(cl,0,0);nz.rotation.set(0,0,0);}
   /* the aft bolt ring: on a burst or an ejection each screw flies off outward and lands on the salt */
   const BA=S3.boltA;
   if(BA&&(key==="cato"||key==="eject")){const p=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3(),e=new T.Euler(),m=new T.Matrix4();
     BA.rest.forEach((M,i)=>{M.decompose(p,q,sc);const v=new T.Vector3(0,p.y,p.z).normalize().multiplyScalar(2.5+h01(i+50)*4).add(new T.Vector3(1+h01(i+51)*2,1.5,0));
-      const w=toss(p.clone().add(b),v,age,0.006);w.p.sub(b);q.multiply(new T.Quaternion().setFromEuler(e.set(w.tt*(9+i),w.tt*7,0)));m.compose(w.p,q,sc);
+      const w=toss(p.clone().add(b),v,age,S3.floorY+0.006);s3Keep(w.p,0.01);w.p.sub(b);q.multiply(new T.Quaternion().setFromEuler(e.set(w.tt*(9+i),w.tt*7,0)));m.compose(w.p,q,sc);
       for(const im of BA.ims)im.setMatrixAt(i,m);});
     for(const im of BA.ims){im.instanceMatrix.needsUpdate=true;im.computeBoundingSphere();}BA.moved=true;}
   else if(BA&&BA.moved){BA.rest.forEach((M,i)=>{for(const im of BA.ims)im.setMatrixAt(i,M);});for(const im of BA.ims){im.instanceMatrix.needsUpdate=true;im.computeBoundingSphere();}BA.moved=false;}
@@ -2926,7 +3169,7 @@ function s3Fail(d,fail,age,still){
   /* debris: a fixed pattern of chunks on ballistic arcs */
   if(split){const n=S3.deb.count=28,m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),sc=new T.Vector3();
     for(let i=0;i<n;i++){const sp=4+h01(i+1)*14,az=h01(i+7)*Math.PI*2,el=0.2+h01(i+13)*1.1,v=new T.Vector3(Math.cos(az)*Math.cos(el)*sp,Math.sin(el)*sp,Math.sin(az)*Math.cos(el)*sp);
-      const p0=new T.Vector3(b.x+cl*(0.15+0.7*h01(i+21)),b.y,0),z=Math.max(0.012,r*(0.15+0.35*h01(i+5))),tt=toss(p0,v,age,z/2);
+      const p0=new T.Vector3(b.x+cl*(0.15+0.7*h01(i+21)),b.y,b.z),z=Math.max(0.012,r*(0.15+0.35*h01(i+5))),tt=toss(p0,v,age,S3.floorY+z/2);s3Keep(tt.p,z);
       e.set(tt.tt*(4+i),tt.tt*(3+i*0.5),0);q.setFromEuler(e);sc.set(z*1.6,z*0.5,z);m.compose(tt.p,q,sc);S3.deb.setMatrixAt(i,m);}
     S3.deb.instanceMatrix.needsUpdate=true;}else S3.deb.count=0;}
 /* the rocket's place and attitude at time t along the flown path; on the rail before liftoff */
@@ -2951,7 +3194,8 @@ function s3Rocket(t,d){
 function s3Smoke(d,fail,age,ex){
   const o=S3.o,t=d.t,S=S3.smoke,G=S3.glow,n=S3.full?S3_N.full:S3_N.lite,launch=o.mode==="launch";
   const tEnd=launch?Math.min(o.tBurn,o.tEnd):o.tEnd,wind=Math.max(0.5,o.wind||1.5),sz=Math.max(0.03,o.dia);
-  const life=launch?1e9:4.2,emitEnd=(fail&&(fail.key==="cato"||fail.key==="eject")?Math.min(tEnd,t-age):tEnd)+(launch?0:1.2);
+  const pl=S3.pl,IN=!!pl.indoor&&!launch,out=!!(pl.shots[S3.shot]||{}).out&&!!pl.outlet,outP=out&&s3Node(pl.outlet);
+  const life=launch?1e9:IN?9:4.2,emitEnd=(fail&&(fail.key==="cato"||fail.key==="eject")?Math.min(tEnd,t-age):tEnd)+(launch?0:1.2);
   const rate=launch?n/Math.max(0.6,emitEnd+0.4):n/life,dt=1/rate,P=S.P,Z=S.Z,A=S.A;let m=0;
   const kNow=Math.min(Math.floor(Math.max(0,t)/dt),Math.floor(emitEnd/dt)),T=THREE,w=launch?S3.wdir:new THREE.Vector3(0.25,0,0.97);
   if(t>=0&&!(fail&&fail.key==="hangfire"))for(let j=0;j<n&&m<n;j++){const k=kNow-j;if(k<0)break;const te=k*dt,a=t-te;if(te>emitEnd||a<0||a>life)continue;
@@ -2960,18 +3204,33 @@ function s3Smoke(d,fail,age,ex){
     if(launch){const pa=BURN_VIS.pathAt(o.path,te),D=o.rocket.D,bx=S3.base.x-(D/2+0.03),bz=S3.base.z;
       const sp=(0.4+a*0.9)*(0.6+hk);P[m*3]=bx+S3.wdir.x*(pa.x+wind*a*0.9)+(hk-0.5)*sp;P[m*3+1]=S3.base.y+Math.max(0.2,pa.h-D*2+(hk2-0.5)*sp*0.6)+Math.min(a,8)*0.25;P[m*3+2]=bz+S3.wdir.z*(pa.x+wind*a*0.9)+(hk3-0.5)*sp;
       const gap=1.7*(o.path.v[Math.min(pa.i,o.path.v.length-1)]||0)/rate;Z[m]=Math.max(D*2.5,gap,(D*3.5+a*1.6)*(0.7+0.6*hk)*(0.6+fe));A[m]=Math.min(0.6,0.5*fe+0.15)*Math.min(1,a*40)*Math.max(0,1-a/60);}
+    else if(outP){/* seen from outside the altitude chamber: steam and smoke out of the silencer stack, up and away */
+      if(a>6)continue;const sp=(0.5+a*0.8)*(0.6+hk);
+      P[m*3]=outP.x+w.x*wind*a*0.9+(hk-0.5)*sp;P[m*3+1]=outP.y+(1.6+0.8*hk2)*a-0.06*a*a+0.3;P[m*3+2]=outP.z+w.z*wind*a*0.7+(hk3-0.5)*sp;
+      Z[m]=(1.0+a*1.6)*(0.7+0.6*hk)*(0.6+0.6*fe);A[m]=(0.22+0.3*fe)*Math.min(1,a*4)*Math.pow(Math.max(0,1-a/6),1.2);}
+    else if(IN){/* indoors there is no wind: most of the smoke runs downstream into the augmenter (or the chamber's diffuser)
+       and is drawn in; about a quarter curls back and hangs in the room as a haze, rising slowly */
+      const haze=hk<0.27,Lp=o.re*(12+46*fe),run=Lp*(0.55+0.5*hk2+1.6*(1-Math.exp(-a/0.6)))*(haze?0.55:1);
+      let x=ex.x+run+(hk-0.5)*sz*2*a,y=ex.y+(haze?0.2*a:0.04*a)+(hk2-0.5)*sz*2,z=ex.z+(hk3-0.5)*sz*(1.5+(haze?4:1)*a),al;
+      if(haze){x-=Math.min(a,6)*0.12*(0.3+hk3);Z[m]=sz*(5+a*5)*(0.7+0.6*hk2);al=(0.05+0.09*fe)*Math.min(1,a*1.5)*Math.max(0,1-a/life);}
+      else{const k=Math.max(0,Math.min(1,(x-(S3.inX-0.5))/0.6));y+=(ex.y-y)*k;z+=(ex.z-z)*k;
+        Z[m]=sz*(3+a*(3+5*fe))*(0.7+0.6*hk)*(1-0.5*k);al=(0.26+0.4*fe)*Math.min(1,a*5)*Math.pow(Math.max(0,1-a/4.2),1.3)*Math.max(0,1-Math.max(0,x-S3.inX)/0.5);}
+      if(al<=0.003)continue;const q=new T.Vector3(x,y,z);s3Keep(q,Z[m]*0.3);P[m*3]=q.x;P[m*3+1]=q.y;P[m*3+2]=q.z;A[m]=al;}
     else{/* puffs start where the plume thins out and drift on: downrange, up, and away with the wind */
       const Lp=o.re*(12+46*fe),run=Lp*(0.55+0.5*hk+1.4*(1-Math.exp(-a/0.7)));
       P[m*3]=ex.x+run+w.x*wind*a*0.8+(hk-0.5)*sz*4*a;P[m*3+1]=Math.max(sz,ex.y+(0.15+0.3*hk2)*a+0.06*a*a)+(hk2-0.5)*sz*2;P[m*3+2]=ex.z+w.z*wind*a*0.6+(hk3-0.35)*sz*(2+6*a);
       Z[m]=sz*(3+a*(7+12*fe))*(0.7+0.6*hk);A[m]=(0.28+0.42*fe)*Math.min(1,a*5)*Math.pow(Math.max(0,1-a/life),1.3);}
     m++;}
+  const sk=S3.smokeK||[1,1,1],tn=outP?[0.9,0.9,0.89]:[0.70,0.69,0.67];   // the grey, in the light of the day (places3d.js)
+  S.pts.material.uniforms.tint.value.set(tn[0]*sk[0],tn[1]*sk[1],tn[2]*sk[2]);
   /* a hang fire: a thin wisp from the nozzle; a burst: a big grey cloud from the case */
   const wisp=fail&&age>=0&&fail.key==="hangfire",burst=fail&&age>=0&&(fail.key==="cato"||fail.key==="burnthrough"||fail.key==="eject")&&!launch;
   if(wisp)for(let j=0;j<40&&m<n;j++){const a=age-j*0.12;if(a<0)break;P[m*3]=ex.x+0.1+a*0.1;P[m*3+1]=ex.y+a*0.35;P[m*3+2]=ex.z+a*0.4*(h01(j)-0.3);Z[m]=sz+a*0.15;A[m]=0.16*Math.max(0,1-a/5);m++;}
   if(burst){const c=S3.base.clone();c.x+=o.caseLen*0.5;const big=(fail.key==="cato"?1:0.45)*Math.max(0.35,Math.min(3,o.len*2.5));
     for(let j=0;j<120&&m<n;j++){const a=age-j*0.008;if(a<0)break;const az=h01(j+40)*6.283,el=h01(j+41)*1.4,sp=(2+h01(j+42)*5)*big,run=sp*0.6*(1-Math.exp(-a/0.6));
       P[m*3]=c.x+Math.cos(az)*Math.cos(el)*run+w.x*wind*a;P[m*3+1]=Math.max(0.2,c.y+Math.sin(el)*run+0.4*a);P[m*3+2]=c.z+Math.sin(az)*Math.cos(el)*run+w.z*wind*a;
-      Z[m]=(0.6+a*1.4)*big*(0.7+0.6*h01(j+43))+sz*2;A[m]=0.42*big*Math.max(0,1-a/7)*Math.min(1,a*10);m++;}}
+      Z[m]=(0.6+a*1.4)*big*(0.7+0.6*h01(j+43))+sz*2;A[m]=0.42*big*Math.max(0,1-a/7)*Math.min(1,a*10);
+      if(IN){const q=new T.Vector3(P[m*3],P[m*3+1],P[m*3+2]);s3Keep(q,0.2);P[m*3]=q.x;P[m*3+1]=q.y;P[m*3+2]=q.z;}m++;}}
   S.geo.setDrawRange(0,m);for(const k of["position","size","alpha"])S.geo.attributes[k].needsUpdate=true;
   /* glow: one sprite on the nozzle, and a fireball after a burst */
   let gN=0;const gl=(x,y,z,s,a)=>{G.P[gN*3]=x;G.P[gN*3+1]=y;G.P[gN*3+2]=z;G.Z[gN]=s;G.A[gN]=a;gN++;};
@@ -2984,13 +3243,23 @@ function s3Smoke(d,fail,age,ex){
   G.geo.setDrawRange(0,gN);for(const k of["position","size","alpha"])G.geo.attributes[k].needsUpdate=true;}
 /* ---- cameras: the set shot, then any orbit the player dragged in ---- */
 function s3Camera(d,fail,age,still){
-  const T=THREE,o=S3.o,cam=S3.cam,tgt=new T.Vector3(),pos=new T.Vector3();let fovW=0,dist=0;
-  if(o.mode==="stand"){
-    const b=S3.base,len=o.len,plumeL=o.re*(12+46*1.0),span=Math.max(len*1.15+plumeL*0.9,0.7);
-    tgt.set(b.x+len*0.5+plumeL*0.45,b.y,0);
-    if(S3.shot===0){dist=span*1.2+0.1;pos.set(tgt.x+dist*0.3,b.y+0.05+dist*0.14,-dist);}
-    else if(S3.shot===1){const ex=b.x+len;tgt.set(ex+o.re*3,b.y,0);dist=Math.max(0.35,o.dia*7+len*0.25);pos.set(ex+dist*0.55,b.y+dist*0.28,-dist*0.8);}
-    else{const bh=S3.nodes.blockhouse;if(bh)pos.copy(bh.localToWorld(new T.Vector3(-3.8,2.05,0.6)));else pos.set(-33,2.05,22);fovW=Math.max(span*1.7,1.8);dist=pos.distanceTo(tgt);}
+  const T=THREE,o=S3.o,cam=S3.cam,tgt=new T.Vector3(),pos=new T.Vector3(),pl=S3.pl,sh=pl.shots[S3.shot]||pl.shots[0];
+  let fovW=0,dist=0,fov=0,inside=false,solo=false;
+  if(o.mode!=="launch"){
+    const b=S3.base,len=o.len,plumeL=o.mode==="bench"?0:o.re*(12+46*(pl.vacuum?1.35:1)),span=Math.max(len*1.15+plumeL*0.9,o.mode==="bench"?0.3:0.7);
+    tgt.set(b.x+len*0.5+plumeL*0.45,b.y,b.z);
+    if(sh.kind==="side"){dist=span*1.2+0.1;pos.set(tgt.x+dist*0.3,b.y+0.05+dist*0.14,b.z-dist);}
+    else if(sh.kind==="close"){const ex=b.x+len;tgt.set(ex+o.re*3,b.y,b.z);dist=Math.max(0.35,o.dia*7+len*0.25);pos.set(ex+dist*0.55,b.y+dist*0.28,b.z-dist*0.8);}
+    else if(sh.kind==="blockhouse"){const bh=S3.nodes.blockhouse;if(bh)pos.copy(bh.localToWorld(new T.Vector3(-3.8,2.05,0.6)));else pos.set(-33,2.05,22);fovW=Math.max(span*1.7,1.8);}
+    else if(sh.kind==="bench"){dist=Math.max(0.5,len*1.3+o.dia*5);pos.set(tgt.x-dist*0.3,b.y+dist*0.55,b.z-dist*0.8);}
+    else if(sh.kind==="benchEnd"){tgt.x=b.x+len*0.62;dist=Math.max(0.4,len*0.8+o.dia*6);pos.set(b.x+len+dist*0.7,b.y+dist*0.32,b.z-dist*0.5);}
+    else{const p=s3Node(sh.node);if(p)pos.copy(p);else pos.set(tgt.x,b.y+2,b.z-8);
+      if(sh.look)tgt.set(sh.look[0],sh.look[2],-sh.look[1]);if(sh.fovW)fovW=Math.max(span*sh.fovW[0],sh.fovW[1]);}
+    if(sh.fov)fov=sh.fov;
+    inside=!!pl.indoor&&!sh.out;solo=!!sh.solo;
+    /* the hush house's opening: from the build bay through the blast door to the set shot, over the countdown */
+    if(pl.intro&&S3.shot===0&&!S3.orbit&&!S3.introOff&&!still&&d.intro!=null&&d.intro<1&&s3IntroPath(pl,pos,tgt,d.intro)){solo=false;fovW=0;fov=0;S3.inIntro=true;}
+    else S3.inIntro=false;
   }else{
     const g=S3.rocket,L=o.rocket.L,up=new T.Vector3(0,1,0).applyQuaternion(g.quaternion);tgt.copy(g.position).addScaledVector(up,L*0.5);
     const h=g.position.y-S3.base.y,b=S3.base;
@@ -3005,24 +3274,28 @@ function s3Camera(d,fail,age,still){
   /* orbit: drag spins the camera round the target */
   if(S3.orbit){const off=pos.clone().sub(tgt),r=off.length()*S3.orbit.zoom;let az=Math.atan2(off.z,off.x)+S3.orbit.az,el=Math.asin(Math.max(-1,Math.min(1,off.y/off.length())))+S3.orbit.el;
     el=Math.max(-0.05,Math.min(1.45,el));pos.set(tgt.x+r*Math.cos(el)*Math.cos(az),tgt.y+r*Math.sin(el),tgt.z+r*Math.cos(el)*Math.sin(az));
-    if(fovW)fovW*=S3.orbit.zoom;}
+    if(fovW)fovW*=S3.orbit.zoom;if(fov)fov=Math.max(20,Math.min(80,fov*Math.sqrt(S3.orbit.zoom)));}
+  /* indoors the camera stays inside the walls (the cell, the bay or the tank), except for the shots that stand outside them */
+  if(inside&&!sh.free&&!S3.inIntro)s3Clamp(pl,pos);
   if(pos.y<0.15)pos.y=0.15;
   /* shake for a moment after a burst */
   if(fail&&fail.key==="cato"&&age>=0&&age<0.7&&!still){const a=(1-age/0.7)*0.04*Math.max(1,pos.distanceTo(tgt)*0.25);pos.x+=Math.sin(age*93)*a;pos.y+=Math.cos(age*71)*a*0.6;}
   cam.position.copy(pos);cam.lookAt(tgt);dist=pos.distanceTo(tgt);
-  cam.fov=fovW?Math.max(0.4,Math.min(60,2*Math.atan(fovW/2/dist)*180/Math.PI)):38;
+  cam.fov=fov||(fovW?Math.max(0.4,Math.min(60,2*Math.atan(fovW/2/dist)*180/Math.PI)):38);
   cam.near=Math.max(0.02,Math.min(dist*0.05,5));cam.far=40000;cam.updateProjectionMatrix();
   S3.sky.position.copy(pos);
-  const alt=Math.max(0,pos.y);S3.sc.fog.near=400+alt;S3.sc.fog.far=7000+alt*3;
+  s3Light(inside);s3Solo(pl,solo);
+  const alt=Math.max(0,pos.y),nf=S3.fogNF||[400,7000];S3.sc.fog.near=nf[0]+alt;S3.sc.fog.far=nf[1]+alt*3;
   const gs=Math.ceil((S3.sc.fog.far*2.2)/2000);S3.ground.scale.set(gs,gs,1);for(const m of[S3.ground.material.map,S3.ground.material.normalMap])if(m)m.repeat.set(S3.groundRep*gs,S3.groundRep*gs);
   S3.ground.position.set(Math.round(pos.x/40)*40,0,Math.round(pos.z/40)*40);
   /* the sun's shadow box follows what we look at */
-  S3.sun.target.position.copy(tgt);S3.sun.position.copy(tgt).add(new T.Vector3(35,60,-50));
-  const sh=Math.max(6,Math.min(60,dist*0.8));Object.assign(S3.sun.shadow.camera,{left:-sh,right:sh,top:sh,bottom:-sh});S3.sun.shadow.camera.updateProjectionMatrix();
+  S3.sun.target.position.copy(tgt);S3.sun.position.copy(tgt).addScaledVector(S3.sunDir||new T.Vector3(0.4,0.69,-0.58),85);
+  /* indoors the box takes in the whole roof, so its shadow keeps the sun off the floor inside */
+  const sb=inside||S3.inIntro?20:Math.max(6,Math.min(60,dist*0.8));Object.assign(S3.sun.shadow.camera,{left:-sb,right:sb,top:sb,bottom:-sb,far:240});S3.sun.shadow.camera.updateProjectionMatrix();
   /* points: pixel size of one metre at one metre away */
   const sc=S3.R.getDrawingBufferSize(new T.Vector2()).y/(2*Math.tan(cam.fov*Math.PI/360));S3.smoke.pts.material.uniforms.scale.value=sc;S3.glow.pts.material.uniforms.scale.value=sc;}
-function s3NextShot(){if(!S3.o)return;const n=SHOTS[S3.o.mode].length;S3.shot=(S3.shot+1)%n;S3.orbit=null;s3Label();s3Redraw();if(S3.onShot)S3.onShot(S3.shot);}
-function s3Label(){if(!S3.label||!S3.o)return;S3.label.textContent=SHOTS[S3.o.mode][S3.shot];S3.label.classList.add("on");clearTimeout(S3.labelT);S3.labelT=setTimeout(()=>S3.label.classList.remove("on"),1800);}
+function s3NextShot(){if(!S3.o)return;const n=S3.pl.shots.length;S3.shot=(S3.shot+1)%n;S3.orbit=null;S3.introOff=true;s3Label();s3Redraw();if(S3.onShot)S3.onShot(S3.shot);}
+function s3Label(){if(!S3.label||!S3.o)return;S3.label.textContent=S3.pl.shots[S3.shot].name;S3.label.classList.add("on");clearTimeout(S3.labelT);S3.labelT=setTimeout(()=>S3.label.classList.remove("on"),1800);}
 /* drag to orbit (one finger or the mouse), pinch to zoom; a tap with no drag moves to the next set shot */
 function s3Input(cv){
   cv.style.touchAction="none";
@@ -3030,7 +3303,7 @@ function s3Input(cv){
     if(S3.ptr.size===2){const[a,b]=[...S3.ptr.values()];S3.pinch=Math.hypot(a.x-b.x,a.y-b.y);}});
   cv.addEventListener("pointermove",e=>{const p=S3.ptr.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
     if(Math.hypot(p.x-p.x0,p.y-p.y0)>6)p.moved=true;if(!p.moved)return;
-    S3.orbit=S3.orbit||{az:0,el:0,zoom:1};
+    S3.orbit=S3.orbit||{az:0,el:0,zoom:1};S3.introOff=true;
     if(S3.ptr.size===2){const[a,b]=[...S3.ptr.values()],dd=Math.hypot(a.x-b.x,a.y-b.y);if(S3.pinch)S3.orbit.zoom=Math.max(0.25,Math.min(4,S3.orbit.zoom*S3.pinch/dd));S3.pinch=dd;}
     else{S3.orbit.az+=dx*0.008;S3.orbit.el+=dy*0.006;}
     if(!S3.playing)s3Redraw();});
@@ -3041,7 +3314,7 @@ function s3Input(cv){
   cv.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();s3NextShot();}});}
 /* size the drawing buffer to the canvas's CSS box */
 function s3Size(){
-  const cv=S3.cv,W=Math.max(200,cv.clientWidth||320),H=Math.round(Math.min(W*0.78,Math.max(240,innerHeight*0.42)));
+  const cv=S3.cv,W=Math.max(200,cv.clientWidth||320),H=Math.round(S3.hFn?S3.hFn(W):Math.min(W*0.78,Math.max(240,innerHeight*0.42)));
   cv.style.height=H+"px";const pr=S3.dpr;
   if(S3.R.getPixelRatio()!==pr)S3.R.setPixelRatio(pr);
   const sz=S3.R.getSize(new THREE.Vector2());if(sz.x!==W||sz.y!==H){S3.R.setSize(W,H,false);S3.cam.aspect=W/H;}}
@@ -3059,7 +3332,146 @@ function s3Perf(){
   const now=performance.now();if(S3.prev){S3.frames.push(now-S3.prev);if(S3.frames.length>90)S3.frames.shift();}S3.prev=now;
   if(S3.frames.length<90)return;const avg=S3.frames.reduce((a,b)=>a+b,0)/S3.frames.length;
   if(avg>30&&S3.stepped<2){S3.stepped++;S3.frames.length=0;s3Tier("lite");if(S3.onStep)S3.onStep(S3.stepped);}}
-Object.assign(VIS,{s3:{S:S3,init:s3Init,setup:s3Setup,draw:s3Draw,redraw:s3Redraw,next:s3NextShot,tier:s3Tier,SHOTS}});
+Object.assign(VIS,{s3:{S:S3,init:s3Init,setup:s3Setup,draw:s3Draw,redraw:s3Redraw,next:s3NextShot,tier:s3Tier}});
+/* ===================== vis/places3d.js: where each stand is, the light of the day, the bench view (1.6) =====================
+   Every stand has its own place on Site 41, each its own Blender model, all in one world frame (tools/blender_parts.py):
+     s3  the hush house's indoor test cell (models/hush.glb, tools/blender-hush.py): home base from day one; the build bay
+         next door, where the bench view shows the motor being designed
+     s2  the outdoor stand at the range's centre (models/range.glb)
+     s1  the old state booster stand with its bunker (models/stand1.glb, tools/blender-stands.py)
+     s0  the altitude chamber: cameras inside the tank and out (models/chamber.glb, same script)
+   and models/site.glb (tools/blender-site.py) is the rest of Site 41 out to the horizon. app/gfx.js loads range, kit and
+   hush with the 3D range, the site after it, and Stand 1 and the chamber when they are first needed; s3AddPlace() puts
+   each in the scene. A firing at a place that hasn't arrived yet plays on Stand 2.
+   PLACES: for each place its motor mount and cradle nodes (the empties the Blender scripts write), its set shots, its
+   lamps, whether it is indoors (no wind, its own light, the camera kept inside the walls) and its exhaust path.
+   S3_SKY and S3_WX: the light of the firing slot (dawn, noon, dusk, or now and then a night firing under the floods) and
+   the range day's weather (clear, haze, overcast, dust), both picked by s3Day() from the firing's own key, so a replay
+   gets the same sky. Nothing here is physics: it only changes how the range looks. */
+const PLACES={
+  s2:{glb:"range",name:"Stand 2",mount:"motorMount",cradle:/^cradle\d/,low:0.42,flood:["flood0","flood1"],floodUp:9,
+    shots:[{name:"Side on",kind:"side"},{name:"Nozzle close-up",kind:"close"},{name:"Blockhouse window",kind:"blockhouse"}]},
+  s3:{glb:"hush",name:"Stand 3",indoor:true,mount:"hushMount",cradle:/^hushCradle\d/,lowNode:"hushLow",box:["hushCellMin","hushCellMax"],
+    lamps:["hushLamp0","hushLamp1"],inlet:"hushInlet",intro:["hushBay","hushDoor"],
+    shots:[{name:"Side on",kind:"side",solo:true},{name:"Nozzle close-up",kind:"close",solo:true},
+      {name:"Control room",kind:"node",node:"hushWindow",fovW:[1.5,1.3],solo:true,free:true},{name:"Build bay",kind:"node",node:"hushBay",fovW:[2.4,3.2],free:true}]},
+  s1:{glb:"stand1",name:"Stand 1",mount:"s1Mount",cradle:/^s1Cradle\d/,lowNode:"s1Low",flood:["s1Lamp0","s1Lamp1"],floodUp:0,
+    shots:[{name:"Side on",kind:"side"},{name:"Nozzle close-up",kind:"close"},{name:"Bunker window",kind:"node",node:"s1Window",fovW:[1.7,2.6]}]},
+  s0:{glb:"chamber",name:"Altitude chamber",indoor:true,mount:"s0Mount",cradle:/^s0Cradle\d/,lowNode:"s0Low",tank:["s0TankA","s0TankB",1.65],
+    lamps:["s0Lamp0","s0Lamp1"],outlet:"s0Outlet",vacuum:true,
+    shots:[{name:"Chamber camera",kind:"node",node:"s0Cam",fov:68,solo:true},{name:"Nozzle close-up",kind:"close",solo:true},
+      {name:"Outside",kind:"node",node:"s0Out",look:[29,-58,3.5],out:true,free:true}]},
+  /* the design bench in the hush house's build bay: the motor on two V-blocks, no flame */
+  bench:{glb:"hush",name:"Build bay",indoor:true,bench:"hushBench",boxB:[[-63.6,-18.6,0.35],[-48.4,-5.4,6.5]],lamps:["hushLamp2","hushLamp3"],
+    shots:[{name:"Bench",kind:"bench"},{name:"Nozzle end",kind:"benchEnd"},{name:"From the door",kind:"node",node:"hushBay",fovW:[1.6,1.2],free:true}]},
+  launch:{glb:"range",name:"Launch rail",flood:["flood2","flood0"],floodUp:9,shots:[{name:"Chase"},{name:"Pad camera"},{name:"Downrange"}]}};
+/* the smallest open stand that takes a motor (a free firing with no job): [stand, length mm, diameter mm] from STANDS */
+function s3Fit(lenMM,diaMM){for(const k of["s3","s2","s1"]){const s=BURN_SIM.STANDS[k];if(lenMM<=s.len&&diaMM<=s.dia)return k;}return"s1";}
+/* ---- the light ----
+   sun: the direction toward the sun (three.js frame: +X downrange/east, +Y up, +Z south), hor/zen: the sky at the horizon
+   and overhead, sunC/sunI: its colour and strength, hemi: sky and ground bounce colours and strength, fog: the haze colour,
+   glow: the sky's sun-glow strength, grade: the post-effects colour grade (Full only), stars: 0..1 */
+const S3_SKY={
+  dawn:{sun:[0.80,0.22,-0.56],hor:0xF1DCC4,zen:0x93A9C6,sunC:0xFFD6A8,sunI:1.3,hemi:[0xEDE5DA,0xA99D8B,1.6],fog:0xEDDDCB,glow:1.3,
+    grade:{tint:[1.04,0.99,0.94],sat:1.0,contrast:1.03},stars:0,smoke:[0.98,0.93,0.86]},
+  noon:{sun:[0.40,0.69,-0.58],hor:0xE9E4D8,zen:0x8FB0CC,sunC:0xFFF2DC,sunI:1.6,hemi:[0xF4F2EC,0xB9B09C,1.9],fog:0xE9E4D8,glow:1,
+    grade:null,stars:0,smoke:[1,1,1]},
+  dusk:{sun:[-0.78,0.17,-0.45],hor:0xEFCBAA,zen:0x8093B4,sunC:0xFFB57E,sunI:1.15,hemi:[0xE9DACB,0xA48F7C,1.45],fog:0xE8D0BA,glow:1.5,
+    grade:{tint:[1.06,0.97,0.90],sat:1.04,contrast:1.04},stars:0,smoke:[0.95,0.86,0.78]},
+  night:{sun:[0.30,0.62,-0.50],hor:0x2E3846,zen:0x0E1522,sunC:0x9DB0D4,sunI:0.22,hemi:[0x5D6A84,0x2A2D33,0.5],fog:0x262E3B,glow:0.15,
+    grade:{tint:[0.94,0.98,1.06],sat:0.85,contrast:1.06},stars:1,smoke:[0.42,0.44,0.5]}};
+/* (smoke: the light on the smoke, a multiplier on its grey; indoors it is the lamps' S3_IN.smoke) */
+/* the weather of a range day: how it changes the slot's light. fog: [near, far] m; mix: [colour, how much] blended into
+   the sky and the haze; sun/hemi: multipliers; glow: the sun-glow multiplier */
+const S3_WX={clear:{fog:[400,7000],mix:null,sun:1,hemi:1,glow:1},
+  haze:{fog:[150,3200],mix:[0xE4E0D8,0.35],sun:0.85,hemi:1.02,glow:0.8},
+  overcast:{fog:[200,4200],mix:[0xB4B8BC,0.6],sun:0.3,hemi:1.12,glow:0.15},
+  dust:{fog:[60,1700],mix:[0xD8C3A0,0.55],sun:0.6,hemi:1.0,glow:0.5}};
+/* indoors: the bounce from the walls and the lamps (cd at 1 m). Lite has no shadows, so the sun is turned right down */
+const S3_IN={smoke:[0.86,0.84,0.8],hemi:[0xF0ECE4,0x8C877C,0.75],sunFull:0.45,sunLite:0.1,lamp:0xFFF0D8,lampI:26,lampD:16,env:0.25};
+const S3_FLOOD={c:0xFFE4BC,i:140,d:60};
+/* the firing's light: its slot's time of day and the day's weather, the same every replay. One dusk firing in five is
+   held over into the night, under the floodlights; the climate plant's slot fires in the noon light */
+function s3Day(key,slot){
+  const h=n=>parseInt(BURN_SIM.hashStr(key+"/"+n).slice(0,6),16)/0xFFFFFF;
+  let tod=slot==="dawn"||slot==="dusk"?slot:"noon";if(tod==="dusk"&&h("night")<0.2)tod="night";
+  const w=h("wx"),wx=tod==="night"?(w<0.75?"clear":"haze"):w<0.55?"clear":w<0.75?"haze":w<0.9?"overcast":"dust";
+  return{tod,wx};}
+/* ---- loading a place ---- */
+function s3AddPlace(id,buf){
+  if(!S3.ok||!buf||(S3.roots&&S3.roots[id]))return!!(S3.roots&&S3.roots[id]);
+  const W=glbScene(buf,S3.full);S3.sc.add(W.root);W.root.updateMatrixWorld(true);
+  for(const k in W.nodes)if(!(k in S3.nodes))S3.nodes[k]=W.nodes[k];
+  (S3.roots||(S3.roots={}))[id]=W.root;if(S3.last&&!S3.playing)s3Redraw();return true;}
+const s3Has=id=>id==="range"||!!(S3.roots&&S3.roots[id]);
+/* the place a firing plays at (o.place, else Stand 2), falling back to Stand 2 when its model isn't loaded */
+function s3Place(o){
+  if(o.mode==="launch")return PLACES.launch;
+  const p=PLACES[o.mode==="bench"?"bench":o.place]||PLACES.s2;return s3Has(p.glb)?p:PLACES.s2;}
+/* a node's world position (three.js frame), or null */
+function s3Node(k){const n=k&&S3.nodes[k];return n?n.getWorldPosition(new THREE.Vector3()):null;}
+/* ---- the light, each frame: the day's sky outdoors, the place's lamps indoors ---- */
+function s3Light(inside){
+  const T=THREE,day=S3.day||{tod:"noon",wx:"clear"},sk=S3_SKY[day.tod],wx=S3_WX[day.wx],key=day.tod+day.wx+(inside?1:0)+(S3.full?1:0)+(S3.pl?S3.pl.glb:"");
+  if(S3.lightKey===key)return;S3.lightKey=key;
+  /* lights and fog take colours as usual (three.js makes them linear); the sky shader takes display colours (s3Hex) */
+  const C=x=>new T.Color(x),D=x=>s3Hex(new T.Color(),x),wk=wx.mix?wx.mix[1]*(day.tod==="night"?0.25:1):0;
+  const mix=c=>wx.mix?c.lerp(C(wx.mix[0]),wk):c,mixD=c=>wx.mix?c.lerp(D(wx.mix[0]),wk):c;
+  const u=S3.sky.material.uniforms;u.hor.value.copy(mixD(D(sk.hor)));u.zen.value.copy(mixD(D(sk.zen)));u.sunC.value.copy(D(sk.sunC));
+  u.sun.value.set(...sk.sun).normalize();u.glow.value=sk.glow*wx.glow;u.stars.value=sk.stars;
+  S3.sc.fog.color.copy(mix(C(sk.fog)));S3.fogNF=wx.fog;
+  S3.sunDir=new T.Vector3(...sk.sun).normalize();S3.sun.color.copy(C(sk.sunC));
+  const pl=S3.pl||PLACES.s2,night=day.tod==="night";
+  if(inside){S3.hemi.color.set(S3_IN.hemi[0]);S3.hemi.groundColor.set(S3_IN.hemi[1]);S3.hemi.intensity=S3_IN.hemi[2]*(night?0.7:1);
+    S3.sun.intensity=sk.sunI*wx.sun*(S3.full?S3_IN.sunFull:S3_IN.sunLite);}
+  else{S3.hemi.color.copy(C(sk.hemi[0]));S3.hemi.groundColor.copy(C(sk.hemi[1]));S3.hemi.intensity=sk.hemi[2]*wx.hemi;S3.sun.intensity=sk.sunI*wx.sun;}
+  /* two lamps: the place's own lights indoors, its floodlights at night outdoors, else off */
+  const L=inside?pl.lamps:night?pl.flood:null;
+  S3.lamps.forEach((l,i)=>{const p=L&&s3Node(L[i]);l.intensity=0;if(!p)return;
+    if(inside){l.position.copy(p).y-=0.25;l.color.set(S3_IN.lamp);l.intensity=S3_IN.lampI;l.distance=S3_IN.lampD;}
+    else{l.position.copy(p).y+=pl.floodUp||0;l.color.set(S3_FLOOD.c);l.intensity=S3_FLOOD.i;l.distance=S3_FLOOD.d;}});
+  /* the environment map (Full, with the post chain) lights things too, so the bounce light gives way a little */
+  const env=!!(S3.env&&S3.full);S3.sc.environment=env?S3.env:null;
+  if(env){S3.sc.environmentIntensity=inside?S3_IN.env:night?0.12:0.5;S3.hemi.intensity*=inside?0.85:0.72;}
+  S3.smokeK=inside?S3_IN.smoke:sk.smoke.map(v=>v*(wx.sun<0.5?0.92:1));S3.grade=inside?null:sk.grade;}
+/* ---- the camera through the hush house: from the build bay, through the blast door, round to the stand ---- */
+function s3IntroPath(pl,pos,tgt,u){
+  const T=THREE,a=s3Node(pl.intro[0]),b=s3Node(pl.intro[1]);if(!a||!b)return false;
+  const w=new T.Vector3(b.x+1.3,(b.y+pos.y)/2,pos.z),P=[a,b,w,pos.clone()],D=[0];
+  for(let i=1;i<P.length;i++)D.push(D[i-1]+P[i].distanceTo(P[i-1]));
+  const e=u<=0?0:u>=1?1:u*u*(3-2*u),s=e*D[D.length-1];let i=0;while(i<P.length-2&&s>D[i+1])i++;
+  const f=(s-D[i])/Math.max(1e-6,D[i+1]-D[i]),p0=P[Math.max(0,i-1)],p1=P[i],p2=P[i+1],p3=P[Math.min(P.length-1,i+2)],f2=f*f,f3=f2*f;
+  const cr=(q0,q1,q2,q3)=>0.5*(2*q1+(q2-q0)*f+(2*q0-5*q1+4*q2-q3)*f2+(3*q1-q0-3*q2+q3)*f3);
+  pos.set(cr(p0.x,p1.x,p2.x,p3.x),cr(p0.y,p1.y,p2.y,p3.y),cr(p0.z,p1.z,p2.z,p3.z));
+  /* look ahead along the path at first, settling on the motor */
+  const ahead=e<0.999?P[i+1]:tgt,k=Math.min(1,e*1.6);tgt.set(ahead.x+(tgt.x-ahead.x)*k,ahead.y+(tgt.y-ahead.y)*k,ahead.z+(tgt.z-ahead.z)*k);
+  return true;}
+/* keep the camera inside the walls: the test cell's box, the bay's box, or the chamber's tank */
+function s3Clamp(pl,pos,m){
+  const T=THREE;if(m==null)m=0.3;
+  if(pl.box||pl.boxB){let lo,hi;
+    if(pl.box){const a=s3Node(pl.box[0]),b=s3Node(pl.box[1]);if(!a||!b)return;lo=a.clone().min(b);hi=a.clone().max(b);}
+    else{const[a,b]=pl.boxB;lo=new T.Vector3(a[0],a[2],-b[1]);hi=new T.Vector3(b[0],b[2],-a[1]);}
+    pos.x=Math.max(lo.x+m,Math.min(hi.x-m,pos.x));pos.y=Math.max(lo.y+m,Math.min(hi.y-m,pos.y));pos.z=Math.max(lo.z+m,Math.min(hi.z-m,pos.z));}
+  if(pl.tank){const a=s3Node(pl.tank[0]),b=s3Node(pl.tank[1]);if(!a||!b)return;
+    pos.x=Math.max(Math.min(a.x,b.x)+0.25,Math.min(Math.max(a.x,b.x)-0.25,pos.x));
+    const dy=pos.y-a.y,dz=pos.z-a.z,r=Math.hypot(dy,dz),lim=pl.tank[2]-Math.max(0.05,m);if(r>lim){pos.y=a.y+dy*lim/r;pos.z=a.z+dz*lim/r;}}}
+/* a thrown part or a smoke puff kept inside the walls indoors (m: its own size) */
+function s3Keep(p,m){const pl=S3.pl;if(pl&&pl.indoor&&!pl.bench)s3Clamp(pl,p,Math.min(0.6,m||0.02));return p;}
+/* show only what a shot can see: inside the cell or the tank, the other models are hidden (their draw calls saved) */
+function s3Solo(pl,solo){
+  if(!S3.roots)return;const own=pl&&pl.glb;
+  S3.world.visible=!solo||own==="range";for(const k in S3.roots)S3.roots[k].visible=!solo||k===own;}
+/* ---- the bench view: the 3D canvas borrowed by the design screen ---- */
+/* move the canvas (and its shot label and flash) into host, with its height from hFn(width); host null puts it back */
+function s3Mount(host,hFn){
+  const cv=S3.cv;if(!cv)return;if(!S3.home)S3.home={par:cv.parentNode,next:cv.nextSibling};
+  const els=[cv,S3.flash,S3.label];
+  if(host){for(const e of els)host.appendChild(e);S3.hFn=hFn||null;cv.hidden=false;S3.mounted=true;}
+  else if(S3.mounted){const{par,next}=S3.home;for(const e of els)par.insertBefore(e,next&&next.parentNode===par?next:null);S3.hFn=null;S3.mounted=false;}}
+Object.assign(VIS,{PLACES,s3Fit,s3Day,s3AddPlace,s3Has,s3Mount});
+/* the places side of VIS.s3 (stand3d.js made it; these consts only exist from here down) */
+Object.assign(VIS.s3,{addPlace:s3AddPlace,has:s3Has,mount:s3Mount,fit:s3Fit,day:s3Day});
 return VIS;})();
 </script>
 <script>
@@ -3213,7 +3625,7 @@ return{unlock,setOn,stop,beep,voice:{lang:voiceLang,preload:voicePreload,ready:v
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="1.5.1.0";
+const VERSION="1.6.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -3331,8 +3743,8 @@ const GLOSS={
   motorMass:{t:"Motor mass",d:"Everything on the scale: propellant, case, liner, closures and nozzle. A thinner wall or a lighter case material saves the most; check the safety factor when you do."},
   massFrac:{t:"Mass fraction",d:"Propellant mass divided by the whole motor's mass. Flight motors want it high: every gram of case is a gram the rocket has to lift."},
   grainTemp:{t:"Grain temperature",d:"Burn rate rises with the grain's temperature. A motor fired on a cold dawn burns slower, at lower pressure and for longer than the same motor at a hot noon. High-exponent grades feel it most. The predictor's reference is 20 °C; tap the temperature on the bench to predict at a firing slot."},
-  firingSlot:{t:"Firing slot",d:"Dawn, noon or dusk. The motors sit out on the range overnight, so the grain is at the air's temperature when it fires. Once you lease the conditioning hut you can hold a motor at a temperature you set instead."},
-  hut:{t:"Conditioning hut",d:"An insulated hut where a motor waits overnight at a set temperature, from −20 to 50 °C, so it fires exactly that warm or cold. Qualification jobs use it to prove a motor at the edges of the weather it will fly in: hot grain burns faster at higher pressure, cold grain slower and longer."},
+  firingSlot:{t:"Firing slot",d:"Dawn, noon or dusk. The hush house is unheated and the outdoor stands are out in the weather, so the grain is at the air's temperature when it fires. Once you lease the hush house's climate plant you can fire at a temperature you set instead."},
+  hut:{t:"Climate plant",d:"The hush house's heating and refrigeration plant: it holds the test cell and the bay at a set temperature, from −20 to 50 °C, so a motor fires exactly that warm or cold. Qualification jobs use it to prove a motor at the edges of the weather it will fly in: hot grain burns faster at higher pressure, cold grain slower and longer."},
   apogee:{t:"Apogee",d:"The top of the flight: the height where the rocket stops climbing and starts to fall. A flight job is graded on it. More impulse pushes it up, but so does a lighter rocket and less drag; past the speed of sound the drag climbs steeply, so a longer, gentler burn can fly higher than a short, hard one."},
   airframe:{t:"Airframe",d:"The rocket around the motor: a body tube the motor slides into, a payload bay and parachute above it, the nose and the fins. A wider tube carries more but has more drag; a heavier one takes impulse to lift."},
   noseCone:{t:"Nose cone",d:"The nose's shape sets how much the air pushes back. A cone is simple and draggy, an ogive is the classic curve, and a Von Kármán shape is the low-drag nose for fast rockets."},
@@ -3368,9 +3780,15 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-g]");if(!
    gfxLoad() fetches them a few seconds after start-up (the service worker keeps them for offline play), then builds the
    scene once. Until it is ready, or on a phone without WebGL, or with Graphics set to 2D, the firing screen uses the 2D
    stand and sky (vis/stand.js, vis/flight.js).
+   1.6: each stand has its own place (vis/places3d.js). The hush house (models/hush.glb), home base and Stand 3, loads with
+   the range; the rest of Site 41 (models/site.glb) right after; Stand 1 and the altitude chamber (models/stand1.glb,
+   chamber.glb) once the career owns them, a firing needs them, or the sandbox opens. gfxPlace(id) loads one.
    SETTINGS.gfx (in brn-settings): "auto" (start Full or Lite from what the phone reports, step down if frames run slow),
    "full", "lite" or "2d". SETTINGS.gfxAuto remembers an automatic step-down to Lite so the next visit starts there. */
-const GFX={state:"idle",p:null};
+const GFX={state:"idle",p:null,places:{}};
+/* the far places, each its own model, loaded when first wanted (the service worker keeps them) */
+const PLACE_GLB={hush:"models/hush.glb",site:"models/site.glb",stand1:"models/stand1.glb",chamber:"models/chamber.glb"};
+const STAND_GLB={s3:"hush",s2:null,s1:"stand1",s0:"chamber"};
 /* Ruslan's voice: [setting, button, the button text's language] */
 const VOICE_OPTS=[["en","English",""],["ru","Русский","ru"],["off","Off",""]];
 const GFX_OPTS=[["auto","Auto","Full on a quick phone; steps down to Lite if the stand stutters."],["full","Full","Shadows, metal and the most smoke."],
@@ -3386,14 +3804,24 @@ function gfxLoad(){
   if(GFX.p||!gfxWant())return GFX.p;
   GFX.state="loading";
   GFX.p=new Promise((ok,bad)=>{const s=document.createElement("script");s.src="lib/three.min.js";s.onload=ok;s.onerror=()=>bad(new Error("lib/three.min.js"));document.head.appendChild(s);})
-    .then(()=>Promise.all(["models/range.glb","models/kit.glb"].map((u,i)=>fetch(u).then(r=>{if(!r.ok)throw new Error(u+" "+r.status);return r.arrayBuffer();})
-      .catch(e=>{if(i)return null;throw e;}))))   // without the kit the motor and rocket fall back to plain parts
-    .then(([buf,kit])=>{const s3=BURN_VIS.s3;if(!s3.init($("frStand3"),buf,gfxTier(),kit)){GFX.state="failed";return;}
+    .then(()=>Promise.all(["models/range.glb","models/kit.glb",PLACE_GLB.hush].map((u,i)=>fetch(u).then(r=>{if(!r.ok)throw new Error(u+" "+r.status);return r.arrayBuffer();})
+      .catch(e=>{if(i)return null;throw e;}))))   // without the kit the motor and rocket fall back to plain parts; without the hush house, Stand 2
+    .then(([buf,kit,hush])=>{const s3=BURN_VIS.s3;if(!s3.init($("frStand3"),buf,gfxTier(),kit)){GFX.state="failed";return;}
+      if(hush){s3.addPlace("hush",hush);GFX.places.hush=Promise.resolve(true);}
       s3.S.auto=SETTINGS.gfx==="auto";
       s3.S.onStep=n=>{SETTINGS.gfxAuto="lite";saveSettings();toast(n>1?"Graphics turned down again to keep the stand smooth.":"Graphics stepped down to Lite to keep the stand smooth.");};
-      GFX.state="ready";})
+      GFX.state="ready";dz3dReady();
+      /* then the rest of the site, and the stands the career already has */
+      gfxPlace("site").then(()=>{const car=typeof S!=="undefined"&&S.career;if(car)for(const k in car.stands)if(car.stands[k])gfxStand(k);});})
     .catch(e=>{GFX.state="failed";console.warn("3D stand unavailable:",e&&e.message);});
   return GFX.p;}
+/* load a far place once (a promise of true when it's in the scene) */
+function gfxPlace(id){
+  if(!PLACE_GLB[id])return Promise.resolve(false);if(GFX.places[id])return GFX.places[id];
+  if(!GFX.p)gfxLoad();if(!GFX.p)return Promise.resolve(false);
+  return GFX.places[id]=GFX.p.then(()=>GFX.state!=="ready"?false:fetch(PLACE_GLB[id]).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+    .then(b=>BURN_VIS.s3.addPlace(id,b))).catch(e=>{console.warn("3D place unavailable:",id,e&&e.message);delete GFX.places[id];return false;});}
+const gfxStand=st=>STAND_GLB[st]?gfxPlace(STAND_GLB[st]):Promise.resolve(true);
 /* the settings sheet (title screen): theme, graphics, sound and vibration */
 function settingsSheet(){
   const g=SETTINGS.gfx||"auto",st=GFX.state==="failed"?`<p class="hint">This phone couldn't start the 3D stand, so the 2D one is used.</p>`:"";
@@ -3938,7 +4366,9 @@ function drawAll(){
   drawView();markErrors();drawGo();drawRocket();
 }
 function drawView(){
-  const r=DZ.res;if(!r||!r.ok)return;
+  const r=DZ.res;if(!r||!r.ok){dz3dOff();return;}
+  if(DZ.view==="3d"&&gfx3d()){dz3dDraw();return;}
+  dz3dOff();
   const run=r.run,m=r.motor,tEnd=run.t[run.t.length-1],t=DZ.scrub*tEnd,i=BURN_VIS.at(run,t);
   const info=[`t ${run.t[i].toFixed(2)} s`,`${(run.p[i]/1e6).toFixed(2)} MPa`,`${Math.round(run.f[i])} N`,`Kn ${Math.round(run.kn[i])}`,`web ${Math.min(100,Math.round(run.x[i]/run.web*100))}% burned`];
   if(DZ.view==="curves"){
@@ -3952,6 +4382,26 @@ function drawView(){
   $("dzCv").setAttribute("aria-label",DZ.view==="curves"?`Predicted pressure and thrust. Peak ${(r.sum.Pmax/1e6).toFixed(2)} MPa, average thrust ${Math.round(r.sum.Fav)} N over ${r.sum.tb.toFixed(2)} s.`
     :`Cross-section of the motor at ${run.t[i].toFixed(2)} s.`);
 }
+/* the 3D view (1.6): the motor on the hush house's assembly bench, live as you change it, to orbit and zoom. It borrows
+   the firing screen's 3D canvas (BURN_VIS.s3.mount) and gives it back when you leave the view or go to fire. The tab
+   shows once the 3D stand has loaded (app/gfx.js calls dz3dReady) */
+const VIEW3_H=w=>Math.max(190,Math.min(w*0.62,innerHeight*0.3,320));
+function dz3dReady(){const b=document.querySelector('#dzView [data-view="3d"]');if(b)b.hidden=!gfx3d();
+  if(DZ.view==="3d"&&!$("design").hidden)drawView();}
+function dz3dOff(){if(!DZ.on3d)return;DZ.on3d=false;BURN_VIS.s3.mount(null);$("dz3d").hidden=true;$("dzCv").hidden=false;$("frStand3").hidden=true;}
+function dz3dDraw(){
+  const r=DZ.res,s3=BURN_VIS.s3,m=r.motor,g=m.prop.gamma;
+  $("dzCv").hidden=true;$("dz3d").hidden=false;
+  if(!DZ.on3d){s3.mount($("dz3d"),VIEW3_H);DZ.on3d=true;DZ.key3d=null;}
+  /* rebuild the bench only when the motor's shape changed (the propellant or a grain slider alone doesn't move it) */
+  const key=[m.length,m.diameter,m.caseLen,m.re,m.rt0,m.design.case.mat].map(x=>typeof x==="number"?x.toFixed(4):x).join("|");
+  if(key!==DZ.key3d){const first=DZ.key3d==null;DZ.key3d=key;const keepShot=s3.S.shot,keepOrb=s3.S.orbit;
+    s3.setup({mode:"bench",place:"bench",len:m.length,dia:m.diameter,caseLen:m.caseLen,re:m.re,rt:m.rt0,caseMat:m.design.case.mat,
+      prE:BURN_SIM.presRatio(BURN_SIM.exitMach(m.eps0,g),g),tEnd:1,fAt:()=>0});
+    if(!first){s3.S.shot=keepShot;s3.S.orbit=keepOrb;}}   // a slider move keeps your camera
+  s3.draw({t:-1,f:0,p:0,still:true});
+  $("dzScrubV").textContent=`${s3Len(m)} on the bench`;}
+const s3Len=m=>`${Math.round(m.length*1000)} × ${Math.round(m.diameter*1000)} mm`;
 function setView(v){DZ.view=v;document.querySelectorAll("#dzView [data-view]").forEach(b=>{const on=b.dataset.view===v;b.classList.toggle("on",on);b.setAttribute("aria-selected",on);});drawView();}
 
 /* ---- sheets: a warning, the data sheet ---- */
@@ -4065,12 +4515,14 @@ function parentScreen(id){return id==="board"?"title":id==="logbook"?"board":id=
   id==="report"?(GAME.last&&GAME.last.replay?"logbook":"design"):id==="fire"?"fire":"title";}
 function showScreen(id){
   coachOff();if(id!=="fire"&&id!=="report")BURN_SOUND.voice.stop();   // Ruslan stops talking when you leave the stand and the report
+  if(id!=="design")dz3dOff();   // the 3D bench view gives the canvas back
   for(const s of SCREENS)$(s).hidden=s!==id;
   document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);
   if(id!=="title"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:1},"");}catch(e){}}
   if(id==="board")renderBoard();
   if(id==="title")renderTitle();
+  if(id==="design"&&DZ.view==="3d"&&DZ.res)drawView();
 }
 window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.brnScreen)return;
   const cur=curScreen();if(cur==="title")return;
@@ -4148,7 +4600,7 @@ const scatterDraw=()=>scatterOn()&&SC.done&&SC.key===scatterKey()?{band:SC.band,
    bench's design for each job) or, in free mode, S.free.
    The bench's bottom bar checks the prediction against the spec and leads to the stand: pre-fire checks (does it fit,
    is the load cell rated for it, are the parts open to you), then the firing slot (dawn, noon or dusk sets the grain
-   temperature; the conditioning hut, once leased, fires at a temperature you set) with what the firing will cost, then
+   temperature; the hush house's climate plant, once leased, fires at a temperature you set) with what the firing will cost, then
    app/firing.js. In a career each firing costs a range day, the stand's
    fee and the motor's materials; a pass pays and finishes the job (sim/career.js settle).
    A flight job (contract.flight) goes to the launch rail instead: the range's launch checks too (sim/flight.js
@@ -4156,12 +4608,12 @@ const scatterDraw=()=>scatterOn()&&SC.done&&SC.key===scatterKey()?{band:SC.band,
    A tier 4 tender (contract.lot) offers two buttons on the slot sheet: one development motor (costs, pays nothing) or the
    lot of five (one range day, one stand fee, five motors: sim/career.js fireLot, gradeLot). */
 const GAME={mode:"free",contract:null,slot:"dusk",last:null};
-/* the slots the player can pick: the hut only once it's leased (always on the free bench) */
+/* the slots the player can pick: the climate plant only once it's leased (always on the free bench) */
 const hutOpen=()=>!inCareer()||!!(S.career&&S.career.hut);
 const slotChoices=()=>["dawn","noon","dusk"].concat(hutOpen()?["hut"]:[]);
-/* a slot's grain temperature for the job on the bench: the hut fires at the contract's temperature or the hut's setting */
+/* a slot's grain temperature for the job on the bench: the climate plant fires at the contract's temperature or its setting */
 const slotT=id=>BURN_SIM.slotTemp(id,GAME.contract,S.hutT);
-const slotLabel=id=>id==="hut"?`Hut ${degC(slotT(id))}`:`${BURN_SIM.SLOTS[id].name} ${degC(slotT(id))}`;
+const slotLabel=id=>id==="hut"?`Climate ${degC(slotT(id))}`:`${BURN_SIM.SLOTS[id].name} ${degC(slotT(id))}`;
 const inCareer=()=>GAME.mode==="career"&&!!S.career;
 /* the parts tier open on the bench: the career's in a career or the Sandbox (app/sandbox.js), none on the free bench */
 const partTier=()=>(inCareer()||isSandbox())&&S.career?S.career.tier:null;
@@ -4205,7 +4657,7 @@ function cycleTemp(){
   DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
   toast(nx==="ref"?"Predicting at the reference 20 °C":nx==="hut"?`Predicting at the hut's setting: ${degC(DZ.tGrain)} grain`
     :`Predicting at ${BURN_SIM.SLOTS[nx].name.toLowerCase()}: ${degC(DZ.tGrain)} grain`);}
-/* the hut's dial in the slot sheet: −/+ one step, which also moves the bench's prediction if it's on the hut */
+/* the climate plant's dial in the slot sheet: −/+ one step, which also moves the bench's prediction if it's on the climate slot */
 function stepHut(dir){const H=BURN_SIM.HUT;S.hutT=Math.max(H.min,Math.min(H.max,(S.hutT??20)+dir*H.step));save();
   if(DZ.predSlot==="hut"){DZ.tGrain=slotT("hut");schedule(false);}
   GAME.slot="hut";slotSheet();}
@@ -4232,18 +4684,18 @@ function slotSheet(){
     const pf=fly?BURN_SIM.predictFlight(DZ.d,p.motor,p.run,payloadKg()):null,s=pf?Object.assign({},p.sum,{apogee:pf.apogee}):p.sum;
     const crit=s.warnings.filter(w=>w.sev==="crit").length,ok=c?BURN_SIM.specCheck(c.spec,s,p.motor).filter(k=>k.ok).length:null;
     return`<button type="button" class="opt${id===GAME.slot?" on":""}" data-slot="${id}" aria-pressed="${id===GAME.slot}"><b>${sl.name} · ${degC(t)}</b>${crit?`<span class="tag crit">${crit} critical</span>`:""}
-      <small>${esc(sl.hut&&fixedT?"Held overnight in the conditioning hut at the client's temperature.":sl.note)}${sl.hut&&inCareer()?` ${fmtCr(BURN_SIM.CAREER.hutFee)} a firing.`:""}</small><small class="mono">${pf?`apogee ${Math.round(pf.apogee)} m · `:""}peak ${(s.Pmax/1e6).toFixed(2)} MPa · ${pf?"":`avg ${Math.round(s.Fav)} N · `}${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
-  const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Hut set to <b class="mono">${degC(hutT)}</b></span>
+      <small>${esc(sl.hut&&fixedT?"Held at the client's temperature by the climate plant.":sl.note)}</small><small class="mono">${pf?`apogee ${Math.round(pf.apogee)} m · `:""}peak ${(s.Pmax/1e6).toFixed(2)} MPa · ${pf?"":`avg ${Math.round(s.Fav)} N · `}${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
+  const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Cell set to <b class="mono">${degC(hutT)}</b></span>
     <button type="button" class="btn sm" data-hut="-1" aria-label="Colder"${hutT<=H.min?" disabled":""}>−</button><button type="button" class="btn sm" data-hut="1" aria-label="Warmer"${hutT>=H.max?" disabled":""}>+</button></div>`:"";
   const b=firingBill(),car=S.career,tender=isTender(),bl=tender?firingBill(true):null,LT=BURN_SIM.CAREER.lot;
-  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} <button type="button" class="gl" data-g="rangeFee">fee</button> ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + <button type="button" class="gl" data-g="buildCost">motor</button> ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
-    ${bl?`<p class="mono">The lot: fee ${fmtCr(bl.fee)}${bl.hut?` + hut ${fmtCr(bl.hut)}`:""} + ${LT.n} motors ${fmtCr(bl.motors)} = <b>${fmtCr(bl.total)}</b></p>`:""}
+  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} <button type="button" class="gl" data-g="rangeFee">fee</button> ${fmtCr(b.fee)}${b.air?` + rocket ${fmtCr(b.air)}`:""} + <button type="button" class="gl" data-g="buildCost">motor</button> ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
+    ${bl?`<p class="mono">The lot: fee ${fmtCr(bl.fee)} + ${LT.n} motors ${fmtCr(bl.motors)} = <b>${fmtCr(bl.total)}</b></p>`:""}
     <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. ${fly?"A lost rocket still costs.":"A failed motor still costs."}</p>
     ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}
     ${bl&&b.ok&&!bl.ok?`<p class="sev warn">The bank won't cover the whole lot yet. A development motor is still within reach.</p>`:""}</div>`:"";
-  const lead=fixedT?(c.slot==="hut"?`This contract is a qualification firing: the motor is held in the conditioning hut at ${degC(slotT("hut"))} overnight.`
+  const lead=fixedT?(c.slot==="hut"?`This contract is a qualification firing: the climate plant holds the motor at ${degC(slotT("hut"))}.`
       :"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".")
-    :`Pick when to ${fly?"launch":"fire"}. The grain sits out overnight, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
+    :`Pick when to ${fly?"launch":"fire"}. Nothing is heated, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless the climate plant holds it at your setting":""}.`;
   const windNote=fly?` The wind on the rail is light, but it changes every day: you'll only know it on the morning.`:"";
   openSheet(fly?"Launch slot":"Firing slot",`<p class="hint"><button type="button" class="gl" data-g="firingSlot">${fly?"Launch":"Firing"} slots</button>: ${lead} <button type="button" class="gl" data-g="grainTemp">Why the temperature matters</button>. Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
     <div class="pick">${cards}</div>${dial}${bill}${tender?`<p class="hint">A tender is delivered as a lot: ${LT.n} motors from this design on one range day, and ${LT.need} must pass. One failure still delivers at ${Math.round(LT.failPay*100)}% of the pay; two or more lose the tender for ${LT.retender} days. A development motor first shows how this design fires, but the client doesn't take it.</p>
@@ -4360,7 +4812,7 @@ function dueText(car,job){const left=job.due-car.day;
   const ls=BURN_SIM.lateShare(job,car.day);return`${ls.late} day${ls.late>1?"s":""} late · pay ${Math.round(ls.mul*100)}%`;}
 function specList(c,o){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
   return`<ul class="wo-spec">${c.lot&&!(o&&o.practice)?`<li><button type="button" class="gl" data-g="lotTest">Delivered as a lot</button> <b>${BURN_SIM.CAREER.lot.n} motors, ${BURN_SIM.CAREER.lot.need} must pass</b></li>`:""}${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
-    ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
+    ${sl?sl.hut?`<li>Conditioned in the climate plant to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
     ${c.flight?`<li>Flies from the <b>launch rail</b> with a <b class="mono">${c.flight.payload} kg</b> payload</li>`:BURN_SIM.STANDS[c.stand].pAmb!=null?`<li>Fires in the <button type="button" class="gl" data-g="altChamber">altitude chamber</button>, at <b class="mono">${(BURN_SIM.STANDS[c.stand].pAmb/1000).toFixed(0)} kPa</b></li>`:c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
 /* an empty board can skip ahead, free, to the day the next repeat order comes back (Kelbo, 13 November 2026) */
 function waitCard(car,held){const d=BURN_SIM.nextWork(car);if(d===null)return"";const n=d-car.day;
@@ -4386,6 +4838,7 @@ function wonCard(car){const C=BURN_SIM.CONTRACTS,done=C.filter(c=>car.done[c.id]
     <div class="row"><button type="button" class="btn pri" id="bdWon">Back to work</button></div></section>`;}
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
+  if(gfx3d())for(const k in car.stands)if(car.stands[k])gfxStand(k);   // the 3D places of the stands you lease (app/gfx.js)
   const S_=BURN_SIM,jobs=Object.keys(car.jobs),offers=S_.board(car),broke=S_.isBroke(car);
   const stands=Object.keys(S_.STANDS).filter(k=>car.stands[k]).map(k=>S_.STANDS[k].name).join(" · ");
   $("bdSite").textContent=`Aqsor Range · ${stands}`;
@@ -4435,7 +4888,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-buy
   const err=BURN_SIM.buy(car,id);if(err){toast(err);return;}save(true);closeSheet();renderBoard();
   const g=BURN_SIM.FACILITIES[id].give;
   toast(g.stand?`${BURN_SIM.STANDS[g.stand].name} is yours${g.tier?`: tier ${g.tier} parts and work are open.`:`: its work is open on the board.`}`
-    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature."
+    :g.hut?"The climate plant is yours: pick Climate as the firing slot and set the temperature."
     :g.compute?"The computing room is yours: the bench's Scatter button fires 40 virtual motors with the real dice.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
 
 /* ---- the logbook ---- */
@@ -4545,6 +4998,7 @@ const isSandbox=()=>GAME.mode==="sandbox"&&!!GAME.contract;
 const sandboxOpen=()=>!!(S.career&&S.career.tier>=2);
 function sandboxSheet(){
   if(!sandboxOpen()){toast("The Sandbox opens when your career reaches tier 2.",3600);return;}
+  if(gfx3d())["s1","s0"].forEach(gfxStand);   // any job here may need Stand 1 or the chamber in 3D
   const tier=S.career.tier,list=BURN_SIM.CONTRACTS.filter(c=>(c.tier||1)<=tier);
   const byTier=[1,2,3,4].filter(t=>t<=tier).map(t=>{const cs=list.filter(c=>(c.tier||1)===t);if(!cs.length)return"";
     return`<h3 class="dl-h">Tier ${t}</h3>`+cs.map(c=>`<article class="wo card sbx"><header><span class="site">${esc(c.client)}</span>${S.sandbox.designs[c.id]?`<span class="tag">Bench saved</span>`:""}</header>
@@ -4599,7 +5053,8 @@ function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
   showScreen("fire");
   const fly=f.flight||null;
-  $("frSite").textContent=`${fly?"Launch rail":L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"}${L.lot?` · motor 1 of ${L.lot.fires.length}`:""} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
+  const st=frStand(L);
+  $("frSite").textContent=`${fly?"Launch rail":BURN_SIM.STANDS[st].name+(st==="s3"?", hush house":"")}${L.lot?` · motor 1 of ${L.lot.fires.length}`:""} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
   $("frPL").textContent=fly?"Height":"Pressure";$("frPU").textContent=fly?"m":"MPa";
   $("fire").setAttribute("aria-label",fly?"Launch":"Static firing");
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
@@ -4610,7 +5065,7 @@ function openFiring(){
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
   $("frNext").hidden=true;$("frAbort").hidden=false;$("frAbort").disabled=false;$("frReplay").hidden=true;$("frPlume").hidden=true;$("frSlow").hidden=true;
   /* 3D when it's ready; otherwise start fetching it for next time and draw this one in 2D */
-  FR.d3=gfx3d();if(!FR.d3)gfxLoad();
+  FR.d3=gfx3d();if(!FR.d3)gfxLoad();else dz3dOff();   // the bench view gives the 3D canvas back
   $("frStand3").hidden=!FR.d3;$("frStand").hidden=FR.d3;
   if(FR.d3)setup3d(L);
   const fl=f.failure;FR.replayed=false;FR.rp0=fl&&fl.destructive?Math.max(0,fl.t-REPLAY_PRE):-1;FR.rp1=fl&&fl.destructive?fl.t+REPLAY_POST:-1;
@@ -4620,10 +5075,14 @@ function openFiring(){
   voicePrep();FR.vc=FR.phase==="count"&&["armed",...COUNT_CALLS].every(BURN_SOUND.voice.ready);FR.pre=FR.vc?ARMED_S:0;
   if(SETTINGS.sound&&!L.replay)BURN_SOUND.voice.preload([rsoClip(rsoKeyOf(L),L.n)]);
   cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
-/* hand the firing to the 3D stand: motor size, nozzle, thrust curve, and for a launch the rocket and its path */
+/* the stand a firing is on: the job's, or for a free firing the smallest that takes the motor */
+const frStand=L=>L.c&&L.c.stand&&BURN_SIM.STANDS[L.c.stand]?L.c.stand:BURN_VIS.s3.fit(L.f.motor.length*1000,L.f.motor.diameter*1000);
+/* hand the firing to the 3D stand: its place, the day's light, motor size, nozzle, thrust curve, and for a launch the
+   rocket and its path. A place still loading starts loading now; this firing plays on Stand 2 */
 function setup3d(L){
-  const f=L.f,m=f.motor,lg=f.log,g=m.prop.gamma,fly=f.flight,fl=f.failure;
-  const o={mode:fly?"launch":"stand",len:m.length,dia:m.diameter,caseLen:m.caseLen,re:m.re,rt:m.rt0,caseMat:m.design.case.mat,
+  const f=L.f,m=f.motor,lg=f.log,g=m.prop.gamma,fly=f.flight,fl=f.failure,st=frStand(L);gfxStand(st);
+  const o={mode:fly?"launch":"stand",place:st,pAmb:BURN_SIM.STANDS[st].pAmb,day:BURN_VIS.s3.day(`${L.key}/${L.no}`,L.slot),
+    len:m.length,dia:m.diameter,caseLen:m.caseLen,re:m.re,rt:m.rt0,caseMat:m.design.case.mat,
     prE:BURN_SIM.presRatio(BURN_SIM.exitMach(m.eps0,g),g),tEnd:FR.tEnd,fAt:t=>lg.f[BURN_VIS.at(lg,Math.min(t,FR.tEnd))]/FR.fPk};
   if(fly){const r=fly.rocket;Object.assign(o,{rocket:{D:r.D,L:r.L,body:r.a.body,nose:r.a.nose,fins:r.a.fins},path:fly.samples,wind:fly.wind,
     tBurn:fl&&fl.destructive?Math.min(fl.t,FR.tEnd):FR.tEnd,lost:fly.lost?fly.tLost:null});}
@@ -4641,7 +5100,7 @@ function frameFiring(now){
     if(due>=0&&!(FR.vc&&V.say(COUNT_CALLS[due],{pa:true,now:true})))BURN_SOUND.beep(due===FIRE_COUNT);
     const left=FIRE_COUNT-Math.floor(ec/COUNT_STEP);
     $("frCount").textContent=ec<0?"Armed":left>0?String(left):"Fire";$("frCount").hidden=false;
-    drawFiring(-1,still);
+    drawFiring(-1,still,el/(FR.pre+FIRE_COUNT*COUNT_STEP+0.25));   // the last argument: how far through the countdown (the hush house's fly-in)
     if(ec>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
@@ -4686,13 +5145,13 @@ function muteUI(){const on=SETTINGS.sound||SETTINGS.haptics,b=$("frMute");b.inne
 function toggleMute(){const on=!(SETTINGS.sound||SETTINGS.haptics);SETTINGS.sound=SETTINGS.haptics=on;saveSettings();
   BURN_SOUND.setOn(on,on);if(on)BURN_SOUND.unlock();muteUI();toast(on?"Sound and vibration on.":"Muted.");}
 const playing3d=on=>{if(FR.d3)BURN_VIS.s3.S.playing=on;};
-function drawFiring(t,still){
+function drawFiring(t,still,intro){
   const L=GAME.last,f=L.f,lg=f.log,m=f.motor,fl=f.failure;
   const i=t<0?0:BURN_VIS.at(lg,Math.min(t,FR.tEnd));
   const failAt=fl&&fl.destructive?fl.t:null;
   const failNow=fl&&(fl.key==="hangfire"?t>=0:failAt!=null&&t>=failAt)?{key:fl.key,age:fl.key==="hangfire"?t:t-failAt}:null;
   const fly=f.flight;
-  if(FR.d3)BURN_VIS.s3.draw({t,f:t<0||t>FR.tEnd?0:lg.f[i]/FR.fPk,p:t<0||t>FR.tEnd?0:lg.p[i],fail:failNow,still});
+  if(FR.d3)BURN_VIS.s3.draw({t,f:t<0||t>FR.tEnd?0:lg.f[i]/FR.fPk,p:t<0||t>FR.tEnd?0:lg.p[i],fail:failNow,still,intro});
   else if(fly)BURN_VIS.sky($("frStand"),{path:fly.samples,t,tBurn:failAt!=null?Math.min(failAt,FR.tEnd):FR.tEnd,apogee:Math.max(fly.apogee,f.fpred?f.fpred.apogee:0),lost:fly.lost?fly.tLost:null,still,
     h:w=>Math.min(w*0.62,260)});
   else BURN_VIS.stand($("frStand"),{len:m.length,dia:m.diameter,f:t<0?0:lg.f[i]/FR.fPk,t,fail:failNow,still,
@@ -4799,7 +5258,7 @@ function renderReport(){
   if(L.out){const b=L.bill,o=L.out,car=S.career;
     bill=`<section class="card rp-bill"><h3>The bill</h3><table class="dtab mono">
       <tr><th>${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
-      ${b.hut?`<tr><th>Conditioning hut</th><td>−${fmtCr(b.hut)}</td></tr>`:""}${b.air?`<tr><th>The rocket (${esc(fly?fly.rocket.body.name:"airframe")})</th><td>−${fmtCr(b.air)}</td></tr>`:""}
+      ${b.air?`<tr><th>The rocket (${esc(fly?fly.rocket.body.name:"airframe")})</th><td>−${fmtCr(b.air)}</td></tr>`:""}
       <tr><th><details><summary>Motor materials${b.n>1?`, ${b.n} motors`:""}</summary><ul>${b.build.items.filter(x=>x.cr>0).map(x=>`<li>${esc(x.label)}: ${fmtCr(x.cr)}${b.n>1?" each":""}</li>`).join("")}</ul></details></th><td>−${fmtCr(b.motors||b.build.total)}</td></tr>
       ${o.paid?`<tr><th>${esc(c.client)} pays (grade ${L.lot?L.lot.gl.letter:g.letter} ×${o.gradeMul}${o.lotMul<1?`, one failure ×${o.lotMul}`:""}${o.late?`, ${o.late} day${o.late>1?"s":""} late ×${o.lateMul.toFixed(1)}`:""})</th><td class="good">+${fmtCr(o.paid)}</td></tr>`:""}
       <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>

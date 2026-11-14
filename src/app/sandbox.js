@@ -8,6 +8,7 @@ const isSandbox=()=>GAME.mode==="sandbox"&&!!GAME.contract;
 const sandboxOpen=()=>!!(S.career&&S.career.tier>=2);
 function sandboxSheet(){
   if(!sandboxOpen()){toast("The Sandbox opens when your career reaches tier 2.",3600);return;}
+  if(gfx3d())["s1","s0"].forEach(gfxStand);   // any job here may need Stand 1 or the chamber in 3D
   const tier=S.career.tier,list=BURN_SIM.CONTRACTS.filter(c=>(c.tier||1)<=tier);
   const byTier=[1,2,3,4].filter(t=>t<=tier).map(t=>{const cs=list.filter(c=>(c.tier||1)===t);if(!cs.length)return"";
     return`<h3 class="dl-h">Tier ${t}</h3>`+cs.map(c=>`<article class="wo card sbx"><header><span class="site">${esc(c.client)}</span>${S.sandbox.designs[c.id]?`<span class="tag">Bench saved</span>`:""}</header>

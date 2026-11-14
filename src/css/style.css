@@ -162,6 +162,8 @@ p{margin:0 0 .7em}
 .dz-name b{font-size:1.5rem;font-weight:400;color:var(--ink)}
 .dz-view{margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px 4px}
 .dz-view canvas{display:block;width:100%;margin-top:4px;touch-action:pan-y}
+.dz-3d{position:relative;margin-top:4px;border-radius:6px;overflow:hidden;background:var(--ground2)}
+.dz-3d canvas{margin-top:0;touch-action:none;cursor:grab}
 .dz-scrub{display:flex;align-items:center;gap:8px;margin-top:2px}
 .dz-scrub input{flex:1;min-width:0;min-height:32px;accent-color:var(--muted)}
 .dz-scat{display:flex;align-items:center;gap:8px;margin:2px 0 2px;font-size:.72rem;color:var(--muted);line-height:1.3}.dz-scat .btn.sm{min-height:30px;padding:2px 10px;font-size:.78rem;flex:none}

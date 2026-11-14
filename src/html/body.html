@@ -27,8 +27,8 @@
         <button type="button" class="btn sm" id="dzSheet">Data sheet</button>
       </header>
       <section class="dz-view" id="dzView">
-        <div class="segbar mini" role="tablist" aria-label="View"><button type="button" role="tab" data-view="curves">Curves</button><button type="button" role="tab" data-view="section">Cross-section</button></div>
-        <canvas id="dzCv" role="img"></canvas>
+        <div class="segbar mini" role="tablist" aria-label="View"><button type="button" role="tab" data-view="curves">Curves</button><button type="button" role="tab" data-view="section">Cross-section</button><button type="button" role="tab" data-view="3d" hidden>3D</button></div>
+        <canvas id="dzCv" role="img"></canvas><div class="dz-3d" id="dz3d" hidden role="img" aria-label="Your motor on the assembly bench in 3D. Drag to look round, pinch to zoom, tap to change the camera"></div>
         <div class="dz-scrub"><input type="range" id="dzScrub" min="0" max="1000" step="1" value="500" aria-label="Scrub through the burn"><output id="dzScrubV" class="mono"></output><button type="button" class="gl gib" data-g="scrub" aria-label="What the time slider does"><span class="gi" aria-hidden="true">i</span></button></div>
         <p class="dz-scat" id="dzScat" hidden></p>
       </section>

@@ -45,7 +45,7 @@ function dueText(car,job){const left=job.due-car.day;
   const ls=BURN_SIM.lateShare(job,car.day);return`${ls.late} day${ls.late>1?"s":""} late · pay ${Math.round(ls.mul*100)}%`;}
 function specList(c,o){const sl=c.slot&&BURN_SIM.SLOTS[c.slot],tG=sl&&BURN_SIM.slotTemp(c.slot,c,20);
   return`<ul class="wo-spec">${c.lot&&!(o&&o.practice)?`<li><button type="button" class="gl" data-g="lotTest">Delivered as a lot</button> <b>${BURN_SIM.CAREER.lot.n} motors, ${BURN_SIM.CAREER.lot.need} must pass</b></li>`:""}${c.spec.map(s=>`<li><button type="button" class="gl" data-g="${BURN_SIM.SPEC_INFO[s.k].gloss||"impulse"}">${esc(BURN_SIM.SPEC_INFO[s.k].name)}</button> <b class="mono">${esc(bandText(s))}</b></li>`).join("")}
-    ${sl?sl.hut?`<li>Conditioned in the hut to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
+    ${sl?sl.hut?`<li>Conditioned in the climate plant to <b class="mono">${degC(tG)}</b></li>`:`<li>Fired at <b>${sl.name.toLowerCase()}</b> <span class="mono">(${degC(tG)})</span></li>`:""}
     ${c.flight?`<li>Flies from the <b>launch rail</b> with a <b class="mono">${c.flight.payload} kg</b> payload</li>`:BURN_SIM.STANDS[c.stand].pAmb!=null?`<li>Fires in the <button type="button" class="gl" data-g="altChamber">altitude chamber</button>, at <b class="mono">${(BURN_SIM.STANDS[c.stand].pAmb/1000).toFixed(0)} kPa</b></li>`:c.stand!=="s3"?`<li>On <b>${esc(BURN_SIM.STANDS[c.stand].name)}</b></li>`:""}</ul>`;}
 /* an empty board can skip ahead, free, to the day the next repeat order comes back (Kelbo, 13 November 2026) */
 function waitCard(car,held){const d=BURN_SIM.nextWork(car);if(d===null)return"";const n=d-car.day;
@@ -71,6 +71,7 @@ function wonCard(car){const C=BURN_SIM.CONTRACTS,done=C.filter(c=>car.done[c.id]
     <div class="row"><button type="button" class="btn pri" id="bdWon">Back to work</button></div></section>`;}
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
+  if(gfx3d())for(const k in car.stands)if(car.stands[k])gfxStand(k);   // the 3D places of the stands you lease (app/gfx.js)
   const S_=BURN_SIM,jobs=Object.keys(car.jobs),offers=S_.board(car),broke=S_.isBroke(car);
   const stands=Object.keys(S_.STANDS).filter(k=>car.stands[k]).map(k=>S_.STANDS[k].name).join(" · ");
   $("bdSite").textContent=`Aqsor Range · ${stands}`;
@@ -120,7 +121,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-buy
   const err=BURN_SIM.buy(car,id);if(err){toast(err);return;}save(true);closeSheet();renderBoard();
   const g=BURN_SIM.FACILITIES[id].give;
   toast(g.stand?`${BURN_SIM.STANDS[g.stand].name} is yours${g.tier?`: tier ${g.tier} parts and work are open.`:`: its work is open on the board.`}`
-    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature."
+    :g.hut?"The climate plant is yours: pick Climate as the firing slot and set the temperature."
     :g.compute?"The computing room is yours: the bench's Scatter button fires 40 virtual motors with the real dice.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
 
 /* ---- the logbook ---- */

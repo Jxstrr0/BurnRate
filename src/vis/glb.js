@@ -13,6 +13,9 @@
    Materials are Lambert (cheap) on the Lite tier and Standard (with normal maps) on Full; swapMats(root, full) switches
    them when the tier changes. texMat() and uvScale() let stand3d.js texture the parts it builds itself. */
 const TEXL={c:new Map()};
+/* metalCap: without an environment map true metal goes black, so metalness is capped; the stand raises it when the post
+   chain gives it one (vis/stand3d.js) */
+const GLB={metalCap:0.35};
 /* one shared texture by key ("concrete", "rust"...); normal: its normal map. own: a separate texture object (its own
    repeat) that still fills in when the image lands. ph: a canvas to show until then */
 function texGet(key,normal,own,ph){
@@ -33,7 +36,7 @@ function makeMat(full,color,metal,rough,tex,vc,emit){
   let m;
   if(full){if(tex)o.normalMap=texGet(tex,true);
     /* no environment map, so true metal would go black: cap metalness and let the texture carry the metal look */
-    m=new T.MeshStandardMaterial(Object.assign(o,{metalness:Math.min(metal,0.35),roughness:rough}));
+    m=new T.MeshStandardMaterial(Object.assign(o,{metalness:Math.min(metal,GLB.metalCap),roughness:rough}));
     if(tex)m.normalScale.set(0.9,-0.9);}   // glTF UVs, derivative tangents: green flips (as GLTFLoader does)
   else m=new T.MeshLambertMaterial(o);
   Object.assign(m.userData,{metal,rough,tex:tex||null,vc:!!vc,emit:emit||null});return m;}

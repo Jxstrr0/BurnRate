@@ -31,19 +31,19 @@ const VARIANCE={
   ventTau:0.04,        // after a burst, an ejected nozzle or a burn-through, the chamber empties with this time constant, s
   chuffHz:7            // the puffing rate drawn on a chuffing trace, Hz
 };
-/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. The hut slot
-   (a facility) fires at whatever temperature the player sets, or the one a contract asks for (sim/career.js slotTemp). */
+/* firing slots: the steppe's hard cold mornings and hot afternoons (plan sections 3 and 6.6). tGrain in °C. The climate slot
+   (the hush house's climate plant, a facility; its id is still hut) fires at whatever temperature the player sets, or the one a contract asks for (sim/career.js slotTemp). */
 const SLOTS={
   dawn:{name:"Dawn",tGrain:-6,note:"Cold grain: slower burn, lower pressure, more cracks."},
   noon:{name:"Noon",tGrain:31,note:"Hot grain: faster burn, higher pressure."},
   dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."},
-  hut:{name:"Hut",tGrain:20,hut:true,note:"Held overnight in the conditioning hut at the temperature you set."}
+  hut:{name:"Climate",tGrain:20,hut:true,note:"The climate plant holds the test cell at the temperature you set."}
 };
 /* the scatter predictor (the Computing room facility, 1.4; sim/scatter.js): n virtual motors of the design on the bench,
    each with its own dice (seeds "scatter/1" ... "scatter/n", the same set every time, so the band moves only when the
    design does), fired at fewer solver steps than a real firing (fast enough for a phone), drawn as the band between
    the lo and hi fractions of the motors at each moment, on a grid of this many points */
 const SCATTER={n:40,steps:140,dtMul:3,lo:0.1,hi:0.9,grid:90};
-/* the conditioning hut's range, °C, and its step */
+/* the climate plant's range, °C, and its step */
 const HUT={min:-20,max:50,step:5};
 Object.assign(SIM,{VARIANCE,SCATTER,SLOTS,HUT});

@@ -38,7 +38,8 @@ function openFiring(){
   const L=GAME.last,f=L.f,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain;
   showScreen("fire");
   const fly=f.flight||null;
-  $("frSite").textContent=`${fly?"Launch rail":L.c?BURN_SIM.STANDS[L.c.stand].name:"Stand 3"}${L.lot?` · motor 1 of ${L.lot.fires.length}`:""} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
+  const st=frStand(L);
+  $("frSite").textContent=`${fly?"Launch rail":BURN_SIM.STANDS[st].name+(st==="s3"?", hush house":"")}${L.lot?` · motor 1 of ${L.lot.fires.length}`:""} · ${sl.name} · ${degC(tG)} grain${fly?` · wind ${fly.wind.toFixed(1)} m/s`:""}`;$("frDes").textContent=f.pred.sum.designation;
   $("frPL").textContent=fly?"Height":"Pressure";$("frPU").textContent=fly?"m":"MPa";
   $("fire").setAttribute("aria-label",fly?"Launch":"Static firing");
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
@@ -49,7 +50,7 @@ function openFiring(){
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
   $("frNext").hidden=true;$("frAbort").hidden=false;$("frAbort").disabled=false;$("frReplay").hidden=true;$("frPlume").hidden=true;$("frSlow").hidden=true;
   /* 3D when it's ready; otherwise start fetching it for next time and draw this one in 2D */
-  FR.d3=gfx3d();if(!FR.d3)gfxLoad();
+  FR.d3=gfx3d();if(!FR.d3)gfxLoad();else dz3dOff();   // the bench view gives the 3D canvas back
   $("frStand3").hidden=!FR.d3;$("frStand").hidden=FR.d3;
   if(FR.d3)setup3d(L);
   const fl=f.failure;FR.replayed=false;FR.rp0=fl&&fl.destructive?Math.max(0,fl.t-REPLAY_PRE):-1;FR.rp1=fl&&fl.destructive?fl.t+REPLAY_POST:-1;
@@ -59,10 +60,14 @@ function openFiring(){
   voicePrep();FR.vc=FR.phase==="count"&&["armed",...COUNT_CALLS].every(BURN_SOUND.voice.ready);FR.pre=FR.vc?ARMED_S:0;
   if(SETTINGS.sound&&!L.replay)BURN_SOUND.voice.preload([rsoClip(rsoKeyOf(L),L.n)]);
   cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
-/* hand the firing to the 3D stand: motor size, nozzle, thrust curve, and for a launch the rocket and its path */
+/* the stand a firing is on: the job's, or for a free firing the smallest that takes the motor */
+const frStand=L=>L.c&&L.c.stand&&BURN_SIM.STANDS[L.c.stand]?L.c.stand:BURN_VIS.s3.fit(L.f.motor.length*1000,L.f.motor.diameter*1000);
+/* hand the firing to the 3D stand: its place, the day's light, motor size, nozzle, thrust curve, and for a launch the
+   rocket and its path. A place still loading starts loading now; this firing plays on Stand 2 */
 function setup3d(L){
-  const f=L.f,m=f.motor,lg=f.log,g=m.prop.gamma,fly=f.flight,fl=f.failure;
-  const o={mode:fly?"launch":"stand",len:m.length,dia:m.diameter,caseLen:m.caseLen,re:m.re,rt:m.rt0,caseMat:m.design.case.mat,
+  const f=L.f,m=f.motor,lg=f.log,g=m.prop.gamma,fly=f.flight,fl=f.failure,st=frStand(L);gfxStand(st);
+  const o={mode:fly?"launch":"stand",place:st,pAmb:BURN_SIM.STANDS[st].pAmb,day:BURN_VIS.s3.day(`${L.key}/${L.no}`,L.slot),
+    len:m.length,dia:m.diameter,caseLen:m.caseLen,re:m.re,rt:m.rt0,caseMat:m.design.case.mat,
     prE:BURN_SIM.presRatio(BURN_SIM.exitMach(m.eps0,g),g),tEnd:FR.tEnd,fAt:t=>lg.f[BURN_VIS.at(lg,Math.min(t,FR.tEnd))]/FR.fPk};
   if(fly){const r=fly.rocket;Object.assign(o,{rocket:{D:r.D,L:r.L,body:r.a.body,nose:r.a.nose,fins:r.a.fins},path:fly.samples,wind:fly.wind,
     tBurn:fl&&fl.destructive?Math.min(fl.t,FR.tEnd):FR.tEnd,lost:fly.lost?fly.tLost:null});}
@@ -80,7 +85,7 @@ function frameFiring(now){
     if(due>=0&&!(FR.vc&&V.say(COUNT_CALLS[due],{pa:true,now:true})))BURN_SOUND.beep(due===FIRE_COUNT);
     const left=FIRE_COUNT-Math.floor(ec/COUNT_STEP);
     $("frCount").textContent=ec<0?"Armed":left>0?String(left):"Fire";$("frCount").hidden=false;
-    drawFiring(-1,still);
+    drawFiring(-1,still,el/(FR.pre+FIRE_COUNT*COUNT_STEP+0.25));   // the last argument: how far through the countdown (the hush house's fly-in)
     if(ec>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}
   $("frCount").hidden=true;
@@ -125,13 +130,13 @@ function muteUI(){const on=SETTINGS.sound||SETTINGS.haptics,b=$("frMute");b.inne
 function toggleMute(){const on=!(SETTINGS.sound||SETTINGS.haptics);SETTINGS.sound=SETTINGS.haptics=on;saveSettings();
   BURN_SOUND.setOn(on,on);if(on)BURN_SOUND.unlock();muteUI();toast(on?"Sound and vibration on.":"Muted.");}
 const playing3d=on=>{if(FR.d3)BURN_VIS.s3.S.playing=on;};
-function drawFiring(t,still){
+function drawFiring(t,still,intro){
   const L=GAME.last,f=L.f,lg=f.log,m=f.motor,fl=f.failure;
   const i=t<0?0:BURN_VIS.at(lg,Math.min(t,FR.tEnd));
   const failAt=fl&&fl.destructive?fl.t:null;
   const failNow=fl&&(fl.key==="hangfire"?t>=0:failAt!=null&&t>=failAt)?{key:fl.key,age:fl.key==="hangfire"?t:t-failAt}:null;
   const fly=f.flight;
-  if(FR.d3)BURN_VIS.s3.draw({t,f:t<0||t>FR.tEnd?0:lg.f[i]/FR.fPk,p:t<0||t>FR.tEnd?0:lg.p[i],fail:failNow,still});
+  if(FR.d3)BURN_VIS.s3.draw({t,f:t<0||t>FR.tEnd?0:lg.f[i]/FR.fPk,p:t<0||t>FR.tEnd?0:lg.p[i],fail:failNow,still,intro});
   else if(fly)BURN_VIS.sky($("frStand"),{path:fly.samples,t,tBurn:failAt!=null?Math.min(failAt,FR.tEnd):FR.tEnd,apogee:Math.max(fly.apogee,f.fpred?f.fpred.apogee:0),lost:fly.lost?fly.tLost:null,still,
     h:w=>Math.min(w*0.62,260)});
   else BURN_VIS.stand($("frStand"),{len:m.length,dia:m.diameter,f:t<0?0:lg.f[i]/FR.fPk,t,fail:failNow,still,

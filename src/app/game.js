@@ -53,9 +53,29 @@ function drawGo(){
   if(c&&r&&r.ok)checks=BURN_SIM.specCheck(c.spec,benchSum(),r.motor).map(k=>`<span class="ck ${k.ok?"ok":"no"}"><i aria-hidden="true">${k.ok?"✓":"✗"}</i>${esc(k.info.short)} <b class="mono">${fmtSpec(k.k,k.v)}</b><span class="vh">${k.ok?" in spec":" out of spec"}</span></span>`).join("");
   else if(c)checks=`<span class="ck no">Can't be built</span>`;
   else checks=`<span class="ck">Free design, no client</span>`;
-  $("dzGo").innerHTML=`<div class="go-l"><button type="button" class="temp mono" id="dzTemp"${locked?" disabled":""} aria-label="Predict at ${tl}${locked?" (this contract fires then)":", tap to change"}">${esc(tl)}${locked?"":" ▾"}</button><div class="cks">${checks}</div></div>
+  $("dzGo").innerHTML=`<div class="go-l"><button type="button" class="temp mono" id="dzTemp"${locked?" disabled":""} aria-label="Predict at ${tl}${locked?" (this contract fires then)":", tap to change"}">${esc(tl)}${locked?"":" ▾"}</button>${c?`<button type="button" class="cks" id="dzCks" aria-label="The job's spec: tap to open">${checks}</button>`:`<div class="cks">${checks}</div>`}</div>
     <button type="button" class="btn pri" id="dzFire">${c?c.flight?"To the rail":"To the stand":"Test fire"} ›</button>`;
+  $("dzJob").hidden=!c;
   $("dzSite").textContent=c?(c.daily?`Daily Spec No. ${c.no} · `:isSandbox()?"Sandbox · ":"")+c.title:"Stand 3 · Design bench";}
+/* the job's work order on the bench (Kelbo, 14 November 2026): the brief, each spec band against the prediction, where
+   and when it fires, and in a career the pay and the due day. The header's Job button and the bottom bar's checks open it. */
+function jobSheet(){
+  const c=GAME.contract;if(!c)return;const r=DZ.res,S_=BURN_SIM;
+  const got=r&&r.ok?S_.specCheck(c.spec,benchSum(),r.motor):null;
+  const rows=c.spec.map((s,i)=>{const k=got&&got[i],u=S_.SPEC_INFO[s.k];
+    return`<tr><th scope="row">${esc(u.name)}</th><td class="mono">${esc(bandText(s))}</td><td class="mono ${k?k.ok?"good":"crit":""}">${k?`${k.ok?"✓":"✗"} ${fmtSpec(k.k,k.v)}<span class="vh">${k.ok?" in spec":" out of spec"}</span>`:"—"}</td></tr>`;}).join("");
+  const sl=c.slot&&S_.SLOTS[c.slot],st=typeof c.stand==="string"?S_.STANDS[c.stand]:null,more=[];
+  if(c.lot&&!c.daily)more.push(`Delivered as a lot: <b>${S_.CAREER.lot.n} motors, ${S_.CAREER.lot.need} must pass</b>`);
+  if(sl)more.push(sl.hut?`Conditioned in the climate plant to <b class="mono">${degC(slotT(c.slot))}</b>`:`Fired at <b>${esc(sl.name.toLowerCase())}</b> <span class="mono">(${degC(slotT(c.slot))})</span>`);
+  if(c.flight)more.push(`Flies from the <b>launch rail</b> with a <b class="mono">${c.flight.payload} kg</b> payload`);
+  else if(st&&st.pAmb!=null)more.push(`Fires in the <b>altitude chamber</b>, at <b class="mono">${(st.pAmb/1000).toFixed(0)} kPa</b>`);
+  else if(st)more.push(`On <b>${esc(st.name)}</b>`);
+  const j=inCareer()&&S.career.jobs[c.id];
+  if(j)more.push(`Pays <b class="mono">${fmtCr(j.pay)}</b> (×1.2 for an A) · due day ${j.due} (${esc(dueText(S.career,j))}) · ${j.n} motor${j.n===1?"":"s"} fired`);
+  openSheet(c.client?c.client:"The job",`<h3 class="sign">${esc(c.title)}</h3>${c.brief?`<p>${esc(c.brief)}</p>`:""}
+    <table class="dtab jb-spec"><thead><tr><th scope="col">Spec</th><th scope="col">Asks</th><th scope="col">Predicted</th></tr></thead><tbody>${rows}</tbody></table>
+    ${got?`<p class="hint">Predicted at ${esc(DZ.predSlot==="ref"?degC(20):slotLabel(DZ.predSlot))}. The real motor won't match exactly.</p>`:`<p class="hint">This design can't be built yet, so there's nothing to check.</p>`}
+    ${more.length?`<ul class="wo-spec">${more.map(m=>`<li>${m}</li>`).join("")}</ul>`:""}`);}
 function cycleTemp(){
   const list=["ref"].concat(slotChoices()),i=list.indexOf(DZ.predSlot),nx=list[(i+1)%list.length];
   DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
@@ -110,6 +130,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.take){takeContract(b.dataset.take);return;}
   if(b.id==="dzFire"){toStand();return;}
   if(b.id==="dzTemp"){cycleTemp();return;}
+  if(b.id==="dzCks"||b.id==="dzJob"){jobSheet();return;}
   if(!b.closest("#sheet"))return;
   if(b.dataset.hut){stepHut(+b.dataset.hut);return;}
   if(b.dataset.slot){const was=GAME.slot;GAME.slot=b.dataset.slot;if(was!==GAME.slot&&(was==="hut"||GAME.slot==="hut")&&firingBill()){slotSheet();return;}document.querySelectorAll("#sheet [data-slot]").forEach(x=>{const on=x.dataset.slot===GAME.slot;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on);});}

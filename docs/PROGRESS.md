@@ -18,6 +18,14 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: why it differed, scatter, tap the curve | 1.4.0.0 | Done |
 | After 1.0: the high-quality Blender pass (range, motor, rocket) | 1.5.0.0 | Done |
 | After 1.0: the hush house and the larger visual pass | 1.6.0.0 | Done |
+| After 1.0: the Job button on the bench | 1.6.1.0 | Done |
+
+## 1.6.1.0 — The Job button on the bench
+
+Kelbo asked for the current job's requirements to be easy to open from the design bench. The bench header gets a **Job**
+button (hidden on the free bench), and the spec checks in the bottom bar open the same sheet. It shows the client's
+brief, each spec band beside the predicted value with a tick or cross, where and when the motor fires, and in a career
+the pay, the due day and how many motors have been fired.
 
 ## 1.6.0.0 — The hush house and the larger visual pass
 

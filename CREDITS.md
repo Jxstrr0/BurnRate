@@ -27,11 +27,18 @@ The 3D stand uses three.js r187 (https://threejs.org), MIT licence, © 2010-2026
 three.js authors; the licence text is `lib/LICENSE-three.txt`. The file is a
 cut-down build made by `tools/vendor-three.sh` from the official npm package.
 
-## The range model (`models/range.glb`)
+## The 3D models and textures (`models/`, `textures/`)
 
-Original work for this game: Stand 3, the blockhouse, the launch rail and the
-range buildings are built by a script (`tools/blender-range.py`, run headless in
-Blender's `bpy`), with no outside models or textures.
+Original work for this game, all made by scripts run headless in Blender's
+`bpy`, with no outside models, photos or textures:
+
+- `models/range.glb`: Stand 3, the blockhouse, the launch tower and the range
+  buildings (`tools/blender-range.py`).
+- `models/kit.glb`: the motor and rocket parts the stand fits to each design
+  (`tools/blender-kit.py`).
+- `textures/`: the tileable surface textures (concrete, worn paint, rust, salt
+  crust and the rest), drawn from procedural noise and baked by Cycles
+  (`tools/blender-textures.py`). Shared helpers: `tools/blender_lib.py`.
 
 ## Sound
 

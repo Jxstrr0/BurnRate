@@ -27,7 +27,9 @@ weapons.
 - PWA: `manifest.webmanifest`, `icons/`, and the generated `sw.js`. Installed copies work offline.
 - Assets: CC0 and CC-BY only (never NC or ND), each with a line in `CREDITS.md`. Generated art (Higgsfield) is credited
   as AI-generated; **never spend Higgsfield or ElevenLabs credits without Kelbo's yes** (quote the cost first).
-- Blender: scripted only (`tools/blender-*.py`, run headless with `bpy`), output `.glb` committed.
+- Blender: scripted only (`tools/blender-*.py`, run headless with `bpy`; `pip install bpy` works in a session), output
+  committed: `blender-range.py` → `models/range.glb`, `blender-kit.py` → `models/kit.glb` (the motor and rocket parts),
+  `blender-textures.py` → `textures/`. They share `tools/blender_lib.py` (texture keys, world-scale UVs, baked AO).
 
 ## Commands (repo root)
 

@@ -1,6 +1,7 @@
 /* ===================== app/gfx.js: graphics settings and loading the 3D range (stage 7) =====================
-   The 3D stand needs three.js (lib/three.min.js, 0.5 MB) and the range model (models/range.glb). Neither is in the page:
-   gfxLoad() fetches both a few seconds after start-up (the service worker keeps them for offline play), then builds the
+   The 3D stand needs three.js (lib/three.min.js, 0.5 MB), the range model (models/range.glb) and the motor and rocket
+   parts (models/kit.glb), plus the shared textures (textures/, fetched by vis/glb.js as materials ask). None is in the page:
+   gfxLoad() fetches them a few seconds after start-up (the service worker keeps them for offline play), then builds the
    scene once. Until it is ready, or on a phone without WebGL, or with Graphics set to 2D, the firing screen uses the 2D
    stand and sky (vis/stand.js, vis/flight.js).
    SETTINGS.gfx (in brn-settings): "auto" (start Full or Lite from what the phone reports, step down if frames run slow),
@@ -21,8 +22,9 @@ function gfxLoad(){
   if(GFX.p||!gfxWant())return GFX.p;
   GFX.state="loading";
   GFX.p=new Promise((ok,bad)=>{const s=document.createElement("script");s.src="lib/three.min.js";s.onload=ok;s.onerror=()=>bad(new Error("lib/three.min.js"));document.head.appendChild(s);})
-    .then(()=>fetch("models/range.glb")).then(r=>{if(!r.ok)throw new Error("models/range.glb "+r.status);return r.arrayBuffer();})
-    .then(buf=>{const s3=BURN_VIS.s3;if(!s3.init($("frStand3"),buf,gfxTier())){GFX.state="failed";return;}
+    .then(()=>Promise.all(["models/range.glb","models/kit.glb"].map((u,i)=>fetch(u).then(r=>{if(!r.ok)throw new Error(u+" "+r.status);return r.arrayBuffer();})
+      .catch(e=>{if(i)return null;throw e;}))))   // without the kit the motor and rocket fall back to plain parts
+    .then(([buf,kit])=>{const s3=BURN_VIS.s3;if(!s3.init($("frStand3"),buf,gfxTier(),kit)){GFX.state="failed";return;}
       s3.S.auto=SETTINGS.gfx==="auto";
       s3.S.onStep=n=>{SETTINGS.gfxAuto="lite";saveSettings();toast(n>1?"Graphics turned down again to keep the stand smooth.":"Graphics stepped down to Lite to keep the stand smooth.");};
       GFX.state="ready";})

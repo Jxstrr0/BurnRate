@@ -16,6 +16,38 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 9. Release and studio listing | 1.0.0.0 | Done |
 | After 1.0: night shift, voice, tier 3+ clients | 1.3.0.0 | Done |
 | After 1.0: why it differed, scatter, tap the curve | 1.4.0.0 | Done |
+| After 1.0: the high-quality Blender pass (range, motor, rocket) | 1.5.0.0 | Done |
+
+## 1.5.0.0 — After 1.0: the high-quality Blender pass
+
+Kelbo's picks (plan section 0, 14 November 2026): textured realism, a motor kit stretched to fit, a heavy touch on the
+rocket.
+
+- **Textures** (`tools/blender-textures.py` → `textures/`, 1.4 MB): 13 tileable surfaces drawn from procedural noise and
+  baked by Cycles, seamless by construction: concrete, old concrete, worn paint, bare metal, burlap, graphite,
+  fibreglass, carbon twill, salt crust, rust, steppe earth, weathered wood, spiral kraft tube. Colour plus a normal map
+  each (normal maps load on Full only). Neutral ones are near-white so the palette colour tints them.
+- **Shared Blender helpers** (`tools/blender_lib.py`): palette materials carry a texture key and tile size as glTF
+  extras, UVs are world-scale (1 unit = 1 m), ambient occlusion is baked into vertex colours, round things smooth.
+- **The range** (`tools/blender-range.py` → `models/range.glb`, 1.5 MB, 27k triangles): Stand 3 rebuilt in real
+  hardware (reinforced pad, chamfered thrust block, gusseted thrust frame, load cell assembly, true I-beam rails on base
+  plates, saddle supports, DAQ box and conduit, cable reel, stacked sandbag walls, blast deflector), the old bunker
+  (blast door, slit shutter, periscopes, guyed antenna, vents), the launch tower, and the range clutter (corrugated
+  workshop container, lattice water tower, floodlights, radar dish, fence, portacabin, pallets and drums, windsock).
+  Every node the game reads kept its name and place; one floodlight and the windsock moved out of the launch shots.
+- **The motor and rocket kit** (`tools/blender-kit.py` → `models/kit.glb`, 0.3 MB): each part modelled once at unit
+  size. The stand stretches the case to the design's length and sizes the rest to its diameter: bolted closures, the
+  pressure transducer and line, the nozzle housing round a graphite bell drawn from the design's throat and exit,
+  igniter leads until ignition, clamp bands and blocks, a thermocouple patch. Case looks by material. The rocket gets a
+  textured tube (kraft, fibreglass or carbon), a lathed nose with shoulder and tip, thick bevelled fins with fillets,
+  rail buttons on the rail, shear pins, a retainer, bands and a camera shroud on bigger airframes. A burst also throws
+  the aft bolts. Without kit.glb the old plain parts are used.
+- **Loading** (`vis/glb.js`, `app/gfx.js`): the reader takes UVs, the baked AO and the texture extras; textures are
+  fetched once and shared; the ground uses the salt crust. The whole 3D download is about 3.7 MB (three.js 0.56, the
+  models 1.8, textures 1.4; Lite skips the normal maps), fetched after start-up and kept offline by the service worker.
+- **Build check**: `node build.js` fails if a texture a model or the stand names is missing from `textures/`.
+- Checked in a 390 px browser: the three stand shots and three launch shots, motors from 29 mm to 300 mm in every case
+  material, four airframes, Full and Lite, burst, ejection, burn-through and hang fire. No console errors.
 
 ## 1.4.1.1 — Ruslan's countdown in sync, English and Russian
 

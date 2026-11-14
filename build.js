@@ -116,6 +116,24 @@ function mediaHash() {
   for (const dir of ["models", "sounds", "textures"]) walk(dir);
   return h.digest("hex").slice(0, 8);
 }
+/* every texture a model's materials name (glTF extras.tex, from tools/blender_lib.py) or the 3D stand asks for in
+   src/vis/ (texGet / texMat with a quoted key) must exist in textures/ as <key>.jpg and <key>-n.jpg */
+function checkTextures() {
+  const keys = new Map(), bad = [];
+  const md = path.join(ROOT, "models");
+  if (fs.existsSync(md)) for (const f of fs.readdirSync(md).filter(f => f.endsWith(".glb"))) {
+    const b = fs.readFileSync(path.join(md, f)), n = b.readUInt32LE(12);
+    const j = JSON.parse(b.slice(20, 20 + n).toString("utf8"));
+    for (const m of j.materials || []) if (m.extras && m.extras.tex) keys.set(m.extras.tex, "models/" + f);
+  }
+  for (const f of fs.readdirSync(path.join(SRC, "vis")).filter(f => f.endsWith(".js"))) {
+    const s = fs.readFileSync(path.join(SRC, "vis", f), "utf8");
+    for (const m of s.matchAll(/texGet\("(\w+)"|texMat\([^;]*?"(\w+)"\)/g)) keys.set(m[1] || m[2], "src/vis/" + f);
+  }
+  for (const [k, from] of keys) for (const suf of ["", "-n"])
+    if (!fs.existsSync(path.join(ROOT, "textures", k + suf + ".jpg"))) bad.push(`textures/${k}${suf}.jpg is missing (named in ${from})`);
+  if (bad.length) die(bad.join("\n"));
+}
 /* Ruslan's voice: every line in tools/voice-lines.json has a clip in sounds/voice/en/ and sounds/voice/ru/, the sign-offs
    match RSO_LINES in src/app/report.js (same keys, same count, same English), and the calls match VOICE_CALLS in
    src/app/firing.js, each countdown call with a beat (VOICE_BEAT) in both languages. A missing clip only means silence in
@@ -227,7 +245,7 @@ function where(ps, off) {
 
 function cmdBuild() {
   const ps = parts(), out = build(ps);
-  lint(ps, out); checkVoice();
+  lint(ps, out); checkVoice(); checkTextures();
   const old = fs.existsSync(OUT) ? fs.readFileSync(OUT) : null, sw0 = fs.existsSync(SW_OUT) ? fs.readFileSync(SW_OUT, "utf8") : null;
   if (!(old && old.equals(out))) { fs.writeFileSync(OUT, out); console.log(`index.html written (${out.length} bytes, ${ps.length} files)`); }
   else console.log(`index.html unchanged (${out.length} bytes, ${ps.length} files)`);
@@ -236,7 +254,7 @@ function cmdBuild() {
 }
 function cmdCheck() {
   const ps = parts(), out = build(ps);
-  lint(ps, out); checkVoice();
+  lint(ps, out); checkVoice(); checkTextures();
   if (!fs.existsSync(OUT)) die("index.html is missing; run node build.js");
   const cur = fs.readFileSync(OUT), d = firstDiff(out, cur);
   if (d < 0) {

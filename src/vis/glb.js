@@ -82,12 +82,14 @@ function glbScene(buf,full){
     if(o.name)nodes[o.name]=o;(n.children||[]).forEach(c=>o.add(build(c)));return o;};
   (g.scenes[g.scene||0].nodes).forEach(i=>root.add(build(i)));
   return{root,nodes,mats};}
-/* switch every mesh under root to the other tier's materials, keeping colours, textures and AO */
+/* switch every mesh under root to the other tier's materials, keeping colours, textures and AO. Each material and its
+   other-tier twin are made once and remembered (TWIN), so flipping Full/Lite again and again reuses the same pair
+   instead of making a new set each time */
+const TWIN=new WeakMap();
 function swapMats(root,full){
-  const cache=new Map();
   root.traverse(o=>{if(!o.isMesh||o.userData.keepMat)return;const m=o.material;if(!m||m.isShaderMaterial||!!m.isMeshStandardMaterial===full)return;
-    if(!cache.has(m)){const u=m.userData,n=makeMat(full,m.color.clone(),u.metal??0,u.rough??1,u.tex,u.vc,u.emit);
-      n.side=m.side;n.name=m.name;n.userData.shared=u.shared;cache.set(m,n);}
-    o.material=cache.get(m);});
-  cache.forEach((n,m)=>{if(!m.userData.shared)m.dispose();});}
+    let n=TWIN.get(m);
+    if(!n){const u=m.userData;n=makeMat(full,m.color.clone(),u.metal??0,u.rough??1,u.tex,u.vc,u.emit);
+      n.side=m.side;n.name=m.name;n.userData.shared=u.shared;TWIN.set(m,n);TWIN.set(n,m);}
+    o.material=n;});}
 Object.assign(VIS,{glbScene,swapMats,texGet,texMat,uvScale});

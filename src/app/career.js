@@ -120,7 +120,8 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-buy
   const err=BURN_SIM.buy(car,id);if(err){toast(err);return;}save(true);closeSheet();renderBoard();
   const g=BURN_SIM.FACILITIES[id].give;
   toast(g.stand?`${BURN_SIM.STANDS[g.stand].name} is yours${g.tier?`: tier ${g.tier} parts and work are open.`:`: its work is open on the board.`}`
-    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
+    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature."
+    :g.compute?"The computing room is yours: the bench's Scatter button fires 40 virtual motors with the real dice.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
 
 /* ---- the logbook ---- */
 function openLogbook(){

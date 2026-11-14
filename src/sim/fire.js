@@ -38,6 +38,21 @@ function drawVariance(m,cond,seed,pred){
   d.crack=cu<d.crackChance?{x0:cAt*G.web,area:cArea*G.A(cAt*G.web),frac:cArea}:null;
   return d;
 }
+/* what this motor's parts could actually take, after their spreads */
+function limitsOf(m,d){return{pBurst:m.pUlt*d.caseMul,pYield:m.pYield*d.caseMul,ret:m.retention*d.retMul,linerT:m.linerRating*d.linerMul};}
+/* walk a run for the first failure (the list at the top of this file, less chuffing); also whether the case yielded on the way */
+function scanFailure(m,run,lim){
+  const Ab=PI*(m.id/2)*(m.id/2),tLit=run.ign.delay;let failure=null,yielded=false;
+  if(run.notLit)failure={key:"hangfire",t:run.ign.delay,i:0,destructive:false};
+  else for(let i=1;i<run.t.length;i++){
+    const p=run.p[i],t=run.t[i];
+    if(p>lim.pBurst){failure={key:"cato",t,i,destructive:true,p};break;}
+    if(p*Ab>lim.ret){failure={key:"eject",t,i,destructive:true,p,load:p*Ab};break;}
+    if(run.x[i]<run.web*0.98&&t-tLit>lim.linerT){failure={key:"burnthrough",t,i,destructive:true,p};break;}
+    if(p>lim.pYield)yielded=true;}
+  return{failure,yielded};}
+/* the variance hooks simulate() takes for these draws */
+const varOpts=(d,steps)=>({aMul:d.aMul,eroMul:d.eroMul,ignMul:d.ignMul,ignLight:VARIANCE.hangS,areaAdd:areaHook(d),steps});
 function areaHook(d){
   if(!d.void&&!d.crack)return null;
   return(t,x)=>(d.void&&x>=d.void.x0&&x<d.void.x1?d.void.area:0)+(d.crack&&x>=d.crack.x0?d.crack.area:0);}
@@ -77,16 +92,8 @@ function fire(design,cond,seed){
   let run=simulate(m,cond,opts);
   /* the same firing without the void or crack, to say how much they added */
   const base=hook?simulate(m,cond,Object.assign({},opts,{areaAdd:null})):run;
-  const pBurst=m.pUlt*d.caseMul,pYield=m.pYield*d.caseMul,ret=m.retention*d.retMul,linerT=m.linerRating*d.linerMul,Ab=PI*(m.id/2)*(m.id/2);
-  const tLit=run.ign.delay;
-  let failure=null,yielded=false,pMaxSeen=0;
-  if(run.notLit)failure={key:"hangfire",t:run.ign.delay,i:0,destructive:false};
-  else for(let i=1;i<run.t.length;i++){
-    const p=run.p[i],t=run.t[i];pMaxSeen=Math.max(pMaxSeen,p);
-    if(p>pBurst){failure={key:"cato",t,i,destructive:true,p};break;}
-    if(p*Ab>ret){failure={key:"eject",t,i,destructive:true,p,load:p*Ab};break;}
-    if(run.x[i]<run.web*0.98&&t-tLit>linerT){failure={key:"burnthrough",t,i,destructive:true,p};break;}
-    if(p>pYield)yielded=true;}
+  const lim=limitsOf(m,d),{pBurst,pYield,ret,linerT}=lim,Ab=PI*(m.id/2)*(m.id/2);
+  let{failure,yielded}=scanFailure(m,run,lim);
   if(failure&&failure.destructive){
     const tau=V.ventTau*(failure.key==="burnthrough"?3:1);
     run=cutAndVent(run,failure.i,tau,failure.key==="burnthrough");
@@ -149,4 +156,4 @@ function fire(design,cond,seed){
     log:logTrace(run,seed,true,chuffInfo,cond.logRate),plog:logTrace(pred,seed,false,null,cond.logRate),
     failure,notes,factors,yielded,limits:{pBurst,pYield,ret,linerT}};
 }
-Object.assign(SIM,{riseRate,drawVariance,fire});
+Object.assign(SIM,{riseRate,drawVariance,limitsOf,scanFailure,fire});

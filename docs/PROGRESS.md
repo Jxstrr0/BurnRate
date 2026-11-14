@@ -15,6 +15,31 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | 8. Polish and modes | 0.9.0.0 | Done |
 | 9. Release and studio listing | 1.0.0.0 | Done |
 | After 1.0: night shift, voice, tier 3+ clients | 1.3.0.0 | Done |
+| After 1.0: why it differed, scatter, tap the curve | 1.4.0.0 | Done |
+
+## 1.4.0.0 — After 1.0: why it differed, the scatter predictor, tap the curve
+
+Kelbo's picks (plan section 0, 14 November 2026).
+
+- **Why it differed from the bench**: a card on the range report for every firing that ran to the end, passes included.
+  It walks from the bench's 20 °C prediction to the measured motor one cause at a time (grain temperature, the batch,
+  the igniter, throat wear, a void or crack), re-firing the same motor with each of its own deviations added, so the
+  rows add up exactly to what the stand measured. It shows the spec's numbers (up to three) and names the biggest mover.
+  With the basic data logger only temperature and batch are split out; the rest is one "everything else" row.
+  Destructive failures keep their "What pushed it" card. `sim/explain.js`, `app/report.js`.
+- **Scatter predictor**: a new facility, the **Computing room** (6,000 cr, reputation 18). Always on in the Sandbox,
+  never in the Daily Spec. The Scatter button under the bench's chart fires 40 virtual motors with the real dice (fixed
+  seeds `scatter/1..40`, never the seeds a real firing uses) about a second after the design settles, a few at a time so
+  the bench never freezes. The curves get a shaded band (the middle 80%) and a red cross for each motor that failed; the
+  line under the chart counts passes (with letters), each kind of failure, spec misses and yields, and on a tender the
+  chance a lot of five is accepted. A coarser time step (3×) keeps it to about a third of a second on a laptop with the
+  same failures as full firings. The on/off choice is a field in `brn-settings`. `sim/scatter.js`, `app/scatter.js`.
+- **Tap the curve**: dragging on the bench's curves scrubs the burn and shows a readout (time, pressure, thrust, Kn,
+  burning area, web gone, and the port's end view); it fades 2.5 s after the finger lifts. A swipe only switches views
+  on the cross-section now. The report's chart is tap-to-read: predicted against measured pressure and thrust at that
+  moment.
+- Tests: `tools/sim-tests/scatter.js` (the explanation adds up exactly and names the right causes; virtual motor i is
+  the same motor as a real firing with seed `scatter/i`; determinism, band sanity, lot odds).
 
 ## 1.3.0.0 — After 1.0: Ruslan's voice (after-1.0 list done)
 

@@ -11,7 +11,8 @@
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
-const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref",geom:null,insp:false,inspT:0};
+const INSP_HOLD=2500;   // ms the chart's readout stays up after the finger lifts
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
 const tabsNow=()=>isFlight()?TABS.concat([["airframe","Rocket"]]):TABS;
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
@@ -122,7 +123,8 @@ function schedule(fast){
   if(DZ.raf)return;
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
     DZ.res=BURN_SIM.predict(DZ.d,BURN_SIM.standCond(GAME.contract,{tGrain:DZ.tGrain}),f?{steps:DRAG_STEPS}:undefined);
-    DZ.fl=isFlight()&&DZ.res.ok?BURN_SIM.predictFlight(DZ.d,DZ.res.motor,DZ.res.run,payloadKg()):null;drawAll();});}
+    DZ.fl=isFlight()&&DZ.res.ok?BURN_SIM.predictFlight(DZ.d,DZ.res.motor,DZ.res.run,payloadKg()):null;
+    if(f)scatterStale();drawAll();if(!f)scatterKick();});}
 /* the bench's numbers for the spec: a flight job's apogee is the predicted flight's */
 function benchSum(){const r=DZ.res;return r&&r.ok?isFlight()?Object.assign({},r.sum,{apogee:DZ.fl?DZ.fl.apogee:NaN}):r.sum:null;}
 /* a flight job's launch checks: crit = what stops the range launching it (sim/flight.js preLaunch), warn = a slow start */
@@ -183,7 +185,12 @@ function drawView(){
   const r=DZ.res;if(!r||!r.ok)return;
   const run=r.run,m=r.motor,tEnd=run.t[run.t.length-1],t=DZ.scrub*tEnd,i=BURN_VIS.at(run,t);
   const info=[`t ${run.t[i].toFixed(2)} s`,`${(run.p[i]/1e6).toFixed(2)} MPa`,`${Math.round(run.f[i])} N`,`Kn ${Math.round(run.kn[i])}`,`web ${Math.min(100,Math.round(run.x[i]/run.web*100))}% burned`];
-  if(DZ.view==="curves"){BURN_VIS.curves($("dzCv"),run,{h:VIEW_H,pYield:m.pYield,pMin:m.prop.pMin*1e6,cursor:run.t[i]});}
+  if(DZ.view==="curves"){
+    /* tap the curve (1.4): while a finger is on the chart, and a moment after, a readout box with the end view of the port */
+    const ins=DZ.insp?{readout:[`t ${run.t[i].toFixed(2)} s`,`${(run.p[i]/1e6).toFixed(2)} MPa`,`${Math.round(run.f[i])} N`,`Kn ${Math.round(run.kn[i])}`,
+      `burning ${(run.kn[i]*run.at[i]*1e4).toFixed(run.kn[i]*run.at[i]*1e4<100?1:0)} cm²`,`web ${Math.min(100,Math.round(run.x[i]/run.web*100))}% gone`],
+      port:(c,x,y,s,k)=>BURN_VIS.endView(c,m,run.x[i],x+s/2,y+s/2,s,k)}:{};
+    DZ.geom=BURN_VIS.curves($("dzCv"),run,Object.assign({h:VIEW_H,pYield:m.pYield,pMin:m.prop.pMin*1e6,cursor:run.t[i]},scatterDraw()||{},ins));}
   else{BURN_VIS.section($("dzCv"),m,run.x[i],info,VIEW_H);}
   $("dzScrubV").textContent=info.slice(0,2).join(" · ");
   $("dzCv").setAttribute("aria-label",DZ.view==="curves"?`Predicted pressure and thrust. Peak ${(r.sum.Pmax/1e6).toFixed(2)} MPa, average thrust ${Math.round(r.sum.Fav)} N over ${r.sum.tb.toFixed(2)} s.`
@@ -234,12 +241,23 @@ function initDesigner(){
   if(DZ.inited)return;DZ.inited=true;
   $("dzTabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;DZ.tab=b.dataset.tab;renderPanel();});
   $("dzView").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view);});
-  /* swipe the live view left or right to switch between the curves and the cross-section */
+  /* on the cross-section, swipe left or right to go back to the curves (Kelbo, 14 November 2026: on the curves a drag
+     scrubs instead) */
   let sx=0,sy=0;const cv=$("dzCv");
   cv.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
-  cv.addEventListener("touchend",e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
-    if(Math.abs(dx)>50&&Math.abs(dy)<40)setView(DZ.view==="curves"?"section":"curves");},{passive:true});
+  cv.addEventListener("touchend",e=>{if(DZ.view!=="section")return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>50&&Math.abs(dy)<40)setView("curves");},{passive:true});
+  /* on the curves, a finger (or the mouse) on the chart moves the time cursor and shows the readout; the canvas keeps
+     touch-action pan-y, so an up-and-down drag still scrolls the page */
+  const scrubTo=e=>{const g=DZ.geom,r=DZ.res;if(!g||!r||!r.ok)return;const b=cv.getBoundingClientRect(),run=r.run,tEnd=run.t[run.t.length-1];
+    const t=(e.clientX-b.left-g.L)/g.w*g.tMax;DZ.scrub=Math.max(0,Math.min(1,t/tEnd));$("dzScrub").value=Math.round(DZ.scrub*1000);drawView();};
+  let held=false;
+  cv.addEventListener("pointerdown",e=>{if(DZ.view!=="curves")return;held=true;clearTimeout(DZ.inspT);DZ.insp=true;try{cv.setPointerCapture(e.pointerId);}catch(err){}scrubTo(e);});
+  cv.addEventListener("pointermove",e=>{if(held)scrubTo(e);});
+  const lift=()=>{if(!held)return;held=false;clearTimeout(DZ.inspT);DZ.inspT=setTimeout(()=>{DZ.insp=false;drawView();},INSP_HOLD);};
+  cv.addEventListener("pointerup",lift);cv.addEventListener("pointercancel",lift);
   $("dzScrub").addEventListener("input",e=>{DZ.scrub=+e.target.value/1000;drawView();});
+  $("dzScat").addEventListener("click",e=>{if(e.target.closest("#dzScatBtn"))toggleScatter();});
   const P=$("dzPanel");
   P.addEventListener("input",e=>{const f=e.target.dataset.slide;if(!f)return;change(f,+e.target.value,true);refreshReadouts();});
   P.addEventListener("change",e=>{const f=e.target.dataset.slide;if(!f)return;change(f,+e.target.value,false);renderPanel();});

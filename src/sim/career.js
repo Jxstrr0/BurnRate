@@ -13,7 +13,7 @@
 const CR=v=>Math.round(v);
 function newCareer(seed,name){
   return{seed:String(seed),name:String(name||"").slice(0,28)||"Saltpan Propulsion",day:1,money:CAREER.startMoney[1],tier:1,rep:0,
-    stands:{s3:true},bunker:0,hut:0,jobs:{},done:{},log:[],no:0,broke:0};}
+    stands:{s3:true},bunker:0,hut:0,compute:0,jobs:{},done:{},log:[],no:0,broke:0};}
 /* a firing slot's grain temperature: the hut fires at the contract's temperature, or the one the player set (hutT) */
 function slotTemp(slot,c,hutT){const s=SLOTS[slot]||SLOTS.dusk;if(!s.hut)return s.tGrain;
   if(c&&c.tGrain!=null)return c.tGrain;return Math.max(HUT.min,Math.min(HUT.max,hutT!=null?hutT:s.tGrain));}
@@ -114,9 +114,9 @@ function canBuy(car,id){const f=FACILITIES[id];if(!f)return"No such facility.";
   if(car.rep<f.need)return`The range wants reputation ${f.need} first (you have ${car.rep}).`;
   if(car.money<f.cost)return`It costs ${f.cost} cr; you have ${Math.max(0,car.money)} cr.`;
   return"";}
-function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:g.tier?car.tier>=g.tier:false;}
+function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:g.compute?(car.compute|0)>=g.compute:g.tier?car.tier>=g.tier:false;}
 function buy(car,id){const e=canBuy(car,id);if(e)return e;const f=FACILITIES[id],g=f.give;car.money-=f.cost;
-  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.hut)car.hut=Math.max(car.hut|0,g.hut);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
+  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.hut)car.hut=Math.max(car.hut|0,g.hut);if(g.compute)car.compute=Math.max(car.compute|0,g.compute);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
 /* the logbook keeps what's needed to fire the same motor again for its report: the dice come from the seed */
 function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length>CAREER.logMax)car.log.splice(0,car.log.length-CAREER.logMax);return e;}
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}

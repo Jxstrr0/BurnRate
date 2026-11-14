@@ -202,6 +202,8 @@ p{margin:0 0 .7em}
 .dz-view canvas{display:block;width:100%;margin-top:4px;touch-action:pan-y}
 .dz-scrub{display:flex;align-items:center;gap:8px;margin-top:2px}
 .dz-scrub input{flex:1;min-height:32px;accent-color:var(--muted)}
+.dz-scat{display:flex;align-items:center;gap:8px;margin:2px 0 2px;font-size:.72rem;color:var(--muted);line-height:1.3}.dz-scat .btn.sm{min-height:30px;padding:2px 10px;font-size:.78rem;flex:none}
+.dz-scat .btn.on{border-color:var(--pred);color:var(--pred)}.dz-scat span{flex:1}.dz-scat .gl{flex:none}
 .dz-scrub output{font-size:.72rem;color:var(--muted);white-space:nowrap;text-align:right}
 .dz-nums{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px}
 .num{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font:inherit;color:var(--ink);text-align:left;cursor:help;min-height:44px;min-width:0}
@@ -295,8 +297,9 @@ p{margin:0 0 .7em}
 .fr-gauges div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;display:grid;grid-template-columns:1fr auto;align-items:baseline}
 .fr-gauges span{grid-column:1/-1;font-size:.7rem;color:var(--muted)}
 .fr-gauges b{font-size:1.15rem;font-weight:600}.fr-gauges small{font-size:.7rem;color:var(--muted)}
-.fr-strip{padding:8px}.fr-strip canvas,.rp-chart canvas{display:block;width:100%}
+.fr-strip{padding:8px}.fr-strip canvas,.rp-chart canvas{display:block;width:100%}.rp-chart canvas{touch-action:pan-y}
 .dz-key .k-pr{background:var(--pred)}.dz-key .k-me{background:var(--meas);height:4px}
+.dz-key span.tap{width:auto;height:auto;border-radius:0;flex-basis:100%;margin-left:0}
 .fr-act{display:grid;gap:8px;margin-top:12px}
 /* settings (app/gfx.js): a row of choices */
 .seg-f{border:0;padding:0;margin:0 0 14px}.seg-f legend{font-weight:600;margin-bottom:6px;padding:0}
@@ -320,6 +323,8 @@ p{margin:0 0 .7em}
 .rp-meta{color:var(--muted);margin:0 0 10px}
 .rp-chart{padding:8px}
 .rp-cause h3{margin:4px 0 6px}.rp-cause h3+p{font-size:1rem}
+.rp-why h3{margin:4px 0 6px}.dtab.why{font-size:.85rem}.dtab.why td{text-align:right;white-space:nowrap}.dtab.why thead th{text-align:right;font-weight:600;color:var(--muted)}
+.dtab.why tbody th{font-weight:400;font-family:var(--ui)}.dtab.why tr.top th,.dtab.why tr.top td{font-weight:700}
 .factors{list-style:none;padding:0;margin:0 0 6px;display:grid;gap:8px;font-size:.9rem}
 .factors li{display:grid;gap:3px}
 .factors .bar{display:block;height:5px;border-radius:3px;min-width:4px}.factors .bar.up{background:var(--crit)}.factors .bar.dn{background:var(--good)}
@@ -430,6 +435,7 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
         <div class="segbar mini" role="tablist" aria-label="View"><button type="button" role="tab" data-view="curves">Curves</button><button type="button" role="tab" data-view="section">Cross-section</button></div>
         <canvas id="dzCv" role="img"></canvas>
         <label class="dz-scrub"><span class="vh">Burn time</span><input type="range" id="dzScrub" min="0" max="1000" step="1" value="500" aria-label="Scrub through the burn"><output id="dzScrubV" class="mono"></output></label>
+        <p class="dz-scat" id="dzScat" hidden></p>
       </section>
       <div class="dz-nums" id="dzNums"></div>
       <div class="dz-flags" id="dzFlags" aria-live="polite"></div>
@@ -698,9 +704,14 @@ const SLOTS={
   dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."},
   hut:{name:"Hut",tGrain:20,hut:true,note:"Held overnight in the conditioning hut at the temperature you set."}
 };
+/* the scatter predictor (the Computing room facility, 1.4; sim/scatter.js): n virtual motors of the design on the bench,
+   each with its own dice (seeds "scatter/1" ... "scatter/n", the same set every time, so the band moves only when the
+   design does), fired at fewer solver steps than a real firing (fast enough for a phone), drawn as the band between
+   the lo and hi fractions of the motors at each moment, on a grid of this many points */
+const SCATTER={n:40,steps:140,dtMul:3,lo:0.1,hi:0.9,grid:90};
 /* the conditioning hut's range, °C, and its step */
 const HUT={min:-20,max:50,step:5};
-Object.assign(SIM,{VARIANCE,SLOTS,HUT});
+Object.assign(SIM,{VARIANCE,SCATTER,SLOTS,HUT});
 /* ===================== data/contracts.js: the stands and the work orders (stages 3 and 4) =====================
    The career's board (sim/career.js) offers these in list order, tier by tier. Each contract:
      id, client, title, brief (the work order's text), tier (the career tier it appears at), stand (where it fires),
@@ -906,6 +917,8 @@ const FACILITIES={
     note:"The medium stand: motors up to 900 mm long and 110 mm across, a 10 kN load cell. Opens tier 2 work and tier 2 parts."},
   hut:{name:"Conditioning hut",cost:3500,need:14,give:{hut:1},
     note:"An insulated hut that holds a motor at the temperature you set, −20 to 50 °C, overnight before it fires. Some qualification jobs need it. 60 cr a firing."},
+  compute:{name:"Computing room",cost:6000,need:18,give:{compute:1},
+    note:"The old programme's computing room, its racks rewired for one job: firing your design 40 times over with the real dice, before the stand fires it once. The bench gets a Scatter button: the spread of the real motors drawn round the prediction, and how many of them would burst, chuff or miss the spec."},
   s1:{name:"Stand 1 lease",cost:16000,need:24,give:{stand:"s1",tier:3},
     note:"The old state booster stand: motors up to 2 m long and 170 mm across, a 40 kN load cell. Opens tier 3 work and tier 3 parts."},
   tenders:{name:"Range tender register",cost:30000,need:45,after:"s1",give:{tier:4},
@@ -1275,7 +1288,8 @@ Object.assign(SIM,{designErrors,motorFromDesign});
    biggest at the start of a narrow-port motor, which is the erosive spike; opts.noErosive turns it off (tests).
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
-   opts (all optional): noErosive, steps (regression steps over the web; fewer = faster, for live dragging), and the variance
+   opts (all optional): noErosive, steps (regression steps over the web; fewer = faster, for live dragging), dtMul (scales
+   the igniter's step and the longest step: over 1 = coarser and faster, for the scatter predictor), and the variance
    model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight (strength under which the grain never lights),
    areaAdd(t, x) -> extra burning area in m² (a void or a crack; its propellant comes out of the grain's web)}
    Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit,
@@ -1286,7 +1300,7 @@ function simulate(motor,cond,opts){
   const T=TUNING,prop=motor.prop,G=motor.grain,g=prop.gamma,cs=prop.cStar,rho=prop.rho;
   const RT=Math.pow(cs*vdk(g),2),n=prop.n,Pa=cond.pAmb!=null?cond.pAmb:T.pAmb,tGrain=cond.tGrain!=null?cond.tGrain:T.tRef;
   const a=propCoef(prop,tGrain)*(opts.aMul||1),eroRate=motor.throatMat.ero/1000*(opts.eroMul==null?1:opts.eroMul);
-  const Vch=motor.Vch,web=G.web,dxT=web/(opts.steps||T.steps),areaAdd=opts.areaAdd||null;   // opts.steps: fewer while the player drags a slider
+  const Vch=motor.Vch,web=G.web,dxT=web/(opts.steps||T.steps),areaAdd=opts.areaAdd||null,dtK=opts.dtMul||1;   // opts.steps: fewer while the player drags a slider
   /* igniter */
   const ig=motor.igniter,igGas=ig.gas*(opts.ignMul==null?1:opts.ignMul),need=T.ignNeedVol*(Vch-G.V(0))+T.ignNeedArea*G.A(0);
   const S=Math.max(1e-6,igGas/need),delay=T.ignDelay/S,spread=T.ignSpread/(S*S);
@@ -1310,8 +1324,8 @@ function simulate(motor,cond,opts){
     steps++;
     const At=PI*rt*rt,burning=x<web,inIgn=t<ignEnd+0.01;
     let dt;
-    if(inIgn)dt=T.dtIgn;
-    else if(burning)dt=Math.min(T.dtMax,dxT/Math.max(rLast,1e-5));
+    if(inIgn)dt=T.dtIgn*dtK;
+    else if(burning)dt=Math.min(T.dtMax*dtK,dxT/Math.max(rLast,1e-5));
     else{const tau=Math.max(1e-5,(Vch-G.V(x))/(At*cs*vdk(g)*vdk(g)));dt=Math.min(0.01,Math.max(2e-4,tau/4));}
     const t1=t+dt,fl=lit(t1),ign=igIn(t,t1),V0=G.V(x),mOld=mg;
     /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain, and the
@@ -1454,6 +1468,21 @@ function drawVariance(m,cond,seed,pred){
   d.crack=cu<d.crackChance?{x0:cAt*G.web,area:cArea*G.A(cAt*G.web),frac:cArea}:null;
   return d;
 }
+/* what this motor's parts could actually take, after their spreads */
+function limitsOf(m,d){return{pBurst:m.pUlt*d.caseMul,pYield:m.pYield*d.caseMul,ret:m.retention*d.retMul,linerT:m.linerRating*d.linerMul};}
+/* walk a run for the first failure (the list at the top of this file, less chuffing); also whether the case yielded on the way */
+function scanFailure(m,run,lim){
+  const Ab=PI*(m.id/2)*(m.id/2),tLit=run.ign.delay;let failure=null,yielded=false;
+  if(run.notLit)failure={key:"hangfire",t:run.ign.delay,i:0,destructive:false};
+  else for(let i=1;i<run.t.length;i++){
+    const p=run.p[i],t=run.t[i];
+    if(p>lim.pBurst){failure={key:"cato",t,i,destructive:true,p};break;}
+    if(p*Ab>lim.ret){failure={key:"eject",t,i,destructive:true,p,load:p*Ab};break;}
+    if(run.x[i]<run.web*0.98&&t-tLit>lim.linerT){failure={key:"burnthrough",t,i,destructive:true,p};break;}
+    if(p>lim.pYield)yielded=true;}
+  return{failure,yielded};}
+/* the variance hooks simulate() takes for these draws */
+const varOpts=(d,steps)=>({aMul:d.aMul,eroMul:d.eroMul,ignMul:d.ignMul,ignLight:VARIANCE.hangS,areaAdd:areaHook(d),steps});
 function areaHook(d){
   if(!d.void&&!d.crack)return null;
   return(t,x)=>(d.void&&x>=d.void.x0&&x<d.void.x1?d.void.area:0)+(d.crack&&x>=d.crack.x0?d.crack.area:0);}
@@ -1493,16 +1522,8 @@ function fire(design,cond,seed){
   let run=simulate(m,cond,opts);
   /* the same firing without the void or crack, to say how much they added */
   const base=hook?simulate(m,cond,Object.assign({},opts,{areaAdd:null})):run;
-  const pBurst=m.pUlt*d.caseMul,pYield=m.pYield*d.caseMul,ret=m.retention*d.retMul,linerT=m.linerRating*d.linerMul,Ab=PI*(m.id/2)*(m.id/2);
-  const tLit=run.ign.delay;
-  let failure=null,yielded=false,pMaxSeen=0;
-  if(run.notLit)failure={key:"hangfire",t:run.ign.delay,i:0,destructive:false};
-  else for(let i=1;i<run.t.length;i++){
-    const p=run.p[i],t=run.t[i];pMaxSeen=Math.max(pMaxSeen,p);
-    if(p>pBurst){failure={key:"cato",t,i,destructive:true,p};break;}
-    if(p*Ab>ret){failure={key:"eject",t,i,destructive:true,p,load:p*Ab};break;}
-    if(run.x[i]<run.web*0.98&&t-tLit>linerT){failure={key:"burnthrough",t,i,destructive:true,p};break;}
-    if(p>pYield)yielded=true;}
+  const lim=limitsOf(m,d),{pBurst,pYield,ret,linerT}=lim,Ab=PI*(m.id/2)*(m.id/2);
+  let{failure,yielded}=scanFailure(m,run,lim);
   if(failure&&failure.destructive){
     const tau=V.ventTau*(failure.key==="burnthrough"?3:1);
     run=cutAndVent(run,failure.i,tau,failure.key==="burnthrough");
@@ -1565,7 +1586,7 @@ function fire(design,cond,seed){
     log:logTrace(run,seed,true,chuffInfo,cond.logRate),plog:logTrace(pred,seed,false,null,cond.logRate),
     failure,notes,factors,yielded,limits:{pBurst,pYield,ret,linerT}};
 }
-Object.assign(SIM,{riseRate,drawVariance,fire});
+Object.assign(SIM,{riseRate,drawVariance,limitsOf,scanFailure,fire});
 /* ===================== sim/grade.js: contracts, stand checks and grading (plan section 4) =====================
    A contract's spec is a list of criteria {k, lo, hi} on the measured motor (either bound may be missing):
      I (N·s)  Fav (N)  tb (s)  Pmax (MPa)  Fmax (N)  mass (total, g)  massFrac (%)
@@ -1625,6 +1646,84 @@ function preFire(contract,design,m,o){
   for(const[f,p,what]of parts)if(p&&(p.tier||1)>tier)add(f,`${p.name} is a tier ${p.tier} ${what}. You have tier ${tier} parts${o.tier?" so far":" on this job"}.`);
   return out;}
 Object.assign(SIM,{SPEC_INFO,specValue,specCheck,grade,preFire});
+/* ===================== sim/explain.js: why the real motor differed from the bench (1.4) =====================
+   explainFiring(f, keys) walks from the bench's prediction (20 °C, the grade's and the parts' ratings) to the measured
+   motor one cause at a time, re-firing the same motor with each of the firing's own deviations added in turn:
+     temp     the grain at the slot's temperature instead of 20 °C
+     batch    the propellant batch's burn rate
+     igniter  the igniter's gas (start-up)
+     throat   the throat's wear rate
+     defect   a casting void or a grain crack, if the motor had one
+   Each step's change in the spec's numbers is its share; the steps add up exactly to measured minus predicted, because
+   the last one is the firing itself. The order is fixed (it matters a little: an effect on top of another is counted
+   with the later one). Only for firings that ran to the end: a destructive failure has its own ranked factors
+   (sim/fire.js), and a hang fire has no curve to explain.
+   keys: the spec numbers to show (sim/grade.js specValue keys); returns {keys, bench:[values], meas:[values],
+   steps:[{key, d:[change in each value]}]} or null. Pure: the same firing explains the same way. */
+const EXPLAIN_KEYS=["I","Fav","tb","Pmax","Fmax","prog","Isp"];
+function explainFiring(f,keys){
+  if(!f||!f.ok||!f.meas||f.failure&&(f.failure.destructive||f.failure.key==="hangfire"))return null;
+  keys=(keys||[]).filter(k=>EXPLAIN_KEYS.includes(k));
+  if(!keys.length)keys=["I","Pmax","tb"];
+  const m=f.motor,cond=f.cond,d=f.draws,V=VARIANCE,val=s=>keys.map(k=>specValue(k,s,m));
+  const sum=opts=>summarize(m,simulate(m,cond,opts));
+  const sBatch=sum({aMul:d.aMul}),sIgn=sum({aMul:d.aMul,ignMul:d.ignMul,ignLight:V.hangS});
+  const hook=areaHook(d),sThroat=hook?sum({aMul:d.aMul,ignMul:d.ignMul,ignLight:V.hangS,eroMul:d.eroMul}):f.meas.sum;
+  const chain=[["temp",f.pred.sum],["batch",sBatch],["igniter",sIgn],["throat",sThroat]];
+  if(hook)chain.push(["defect",f.meas.sum]);
+  let prev=val(f.pred20);const bench=prev,steps=[];
+  for(const[key,s]of chain){const v=val(s);steps.push({key,d:v.map((x,i)=>x-prev[i])});prev=v;}
+  return{keys,bench,meas:val(f.meas.sum),steps};}
+Object.assign(SIM,{EXPLAIN_KEYS,explainFiring});
+/* ===================== sim/scatter.js: the scatter predictor (the Computing room, 1.4) =====================
+   The bench's prediction is the ideal motor. The scatter fires SCATTER.n virtual copies of it with the real dice (the
+   same deviations a real firing draws, sim/fire.js drawVariance) so the player can see the spread before paying for a
+   range day. The dice come from seeds "scatter/1" ... "scatter/n": the same set every time, so the band only moves when
+   the design does, and never the seeds a real firing uses, so it can't tell you what the next motor on the stand rolls.
+   The app runs it a few motors at a time (scatterOne) so the bench never freezes.
+     scatterPrep(design, cond)  the motor and its full prediction at cond (the crack chance reads its start-up), shared by
+                                every virtual motor; null if the design can't be built
+     scatterOne(P, i, steps)    virtual motor i: {key (the failure, as sim/fire.js names them, or null), destructive,
+                                t and p (s, Pa: the failure moment), yielded, sum (its summary; null after a destructive
+                                failure or a hang fire), tr {t, p, f} (its trace; null with sum)}. A real firing's rules,
+                                at fewer solver steps (SCATTER.steps)
+     scatterBand(list, o)       the band: on a grid from 0 to the longest trace, the o.lo and o.hi fractions of the
+                                motors that ran to the end, for pressure and thrust. A motor that has burned out counts
+                                as its last pressure and no thrust. {t, pLo, pHi, fLo, fHi, n} or null if none ran
+     lotOdds(p, n, need)        the chance that at least `need` of n motors pass, each passing with chance p (a tender)
+   Pure and deterministic. */
+function scatterPrep(design,cond){
+  const m=motorFromDesign(design);if(!m.ok)return null;
+  cond=Object.assign({tGrain:TUNING.tRef},cond||{});
+  return{m,cond,pred:simulate(m,cond)};}
+function scatterOne(P,i,steps){
+  const m=P.m,d=drawVariance(m,P.cond,"scatter/"+i,P.pred);
+  const run=simulate(m,P.cond,Object.assign(varOpts(d,steps||SCATTER.steps),{dtMul:SCATTER.dtMul}));
+  let{failure,yielded}=scanFailure(m,run,limitsOf(m,d));
+  if(!failure&&run.chuffAny)failure={key:"chuff",destructive:false};
+  const keep=!(failure&&(failure.destructive||failure.key==="hangfire"));
+  return{key:failure?failure.key:null,destructive:!!(failure&&failure.destructive),t:failure?failure.t:null,p:failure?failure.p:null,yielded,
+    sum:keep?summarize(m,run):null,tr:keep?{t:run.t,p:run.p,f:run.f}:null};}
+/* a trace's value at time t (linear between samples; past the end, the last pressure and no thrust) */
+function traceAt(tr,t,key){
+  const T=tr.t,n=T.length;if(t>=T[n-1])return key==="f"?0:tr[key][n-1];
+  let lo=0,hi=n-1;while(hi-lo>1){const k=(lo+hi)>>1;if(T[k]<=t)lo=k;else hi=k;}
+  const u=T[hi]>T[lo]?(t-T[lo])/(T[hi]-T[lo]):0;return tr[key][lo]+(tr[key][hi]-tr[key][lo])*u;}
+function quant(sorted,q){const x=q*(sorted.length-1),i=Math.floor(x),u=x-i;return i+1<sorted.length?sorted[i]+(sorted[i+1]-sorted[i])*u:sorted[i];}
+function scatterBand(list,o){
+  o=Object.assign({},SCATTER,o||{});
+  const tr=list.filter(s=>s&&s.tr).map(s=>s.tr);if(!tr.length)return null;
+  let tMax=0;for(const x of tr)tMax=Math.max(tMax,x.t[x.t.length-1]);
+  const G=o.grid,out={t:[],pLo:[],pHi:[],fLo:[],fHi:[],n:tr.length};
+  for(let j=0;j<G;j++){const t=tMax*j/(G-1);out.t.push(t);
+    for(const k of["p","f"]){const v=tr.map(x=>traceAt(x,t,k)).sort((a,b)=>a-b);
+      out[k+"Lo"].push(quant(v,o.lo));out[k+"Hi"].push(quant(v,o.hi));}}
+  return out;}
+function lotOdds(p,n,need){
+  let s=0,c=1;   // c = n choose k, built up as k rises
+  for(let k=0;k<=n;k++){if(k>0)c=c*(n-k+1)/k;if(k>=need)s+=c*Math.pow(p,k)*Math.pow(1-p,n-k);}
+  return Math.min(1,Math.max(0,s));}
+Object.assign(SIM,{scatterPrep,scatterOne,scatterBand,lotOdds});
 /* ===================== sim/flight.js: flight tests (stage 6; plan section 6.10) =====================
    fly(thrust, rocket, wind) flies a point-mass rocket up a launch rail and on to apogee:
      m · dv/dt = F(t) − m·g − ½ · rho(h) · |v_air|² · Cd(Mach) · A
@@ -1747,7 +1846,7 @@ Object.assign(SIM,{airframeOf,defaultAirframe,rocketOf,airframeCost,machMul,fly,
 const CR=v=>Math.round(v);
 function newCareer(seed,name){
   return{seed:String(seed),name:String(name||"").slice(0,28)||"Saltpan Propulsion",day:1,money:CAREER.startMoney[1],tier:1,rep:0,
-    stands:{s3:true},bunker:0,hut:0,jobs:{},done:{},log:[],no:0,broke:0};}
+    stands:{s3:true},bunker:0,hut:0,compute:0,jobs:{},done:{},log:[],no:0,broke:0};}
 /* a firing slot's grain temperature: the hut fires at the contract's temperature, or the one the player set (hutT) */
 function slotTemp(slot,c,hutT){const s=SLOTS[slot]||SLOTS.dusk;if(!s.hut)return s.tGrain;
   if(c&&c.tGrain!=null)return c.tGrain;return Math.max(HUT.min,Math.min(HUT.max,hutT!=null?hutT:s.tGrain));}
@@ -1848,9 +1947,9 @@ function canBuy(car,id){const f=FACILITIES[id];if(!f)return"No such facility.";
   if(car.rep<f.need)return`The range wants reputation ${f.need} first (you have ${car.rep}).`;
   if(car.money<f.cost)return`It costs ${f.cost} cr; you have ${Math.max(0,car.money)} cr.`;
   return"";}
-function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:g.tier?car.tier>=g.tier:false;}
+function owns(car,id){const g=FACILITIES[id].give;return g.stand?!!car.stands[g.stand]:g.bunker?car.bunker>=g.bunker:g.hut?(car.hut|0)>=g.hut:g.compute?(car.compute|0)>=g.compute:g.tier?car.tier>=g.tier:false;}
 function buy(car,id){const e=canBuy(car,id);if(e)return e;const f=FACILITIES[id],g=f.give;car.money-=f.cost;
-  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.hut)car.hut=Math.max(car.hut|0,g.hut);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
+  if(g.stand)car.stands[g.stand]=true;if(g.bunker)car.bunker=Math.max(car.bunker,g.bunker);if(g.hut)car.hut=Math.max(car.hut|0,g.hut);if(g.compute)car.compute=Math.max(car.compute|0,g.compute);if(g.tier)car.tier=Math.max(car.tier,g.tier);return"";}
 /* the logbook keeps what's needed to fire the same motor again for its report: the dice come from the seed */
 function logFiring(car,e){car.no++;e.no=car.no;car.log.push(e);if(car.log.length>CAREER.logMax)car.log.splice(0,car.log.length-CAREER.logMax);return e;}
 function fireSeed(car,key,n){return car.seed+"/"+key+"/"+n;}
@@ -1969,7 +2068,11 @@ Object.assign(VIS,{fit,tokens,nice,divs});
 /* ===================== vis/chart.js: the predicted curves (plan section 9.3) =====================
    curves(cv, run, o) draws chamber pressure (left scale, MPa, the predicted blue) and thrust (right scale, N, graphite)
    against time. o (all optional): pYield (Pa: the case yield line, drawn when it fits on the scale), pMin (Pa: the grade's
-   stable minimum, dotted), cursor (s: a scrub line with dots on both traces). Hand-rolled Canvas 2D, no chart library. */
+   stable minimum, dotted), cursor (s: a scrub line with dots on both traces), band ({t, pLo, pHi, fLo, fHi}: the scatter
+   predictor's spread, shaded under each trace) and fails ([{t, p}]: where scatter motors failed, red crosses), readout
+   (lines of text for the cursor, drawn in a box beside it), port ((ctx, x, y, size, tokens) => draws the end view at the cursor,
+   in the readout's box). Hand-rolled Canvas 2D, no chart library. Returns the plot's geometry {L, w, tMax} so a tap can be
+   turned into a time. */
 function curves(cv,run,o){
   o=o||{};
   const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.5,260))),k=tokens();
@@ -1990,16 +2093,34 @@ function curves(cv,run,o){
   const ref=(p,col,dash,label)=>{if(!(p>0)||p/1e6>pMax*1.02)return;const y=Yp(p);c.save();c.setLineDash(dash);c.strokeStyle=col;c.lineWidth=1.25;
     c.beginPath();c.moveTo(L,y);c.lineTo(L+w,y);c.stroke();c.restore();c.fillStyle=col;c.textAlign="right";c.fillText(label,L+w-4,y-4);};
   ref(o.pYield,k.stencil,[6,4],"case yield");ref(o.pMin,k.warn,[2,3],"stable minimum");
+  /* the scatter band (behind the traces), clipped to the plot, and the failed motors' crosses */
+  if(o.band){const B=o.band,nb=B.t.length,area=(lo,hi,Y,col,al)=>{c.save();c.beginPath();c.rect(L,T,w,h);c.clip();c.globalAlpha=al;c.fillStyle=col;c.beginPath();
+      for(let i=0;i<nb;i++){const x=X(B.t[i]),y=Y(hi[i]);i?c.lineTo(x,y):c.moveTo(x,y);}for(let i=nb-1;i>=0;i--)c.lineTo(X(B.t[i]),Y(lo[i]));c.closePath();c.fill();c.restore();};
+    area(B.fLo,B.fHi,Yf,k.ink,0.13);area(B.pLo,B.pHi,Yp,k.pred,0.22);}
+  if(o.fails&&o.fails.length){c.save();c.strokeStyle=k.stencil;c.lineWidth=1.75;
+    for(const q of o.fails){const x=Math.min(L+w-4,X(q.t)),y=Math.max(T+4,Yp(q.p||0));c.beginPath();c.moveTo(x-3.5,y-3.5);c.lineTo(x+3.5,y+3.5);c.moveTo(x+3.5,y-3.5);c.lineTo(x-3.5,y+3.5);c.stroke();}c.restore();}
   const line=(arr,Y,col,wd)=>{c.strokeStyle=col;c.lineWidth=wd;c.lineJoin="round";c.beginPath();
     let lx=-9;for(let i=0;i<n;i++){const x=X(run.t[i]);if(i&&i<n-1&&x-lx<0.4)continue;lx=x;i?c.lineTo(x,Y(arr[i])):c.moveTo(x,Y(arr[i]));}c.stroke();};
   line(run.f,Yf,k.ink,1.5);line(run.p,Yp,k.pred,2.5);
   if(o.cursor!=null){const i=at(run,o.cursor),x=X(run.t[i]);c.strokeStyle=k.muted;c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(x,T);c.lineTo(x,T+h);c.stroke();c.setLineDash([]);
-    for(const[y,col]of[[Yf(run.f[i]),k.ink],[Yp(run.p[i]),k.pred]]){c.fillStyle=k.card;c.beginPath();c.arc(x,y,4.5,0,7);c.fill();c.strokeStyle=col;c.lineWidth=2;c.stroke();}}
+    for(const[y,col]of[[Yf(run.f[i]),k.ink],[Yp(run.p[i]),k.pred]]){c.fillStyle=k.card;c.beginPath();c.arc(x,y,4.5,0,7);c.fill();c.strokeStyle=col;c.lineWidth=2;c.stroke();}
+    if(o.readout)readoutBox(c,k,o.readout,x,L,T,w,h,o.port);}
+  return{L,w,tMax,T,h};
 }
+/* the cursor's readout: a card-coloured box beside the cursor (on whichever side has room), lines of mono text, and an
+   optional end view of the port drawn by port(ctx, x, y, size) at its top */
+function readoutBox(c,k,lines,x,L,T,w,h,port){
+  c.save();c.font=`10px ${k.mono}`;
+  const lh=13,pad=6,ps=port?Math.min(54,h*0.42):0,tw=Math.max(ps,...lines.map(s=>c.measureText(s).width)),bw=tw+pad*2,bh=lines.length*lh+pad*2+(ps?ps+4:0);
+  const right=x+10+bw<=L+w,bx=right?x+10:Math.max(L,x-10-bw),by=T+4;
+  c.globalAlpha=0.93;c.fillStyle=k.card;c.fillRect(bx,by,bw,bh);c.globalAlpha=1;c.strokeStyle=k.line;c.lineWidth=1;c.strokeRect(bx+.5,by+.5,bw-1,bh-1);
+  if(ps)port(c,bx+pad+(tw-ps)/2,by+pad,ps,k);
+  c.fillStyle=k.ink;c.textAlign="left";c.textBaseline="top";
+  lines.forEach((s,j)=>c.fillText(s,bx+pad,by+pad+(ps?ps+4:0)+j*lh));c.restore();}
 /* the sample index at or just after time t (binary search; run.t only rises) */
 function at(run,t){let lo=0,hi=run.t.length-1;if(t<=run.t[0])return 0;if(t>=run.t[hi])return hi;
   while(hi-lo>1){const m=(lo+hi)>>1;if(run.t[m]<t)lo=m;else hi=m;}return hi;}
-Object.assign(VIS,{curves,at});
+Object.assign(VIS,{curves,at,readoutBox});
 /* ===================== vis/section.js: the motor cross-section (plan section 9.2) =====================
    section(cv, motor, x, info) draws the motor cut along its axis (forward closure on the left, nozzle on the right) with
    the grain burned back by web distance x (m), and under it an end-on view of the aft segment's port. info: lines of text
@@ -2027,6 +2148,17 @@ function lsCut(tab,x){
   for(let j=0;j<=N;j++){const v=j<N?tab.s[j*N+i]:NaN,solid=v===v&&v>=0&&v>x;
     if(solid&&a<0)a=j;else if(!solid&&a>=0){out.push([-R+a*c,-R+j*c,a>0&&tab.s[(a-1)*N+i]===tab.s[(a-1)*N+i],j<N&&v===v]);a=-1;}}
   return out;}   // [y0, y1, burning below, burning above]
+/* the end view of the aft segment at web distance x (looking forward from the nozzle): case, liner, propellant, the
+   burning front; a disc dE across centred on (cx, cy). The bench's chart readout draws it too (vis/chart.js). */
+function endView(c,m,x,cx,cyE,dE,k){
+  const R0=m.id/2+m.wall,sE=dE/2/R0,G=m.grain,g=G.segs[G.segs.length-1];
+  const disc=(r,col)=>{c.fillStyle=col;c.beginPath();c.arc(cx,cyE,Math.max(0,r*sE),0,7);c.fill();};
+  disc(R0,k.metal);disc(m.id/2,k.liner);disc(m.od/2,k.card);
+  if(g.kind==="ls"){const tab=g.pieces[g.pieces.length-1].tab,im=lsImage(tab,x,Math.max(tab.c,1.3/sE),k);
+    c.save();c.beginPath();c.arc(cx,cyE,g.R*sE,0,7);c.clip();c.imageSmoothingEnabled=true;c.drawImage(im,cx-g.R*sE,cyE-g.R*sE,2*g.R*sE,2*g.R*sE);c.restore();}
+  else if(x<g.web){
+    disc(g.R,g.kind==="end"?k.burn:k.prop);
+    if(g.kind!=="end"){const r=g.rc+x;disc(r,k.card);c.strokeStyle=k.burn;c.lineWidth=2;c.beginPath();c.arc(cx,cyE,r*sE,0,7);c.stroke();}}}
 function section(cv,m,x,info,h){
   const{c,W,H}=fit(cv,h||(w=>Math.min(w*0.62,300))),k=tokens(),T=BURN_SIM.TUNING;
   const G=m.grain,id=m.id,R0=id/2+m.wall,clThk=T.closureThk*id,len=m.length,pad=10;
@@ -2075,21 +2207,15 @@ function section(cv,m,x,info,h){
   /* the axis */
   c.strokeStyle=k.muted;c.lineWidth=1;c.setLineDash([8,3,2,3]);c.beginPath();c.moveTo(X(0)-4,cy);c.lineTo(X(len)+4,cy);c.stroke();c.setLineDash([]);
   /* end view of the aft segment (looking forward from the nozzle) */
-  const top=cy+Y(R0)+12,dE=Math.max(36,Math.min(H-top-4,W*0.4)),cx=pad+dE/2,cyE=top+dE/2,sE=dE/2/R0,g=G.segs[G.segs.length-1];
-  const disc=(r,col)=>{c.fillStyle=col;c.beginPath();c.arc(cx,cyE,Math.max(0,r*sE),0,7);c.fill();};
-  disc(R0,k.metal);disc(id/2,k.liner);disc(m.od/2,k.card);
-  if(g.kind==="ls"){const tab=g.pieces[g.pieces.length-1].tab,im=lsImage(tab,x,Math.max(tab.c,1.3/sE),k);
-    c.save();c.beginPath();c.arc(cx,cyE,g.R*sE,0,7);c.clip();c.imageSmoothingEnabled=true;c.drawImage(im,cx-g.R*sE,cyE-g.R*sE,2*g.R*sE,2*g.R*sE);c.restore();}
-  else if(x<g.web){
-    disc(g.R,g.kind==="end"?k.burn:k.prop);
-    if(g.kind!=="end"){const r=g.rc+x;disc(r,k.card);c.strokeStyle=k.burn;c.lineWidth=2;c.beginPath();c.arc(cx,cyE,r*sE,0,7);c.stroke();}}
+  const top=cy+Y(R0)+12,dE=Math.max(36,Math.min(H-top-4,W*0.4));
+  endView(c,m,x,pad+dE/2,top+dE/2,dE,k);
   /* the readouts beside the end view, in columns of up to three lines */
   c.textAlign="left";c.textBaseline="top";
   const lines=info||[],rows=Math.min(3,lines.length),lh=Math.min(17,(H-top)/rows),colW=Math.max(96,(W-pad-dE-14)/2);
   lines.forEach((ln,i)=>{const col=Math.floor(i/rows),row=i%rows;c.font=i?`11px ${k.mono}`:`600 12px ${k.mono}`;c.fillStyle=i?k.muted:k.ink;
     c.fillText(ln,pad+dE+14+col*colW,top+4+row*lh);});
 }
-Object.assign(VIS,{section});
+Object.assign(VIS,{section,endView});
 /* ===================== vis/strip.js: the firing's strip chart (plan sections 4 and 9.3) =====================
    strip(cv, o) draws two panels on one time axis: chamber pressure on top, thrust below. The prediction (blue, thin) is
    drawn whole; the measured trace (red, heavy) is drawn up to o.upto seconds, so the firing screen can reveal it live and
@@ -2097,7 +2223,9 @@ Object.assign(VIS,{section});
    a burst runs off the top of the chart instead of giving itself away before it happens.
    o: {h, pred:{t,p,f}, meas:{t,p,f}, upto, pLine (Pa, the case's burst rating), mark:{t,label} (the failure moment),
        events:[{t,label}] (a void, a crack), now (true: draw a pen dot at the head of the measured trace), others (more measured
-       traces, faint), fix ({W, dpr}: a set size, for the share card)} */
+       traces, faint), fix ({W, dpr}: a set size, for the share card), cursor (s: a tapped moment, a line through both panels
+       with a dot on each trace), readout (lines of text for it, in a box)}. Returns the plot's {L, w, tMax}, so a tap can
+       be turned into a time. */
 function strip(cv,o){
   const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,300)),o.fix),k=tokens();
   const P=o.pred,M=o.meas,nP=P.t.length,nM=M.t.length;
@@ -2138,6 +2266,12 @@ function strip(cv,o){
     c.globalAlpha=0.85;trace(P,nP,pn,k.pred,1.5,Infinity);c.globalAlpha=1;
     const last=trace(M,nM,pn,k.meas,2.4,upto);
     if(o.now&&last>=0){const x=X(M.t[last]),y=Math.max(pn.y0,pn.Y(pn.get(M,last)));c.fillStyle=k.meas;c.beginPath();c.arc(x,y,3.5,0,7);c.fill();}}
+  /* the tapped moment: a line, a dot on each trace (clamped into its panel), and the readout */
+  if(o.cursor!=null){const t=o.cursor,x=X(t);c.save();c.strokeStyle=k.muted;c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(x,T);c.lineTo(x,H-B);c.stroke();c.restore();
+    for(const pn of panels)for(const[s,col]of[[P,k.pred],[M,k.meas]]){if(t>s.t[s.t.length-1])continue;const i=at(s,t),y=Math.max(pn.y0,Math.min(pn.y0+pn.h,pn.Y(pn.get(s,i))));
+      c.fillStyle=k.card;c.beginPath();c.arc(x,y,4,0,7);c.fill();c.strokeStyle=col;c.lineWidth=2;c.stroke();}
+    if(o.readout)readoutBox(c,k,o.readout,x,L,T,w,H-T-B,null);}
+  return{L,w,tMax};
 }
 Object.assign(VIS,{strip});
 /* ===================== vis/stand.js: the test stand, a 2D placeholder (plan section 9.3; stage 7 makes it 3D) =====================
@@ -2829,7 +2963,7 @@ return{unlock,setOn,stop,beep,voice:{lang:voiceLang,preload:voicePreload,ready:v
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="1.3.0.0";
+const VERSION="1.4.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -2837,7 +2971,7 @@ const degC=t=>(t<0?"−":"")+Math.abs(t)+" °C";
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---- settings (this phone only): brn-settings ---- */
-const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,voice:"en",gfx:"auto",coach:true,seen:{}};
+const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,voice:"en",gfx:"auto",coach:true,seen:{},scatter:true};
 let SETTINGS=Object.assign({},SET_DEF);
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem(SET_KEY)||"null");if(o&&typeof o==="object"&&!Array.isArray(o))SETTINGS=Object.assign({},SET_DEF,o);}catch(e){}}
 function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS));}catch(e){}}
@@ -2957,6 +3091,8 @@ const GLOSS={
   railSpeed:{t:"Rail exit speed",d:"How fast the rocket is moving when it leaves the 3 m launch rail. Until then the rail steers it; after that only the fins do, and they need airflow. Under about 15 m/s a gust can tip the rocket over, so a slow motor needs a light rocket."},
   twr:{t:"Thrust-to-weight",d:"How many times the rocket's weight the motor pushes at liftoff. Under 1 it never leaves the pad. Around 5 or more it clears the rail briskly; a lower number climbs slowly and leans with the wind."},
   wind:{t:"Wind",d:"The wind on the rail changes every day. A rocket turns to face the air flowing past it, so in a crosswind it leans into the wind (weathercocking), flies a curved path and loses a little height. The predictor assumes still air."},
+  scatter:{t:"The scatter",d:"The computing room fires your design 40 times in the computer, each motor with its own dice: a batch a little fast or slow, a case a little strong or weak, now and then a void or a crack, all at the predictor's grain temperature. The shaded band holds the middle 80% of the motors that ran to the end; a red cross marks each one that failed, where it failed. The same 40 sets of dice every time, so the band only moves when the design does. It can't tell you what the next motor on the stand will roll."},
+  whyDiffer:{t:"Why it differed from the bench",d:"The bench predicts the ideal motor at 20 °C. The report re-fires the same motor in the computer, adding this firing's real deviations one at a time (the slot's grain temperature, then the propellant batch, the igniter, the throat's wear, and any void or crack), so each row shows how much that cause moved the numbers. The rows add up to what the stand measured."},
   variance:{t:"Prediction and reality",d:"Every real motor is a little different from its numbers: the propellant batch burns a touch fast or slow, the case tube is a little stronger or weaker, the igniter gives a little more or less. Margins are what keep a motor safe through all of it."},
   castingVoid:{t:"Casting void",d:"A hidden bubble inside the grain. When the flame front reaches it, the cavity's surface burns too: a sudden jump in burning area and a pressure bump. Bigger grains and more segments make one more likely."},
   grainCrack:{t:"Grain crack",d:"A crack in the propellant adds a lot of burning area at once and keeps it for the rest of the burn. A cold grain and a harsh, fast start make cracks more likely. A gentler igniter and a warmer slot help."},
@@ -3085,7 +3221,7 @@ function hydrate(o){
   for(let v=o.v;v<SAVE_V;v++){if(!MIGRATE[v])return false;o=MIGRATE[v](o);o.v=v+1;}
   if(o.career!=null&&!careerOk(o.career))return false;
   if(!designOk(o.free)||!dailyOk(o.daily)||!dailyHistOk(o.dailyHist)||!sandboxOk(o.sandbox))return false;
-  if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
+  if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;if(!isNum(o.career.compute))o.career.compute=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
   S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0,hutT:isNum(o.hutT)?o.hutT:20,daily:o.daily||null,dailyHist:o.dailyHist||{},sandbox:o.sandbox||{designs:{},n:0}});
   return true;}
 function readKey(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return isObj(o)?o:null;}catch(e){return null;}}
@@ -3351,7 +3487,8 @@ if(typeof document!=="undefined"){   // (check-savecode.js loads this file in no
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
-const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref"};
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref",geom:null,insp:false,inspT:0};
+const INSP_HOLD=2500;   // ms the chart's readout stays up after the finger lifts
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
 const tabsNow=()=>isFlight()?TABS.concat([["airframe","Rocket"]]):TABS;
 const FLAG_SHORT={burst:"Case bursts",yield:"Case yields",sf:"Thin margin",closure:"Closures",chuff:"Chuffing",pt:"Narrow port",
@@ -3462,7 +3599,8 @@ function schedule(fast){
   if(DZ.raf)return;
   DZ.raf=requestAnimationFrame(()=>{DZ.raf=0;const f=DZ.fast;DZ.fast=null;
     DZ.res=BURN_SIM.predict(DZ.d,BURN_SIM.standCond(GAME.contract,{tGrain:DZ.tGrain}),f?{steps:DRAG_STEPS}:undefined);
-    DZ.fl=isFlight()&&DZ.res.ok?BURN_SIM.predictFlight(DZ.d,DZ.res.motor,DZ.res.run,payloadKg()):null;drawAll();});}
+    DZ.fl=isFlight()&&DZ.res.ok?BURN_SIM.predictFlight(DZ.d,DZ.res.motor,DZ.res.run,payloadKg()):null;
+    if(f)scatterStale();drawAll();if(!f)scatterKick();});}
 /* the bench's numbers for the spec: a flight job's apogee is the predicted flight's */
 function benchSum(){const r=DZ.res;return r&&r.ok?isFlight()?Object.assign({},r.sum,{apogee:DZ.fl?DZ.fl.apogee:NaN}):r.sum:null;}
 /* a flight job's launch checks: crit = what stops the range launching it (sim/flight.js preLaunch), warn = a slow start */
@@ -3523,7 +3661,12 @@ function drawView(){
   const r=DZ.res;if(!r||!r.ok)return;
   const run=r.run,m=r.motor,tEnd=run.t[run.t.length-1],t=DZ.scrub*tEnd,i=BURN_VIS.at(run,t);
   const info=[`t ${run.t[i].toFixed(2)} s`,`${(run.p[i]/1e6).toFixed(2)} MPa`,`${Math.round(run.f[i])} N`,`Kn ${Math.round(run.kn[i])}`,`web ${Math.min(100,Math.round(run.x[i]/run.web*100))}% burned`];
-  if(DZ.view==="curves"){BURN_VIS.curves($("dzCv"),run,{h:VIEW_H,pYield:m.pYield,pMin:m.prop.pMin*1e6,cursor:run.t[i]});}
+  if(DZ.view==="curves"){
+    /* tap the curve (1.4): while a finger is on the chart, and a moment after, a readout box with the end view of the port */
+    const ins=DZ.insp?{readout:[`t ${run.t[i].toFixed(2)} s`,`${(run.p[i]/1e6).toFixed(2)} MPa`,`${Math.round(run.f[i])} N`,`Kn ${Math.round(run.kn[i])}`,
+      `burning ${(run.kn[i]*run.at[i]*1e4).toFixed(run.kn[i]*run.at[i]*1e4<100?1:0)} cm²`,`web ${Math.min(100,Math.round(run.x[i]/run.web*100))}% gone`],
+      port:(c,x,y,s,k)=>BURN_VIS.endView(c,m,run.x[i],x+s/2,y+s/2,s,k)}:{};
+    DZ.geom=BURN_VIS.curves($("dzCv"),run,Object.assign({h:VIEW_H,pYield:m.pYield,pMin:m.prop.pMin*1e6,cursor:run.t[i]},scatterDraw()||{},ins));}
   else{BURN_VIS.section($("dzCv"),m,run.x[i],info,VIEW_H);}
   $("dzScrubV").textContent=info.slice(0,2).join(" · ");
   $("dzCv").setAttribute("aria-label",DZ.view==="curves"?`Predicted pressure and thrust. Peak ${(r.sum.Pmax/1e6).toFixed(2)} MPa, average thrust ${Math.round(r.sum.Fav)} N over ${r.sum.tb.toFixed(2)} s.`
@@ -3574,12 +3717,23 @@ function initDesigner(){
   if(DZ.inited)return;DZ.inited=true;
   $("dzTabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;DZ.tab=b.dataset.tab;renderPanel();});
   $("dzView").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view);});
-  /* swipe the live view left or right to switch between the curves and the cross-section */
+  /* on the cross-section, swipe left or right to go back to the curves (Kelbo, 14 November 2026: on the curves a drag
+     scrubs instead) */
   let sx=0,sy=0;const cv=$("dzCv");
   cv.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
-  cv.addEventListener("touchend",e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
-    if(Math.abs(dx)>50&&Math.abs(dy)<40)setView(DZ.view==="curves"?"section":"curves");},{passive:true});
+  cv.addEventListener("touchend",e=>{if(DZ.view!=="section")return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>50&&Math.abs(dy)<40)setView("curves");},{passive:true});
+  /* on the curves, a finger (or the mouse) on the chart moves the time cursor and shows the readout; the canvas keeps
+     touch-action pan-y, so an up-and-down drag still scrolls the page */
+  const scrubTo=e=>{const g=DZ.geom,r=DZ.res;if(!g||!r||!r.ok)return;const b=cv.getBoundingClientRect(),run=r.run,tEnd=run.t[run.t.length-1];
+    const t=(e.clientX-b.left-g.L)/g.w*g.tMax;DZ.scrub=Math.max(0,Math.min(1,t/tEnd));$("dzScrub").value=Math.round(DZ.scrub*1000);drawView();};
+  let held=false;
+  cv.addEventListener("pointerdown",e=>{if(DZ.view!=="curves")return;held=true;clearTimeout(DZ.inspT);DZ.insp=true;try{cv.setPointerCapture(e.pointerId);}catch(err){}scrubTo(e);});
+  cv.addEventListener("pointermove",e=>{if(held)scrubTo(e);});
+  const lift=()=>{if(!held)return;held=false;clearTimeout(DZ.inspT);DZ.inspT=setTimeout(()=>{DZ.insp=false;drawView();},INSP_HOLD);};
+  cv.addEventListener("pointerup",lift);cv.addEventListener("pointercancel",lift);
   $("dzScrub").addEventListener("input",e=>{DZ.scrub=+e.target.value/1000;drawView();});
+  $("dzScat").addEventListener("click",e=>{if(e.target.closest("#dzScatBtn"))toggleScatter();});
   const P=$("dzPanel");
   P.addEventListener("input",e=>{const f=e.target.dataset.slide;if(!f)return;change(f,+e.target.value,true);refreshReadouts();});
   P.addEventListener("change",e=>{const f=e.target.dataset.slide;if(!f)return;change(f,+e.target.value,false);renderPanel();});
@@ -3630,6 +3784,72 @@ window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.b
   const cur=curScreen();if(cur==="title")return;
   const p=parentScreen(cur);if(p==="fire"){try{history.pushState({brnScreen:1},"");}catch(err){}return;}
   if(p==="logbook")openLogbook();else showScreen(p);if(p==="design"&&DZ.res)drawAll();});
+/* ===================== app/scatter.js: the scatter predictor on the bench (1.4) =====================
+   Kelbo's rules (14 November 2026): a facility, the Computing room (data/career.js); always on in the Sandbox, never in
+   the Daily Spec; the free bench has it once the saved career owns the room. With it switched on (the Scatter button
+   under the bench's chart, remembered on this phone in brn-settings as SETTINGS.scatter), SCATTER.n virtual motors
+   (sim/scatter.js) rerun about a second after the design or the predictor's temperature stops changing, a few at a time
+   between frames so the bench never freezes. The band (the middle 80% of the motors) and a mark for each motor that
+   failed go on the curves; the line under the chart counts passes, failures and spec misses, and on a tender the
+   chance that a lot of five is accepted. A flight job's motors are graded on the motor's own numbers (no flight). */
+const SCAT_WAIT=900,SCAT_SLICE=22;   // ms after the last change before it starts; ms of work between frames
+const SC={key:"",gen:0,P:null,list:[],i:0,timer:0,band:null,fails:[],done:false};
+const scatterAvail=()=>!isDaily()&&(isSandbox()||!!(S.career&&(S.career.compute|0)>0));
+const scatterOn=()=>scatterAvail()&&SETTINGS.scatter!==false;
+/* what the scatter depends on: the design, the predictor's temperature and the stand's air */
+const scatterKey=()=>JSON.stringify([DZ.d,DZ.tGrain,GAME.contract&&GAME.contract.stand]);
+/* the design moved (a drag in progress): the band no longer fits, so it goes until the design settles */
+function scatterStale(){if(SC.key&&SC.key!==scatterKey()){clearTimeout(SC.timer);SC.gen++;SC.key="";SC.band=null;SC.fails=[];SC.done=false;}}
+/* after a full prediction: start a new scatter if anything it depends on changed */
+function scatterKick(){
+  drawScatterLine();
+  if(!scatterOn()||!DZ.res||!DZ.res.ok)return;
+  const key=scatterKey();if(key===SC.key)return;
+  clearTimeout(SC.timer);const gen=++SC.gen;
+  Object.assign(SC,{key,P:null,list:[],i:0,band:null,fails:[],done:false});drawScatterLine();
+  SC.timer=setTimeout(()=>scatterRun(gen),SCAT_WAIT);}
+function scatterRun(gen){
+  if(gen!==SC.gen)return;
+  if(!SC.P){SC.P=BURN_SIM.scatterPrep(DZ.d,BURN_SIM.standCond(GAME.contract,{tGrain:DZ.tGrain}));if(!SC.P)return;}
+  const t0=performance.now(),N=BURN_SIM.SCATTER.n;
+  while(SC.i<N&&performance.now()-t0<SCAT_SLICE){SC.i++;SC.list.push(BURN_SIM.scatterOne(SC.P,SC.i));}
+  if(SC.i<N){drawScatterLine();SC.timer=setTimeout(()=>scatterRun(gen),0);return;}
+  SC.band=BURN_SIM.scatterBand(SC.list);
+  SC.fails=SC.list.filter(s=>s.destructive).map(s=>({t:s.t,p:s.p}));
+  SC.done=true;drawScatterLine();if(DZ.view==="curves")drawView();}
+/* the scatter's counts: passes (and letters, with a contract), each failure, spec misses */
+function scatterStats(){
+  const c=GAME.contract,out={n:SC.list.length,pass:0,letters:{A:0,B:0,C:0},fail:{},miss:0,yld:0};
+  const spec=c?c.spec.filter(x=>x.k!=="apogee"):null,cc=c?Object.assign({},c,{spec}):null;
+  for(const s of SC.list){
+    if(s.key){out.fail[s.key]=(out.fail[s.key]||0)+1;continue;}   // every failure, chuffing included, earns no grade
+    if(!cc){if(s.yielded)out.yld++;else out.pass++;continue;}
+    const g=BURN_SIM.grade(cc,{ok:true,failure:null,meas:{sum:s.sum},motor:SC.P.m,yielded:s.yielded});
+    if(g.pass){out.pass++;out.letters[g.letter]++;}else if(g.why==="yield")out.yld++;else out.miss++;}
+  return out;}
+const SCAT_WORD={cato:"burst",eject:"lost the nozzle",burnthrough:"burned through",hangfire:"never lit",chuff:"chuffed"};
+function drawScatterLine(){
+  const el=$("dzScat");if(!el)return;
+  if(!scatterAvail()){el.hidden=true;return;}
+  el.hidden=false;const on=SETTINGS.scatter!==false,N=BURN_SIM.SCATTER.n;
+  let txt="";
+  if(!on)txt="Off: tap to fire "+N+" virtual motors with the real dice.";
+  else if(!DZ.res||!DZ.res.ok)txt="";
+  else if(!SC.key)txt="Waiting for the design to settle…";
+  else if(!SC.done)txt=SC.i?`Firing virtual motors… ${SC.i} of ${N}`:"Starting…";
+  else{const st=scatterStats(),c=GAME.contract,bits=[];
+    bits.push(`${st.pass} of ${st.n} ${c?"pass":"clean"}${c&&st.pass?` (${["A","B","C"].filter(l=>st.letters[l]).map(l=>st.letters[l]+" "+l).join(", ")})`:""}`);
+    for(const k in st.fail)bits.push(`${st.fail[k]} ${SCAT_WORD[k]||k}`);
+    if(st.miss)bits.push(`${st.miss} miss the spec`);
+    if(st.yld)bits.push(`${st.yld} yield the case`);
+    txt=bits.join(" · ");
+    if(c&&c.lot){const L=BURN_SIM.CAREER.lot;txt+=` · a lot of ${L.n}: ${Math.round(BURN_SIM.lotOdds(st.pass/st.n,L.n,L.need)*100)}% accepted`;}
+    if(c&&c.flight)txt+=" · motor only, no flight";}
+  el.innerHTML=`<button type="button" class="btn sm${on?" on":""}" id="dzScatBtn" aria-pressed="${on}">Scatter</button><span class="mono" aria-live="polite">${esc(txt)}</span><button type="button" class="gl" data-g="scatter" aria-label="What the scatter shows">?</button>`;}
+function toggleScatter(){SETTINGS.scatter=SETTINGS.scatter===false;saveSettings();
+  if(SETTINGS.scatter){SC.key="";scatterKick();}else{clearTimeout(SC.timer);SC.gen++;Object.assign(SC,{key:"",band:null,fails:[],done:false});drawScatterLine();drawView();}}
+/* the band and failure marks for the bench's curves, when they fit the design on the bench */
+const scatterDraw=()=>scatterOn()&&SC.done&&SC.key===scatterKey()?{band:SC.band,fails:SC.fails}:null;
 /* ===================== app/game.js: the way from a work order to the stand (stages 3 and 4) =====================
    GAME holds what's on screen now: the mode ("career" or "free"), the contract on the bench, the firing slot picked, the
    last firing. Everything kept lives in S (app/save.js): the career (sim/career.js's object, plus career.designs, the
@@ -3923,7 +4143,8 @@ document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-buy
   const err=BURN_SIM.buy(car,id);if(err){toast(err);return;}save(true);closeSheet();renderBoard();
   const g=BURN_SIM.FACILITIES[id].give;
   toast(g.stand?`${BURN_SIM.STANDS[g.stand].name} is yours${g.tier?`: tier ${g.tier} parts and work are open.`:`: its work is open on the board.`}`
-    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
+    :g.hut?"The conditioning hut is yours: pick it as the firing slot and set its temperature."
+    :g.compute?"The computing room is yours: the bench's Scatter button fires 40 virtual motors with the real dice.":`${BURN_SIM.FACILITIES[id].name}: installed.`,3600);});
 
 /* ---- the logbook ---- */
 function openLogbook(){
@@ -4295,17 +4516,53 @@ function renderReport(){
       <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${LT?`lot of ${LT.fires.length}, motor ${LT.sel+1} below`:`${fly?"launch":"motor"} ${L.n}`}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
     ${broke}${dl}${LT?lotCard(L):""}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
-      <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
+      <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured<span class="tap">Tap the chart to read it</span></p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
       ${fixes.length?`<h3>Where to fix it</h3><div class="row">${fixes.map(fd=>`<button type="button" class="btn" data-goto="${fd}">${esc(ctlSpec(fd).label)} ›</button>`).join("")}</div>`:""}</section>`:""}
+    ${whyCard(L,f,c,tG)}
     ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
     <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
     ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
       <p class="hint"><button type="button" class="gl" data-g="blockhouse">The blockhouse</button>. ${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
     <div class="rp-act">${act}${canShareSheet(L)?`<button type="button" class="btn" id="rpSheet">Data sheet</button>`:""}</div>`;
-  drawReportChart();}
+  initReportTap();drawReportChart();}
+/* "Why it differed from the bench" (1.4): on a firing that ran to the end, what moved the real motor away from the
+   bench's 20 °C prediction, one cause at a time (sim/explain.js), as a share of each spec number. With the basic logger
+   only the temperature and the batch are split out; the rest is one "everything else" row. Worked out once per firing. */
+const WHY_SHORT={I:"Impulse",Fav:"Avg thrust",tb:"Burn time",Pmax:"Peak MPa",Fmax:"Peak N",prog:"Shape",Isp:"Isp"};
+const WHY_CACHE=new WeakMap();
+function whyKeys(c){
+  const out=[];for(const x of c?c.spec:[])if(BURN_SIM.EXPLAIN_KEYS.includes(x.k)&&!out.includes(x.k))out.push(x.k);
+  for(const k of["Pmax","I","tb"])if(out.length<3&&!out.includes(k))out.push(k);
+  return out.slice(0,3);}
+function whyCard(L,f,c,tG){
+  if(!f.ok||f.failure&&(f.failure.destructive||f.failure.key==="hangfire"))return"";
+  let ex=WHY_CACHE.get(f);if(ex===undefined){ex=BURN_SIM.explainFiring(f,whyKeys(c));WHY_CACHE.set(f,ex);}
+  if(!ex)return"";
+  const d=f.draws,full=L.bunker>=1,b=ex.bench;
+  const label={temp:`${tG>20?"Warm":"Cold"} grain, ${degC(tG)}`,batch:`Propellant batch, ${pctS(d.aMul-1)} burn rate`,
+    igniter:`Igniter, ${pctS(d.ignMul-1)} gas`,throat:`Throat wear ×${d.eroMul.toFixed(2)}`,
+    defect:d.void&&d.crack?"Void and crack":d.void?`Casting void, +${Math.round(d.void.frac*100)}% area`:`Grain crack, +${Math.round((d.crack||{frac:0}).frac*100)}% area`};
+  let rows=ex.steps.map(s=>({key:s.key,text:label[s.key],d:s.d}));
+  if(!full){const rest=rows.filter(r=>r.key!=="temp"&&r.key!=="batch");
+    rows=rows.filter(r=>r.key==="temp"||r.key==="batch");
+    if(rest.length)rows.push({key:"rest",text:"Everything else",d:b.map((_,i)=>rest.reduce((a,r)=>a+r.d[i],0))});}
+  const rel=(v,i)=>Math.abs(b[i])>1e-12?v/Math.abs(b[i]):0;
+  rows=rows.filter(r=>r.d.some((v,i)=>Math.abs(rel(v,i))>=0.005));
+  const cell=(v,i)=>{const r=rel(v,i);return Math.abs(r)<0.005?"·":pctS(r);};
+  let top=null;for(const r of rows)r.d.forEach((v,i)=>{const a=Math.abs(rel(v,i));if(!top||a>top.a)top={a,r,i,v};});
+  const what=k=>({I:"total impulse",Fav:"average thrust",tb:"burn time",Pmax:"peak pressure",Fmax:"peak thrust",prog:"the curve shape",Isp:"specific impulse"})[k];
+  const head=top?`The biggest mover: ${top.r.key==="rest"?"the deviations the basic logger can't split out":top.r.text.charAt(0).toLowerCase()+top.r.text.slice(1)}, ${pctS(rel(top.v,top.i))} ${what(ex.keys[top.i])}.`
+    :"The real motor fired within half a percent of the bench on every number.";
+  const th=ex.keys.map(k=>`<th>${esc(WHY_SHORT[k])}</th>`).join("");
+  return`<section class="card rp-why"><h3><button type="button" class="gl" data-g="whyDiffer">Why it differed from the bench</button></h3><p>${esc(head)}</p>
+    <table class="dtab mono why"><thead><tr><th></th>${th}</tr></thead><tbody>
+    <tr><th>Bench, 20 °C</th>${ex.bench.map((v,i)=>`<td>${fmtSpec(ex.keys[i],v)}</td>`).join("")}</tr>
+    ${rows.map(r=>`<tr class="${r===(top&&top.r)?"top":""}"><th>${esc(r.text)}</th>${r.d.map((v,i)=>`<td>${cell(v,i)}</td>`).join("")}</tr>`).join("")}
+    <tr class="sep"><th>Measured</th>${ex.meas.map((v,i)=>`<td><b>${fmtSpec(ex.keys[i],v)}</b></td>`).join("")}</tr></tbody></table>
+    <p class="hint">${full?"Each row adds one of this motor's own deviations to the one above, so they add up to what the stand measured.":"The basic data logger splits out only the grain temperature and the batch. Blockhouse instruments (Facilities) would name the rest: igniter, throat wear, voids and cracks."}</p></section>`;}
 /* a tender's lot: one row per motor (tap one to read its details below), and the rule it was judged by */
 function lotCard(L){const LT=L.lot,G=LT.gl,R=BURN_SIM.CAREER.lot;
   const rows=LT.fires.map((f,i)=>{const g=G.grades[i],s=f.meas.sum,res=g.pass?`Pass ${g.letter}`:(STAMP[g.why]||"Fail");
@@ -4334,8 +4591,22 @@ function flightCard(f,tG){
 function drawReportChart(){
   const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.lot?L.lot.fires[L.lot.sel]:L.f,fl=f.failure,fly=f.flight;
   if(fly&&$("rpFly"))BURN_VIS.altitude($("rpFly"),{pred:f.fpred.samples,meas:fly.samples,apoP:f.fpred.apogee,apoM:fly.apogee,lost:fly.lost?{t:fly.tLost,h:fly.hLost}:null});
-  BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
-    events:f.events.map(e=>({t:e.t,label:e.key})),others:L.lot?L.lot.fires.filter(x=>x!==f).map(x=>x.log):null});}
+  /* a tapped moment (1.4): predicted against measured, as the strip's readout */
+  let rd=null;const t=RP_CUR.t;
+  if(t!=null&&RP_CUR.f===f){const A=f.plog,M=f.log,ia=BURN_VIS.at(A,t),im=BURN_VIS.at(M,t),aOn=t<=A.t[A.t.length-1],mOn=t<=M.t[M.t.length-1];
+    const row=(w,on,s,i)=>`${w} ${on?`${(s.p[i]/1e6).toFixed(2)} MPa  ${Math.round(s.f[i])} N`:"burned out"}`;
+    rd=[`t ${t.toFixed(2)} s`,row("pred",aOn,A,ia),row("meas",mOn,M,im)];}
+  RP_GEOM=BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
+    events:f.events.map(e=>({t:e.t,label:e.key})),others:L.lot?L.lot.fires.filter(x=>x!==f).map(x=>x.log):null,cursor:rd?t:null,readout:rd});}
+/* tap or drag on the report's chart to read both traces at that moment; it stays until the report changes */
+let RP_GEOM=null;const RP_CUR={t:null,f:null};
+function initReportTap(){
+  const cv=$("rpCv");if(!cv||cv.dataset.tap)return;cv.dataset.tap="1";let held=false;
+  const to=e=>{const L=GAME.last,g=RP_GEOM;if(!L||!g)return;const b=cv.getBoundingClientRect();
+    RP_CUR.t=Math.max(0,Math.min(g.tMax,(e.clientX-b.left-g.L)/g.w*g.tMax));RP_CUR.f=L.lot?L.lot.fires[L.lot.sel]:L.f;drawReportChart();};
+  cv.addEventListener("pointerdown",e=>{held=true;try{cv.setPointerCapture(e.pointerId);}catch(err){}to(e);});
+  cv.addEventListener("pointermove",e=>{if(held)to(e);});
+  for(const ev of["pointerup","pointercancel"])cv.addEventListener(ev,()=>{held=false;});}
 function initReport(){
   $("rpBody").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
     if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);coachFix();}

@@ -22,6 +22,8 @@ sim/ballistics.js
 sim/derive.js
 sim/fire.js
 sim/grade.js
+sim/explain.js
+sim/scatter.js
 sim/flight.js
 sim/career.js
 sim/daily.js
@@ -48,6 +50,7 @@ app/gfx.js
 app/save.js
 app/savecode.js
 app/designer.js
+app/scatter.js
 app/game.js
 app/career.js
 app/daily.js

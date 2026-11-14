@@ -39,6 +39,11 @@ const SLOTS={
   dusk:{name:"Dusk",tGrain:14,note:"Mild. Close to the predictor's 20 °C."},
   hut:{name:"Hut",tGrain:20,hut:true,note:"Held overnight in the conditioning hut at the temperature you set."}
 };
+/* the scatter predictor (the Computing room facility, 1.4; sim/scatter.js): n virtual motors of the design on the bench,
+   each with its own dice (seeds "scatter/1" ... "scatter/n", the same set every time, so the band moves only when the
+   design does), fired at fewer solver steps than a real firing (fast enough for a phone), drawn as the band between
+   the lo and hi fractions of the motors at each moment, on a grid of this many points */
+const SCATTER={n:40,steps:140,dtMul:3,lo:0.1,hi:0.9,grid:90};
 /* the conditioning hut's range, °C, and its step */
 const HUT={min:-20,max:50,step:5};
-Object.assign(SIM,{VARIANCE,SLOTS,HUT});
+Object.assign(SIM,{VARIANCE,SCATTER,SLOTS,HUT});

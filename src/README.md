@@ -26,6 +26,8 @@
 | `sim/derive.js` | `summarize`, `warnings`, `impulseClass`, `predict` (the designer's one call) |
 | `sim/fire.js` | `fire`: a static firing with seeded variance, failure detection, the incident report's cause and factors |
 | `sim/grade.js` | `SPEC_INFO`, `specCheck`, `grade` (A, B, C or fail; a flight job grades the flown apogee), `preFire` (stand fit, load cell, part tiers) |
+| `sim/explain.js` | `explainFiring`: why the real motor differed from the bench, one deviation at a time (1.4) |
+| `sim/scatter.js` | the scatter predictor: `scatterPrep`, `scatterOne` (virtual motor i, the real dice), `scatterBand`, `lotOdds` (1.4) |
 | `sim/flight.js` | flight tests: `rocketOf`, `defaultAirframe`, `airframeCost`, `fly` (point mass, drag, Mach, wind), `predictFlight`, `preLaunch`, `windOf`, `launch` |
 | `sim/career.js` | the career's rules, pure: `newCareer`, `slotTemp`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed`, tier 4 lots: `fireLot`, `gradeLot` |
 | `sim/daily.js` | the Daily Spec, pure: `dailyNo`, `dailySpec` (kit, order, hidden reference motor, spec, all from the date), `kitCheck`, `inKit` |
@@ -49,6 +51,7 @@
 | `app/gloss.js` | `GLOSS`, the tap-to-explain glossary; any `data-g="key"` opens its entry |
 | `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js` and `models/range.glb`, builds the 3D range), the Settings sheet |
 | `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control; `showScreen` |
+| `app/scatter.js` | the bench's Scatter button: runs the virtual motors in chunks after the design settles, the band and the summary line (1.4) |
 | `app/game.js` | `GAME` (what's on the bench), taking a job, the bench's bottom bar, pre-fire checks, the slot sheet and bill, `startFiring` (fire, grade, settle, log), `replayFiring` |
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |
 | `app/daily.js` | the Daily Spec's app side: today's order sheet, best grade and marks, the streak, sharing, the title button |

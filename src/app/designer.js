@@ -7,11 +7,13 @@
    A warning flag opens its explanation with a button that jumps to the control to change.
    The bottom bar (app/game.js) checks the contract's spec against the prediction and leads to the stand. The predictor runs
    at DZ.tGrain (20 °C, or a firing slot's temperature). DZ.d is the saved design object itself (S.career.designs[job] or
-   S.free, app/save.js), so every change calls save(). In a career, parts from a tier not yet open show as locked. */
+   S.free, app/save.js), so every change calls save(). In a career, parts from a tier not yet open show as locked.
+   Undo (the arrow at the top) and Reset (the foot of the panel, and the data sheet) are in the "undo and reset" part. */
 const DRAG_STEPS=110;
 /* the live view's height: room for the controls below matters more than a tall chart on a short phone */
 const VIEW_H=w=>Math.max(130,Math.min(w*0.46,innerHeight*0.23,250));
-const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref",geom:null,insp:false,inspT:0};
+const DZ={d:null,tab:"grain",view:"curves",scrub:0.5,res:null,fl:null,raf:0,fast:null,inited:false,tGrain:20,predSlot:"ref",geom:null,insp:false,inspT:0,
+  hist:[],histKey:null,dragSnap:null};
 const INSP_HOLD=2500;   // ms the chart's readout stays up after the finger lifts
 const TABS=[["grain","Grain"],["nozzle","Nozzle"],["case","Case"],["igniter","Igniter"]];
 const tabsNow=()=>isFlight()?TABS.concat([["airframe","Rocket"]]):TABS;
@@ -106,8 +108,8 @@ function renderTabs(){
 function renderPanel(){
   const d=DZ.d;
   document.querySelectorAll("#dzTabs [data-tab]").forEach(b=>{const on=b.dataset.tab===DZ.tab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on);});
-  $("dzPanel").innerHTML=controls(DZ.tab,d).map(c=>ctlHtml(c,d)).join("");
-  markErrors();drawRocket();
+  $("dzPanel").innerHTML=controls(DZ.tab,d).map(c=>ctlHtml(c,d)).join("")+RESET_HTML;
+  markErrors();drawRocket();drawUndo();
 }
 function ctlSpec(f){return controls(TAB_OF(f),DZ.d).find(c=>c.f===f);}
 /* after a slider moves, update its readout and the extras of the controls on screen without rebuilding the panel */
@@ -158,7 +160,30 @@ function drawRocket(){
     ${row("airframe","Rocket length",Math.round(R.L*1000)+" mm")}
     ${inCareer()?row("airframe","Rocket build",fmtCr(cost)):""}</table>`;}
 function change(f,v,fast){
-  setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);if(!fast)save();}
+  if(DZ.dragSnap==null)DZ.dragSnap=snapNow();   // a slider drag is one step to undo: the motor from before the finger went down
+  setF(DZ.d,f,v);clampDesign(DZ.d);schedule(fast);
+  if(!fast){remember(DZ.dragSnap);DZ.dragSnap=null;save();}}
+
+/* ---- undo and reset (1.5.1) ----
+   Every finished change (a tap, a slider let go, a reference motor loaded, a reset) first keeps a copy of the motor as it
+   was; Undo puts the last copy back, up to UNDO_MAX steps. The copies live in memory for the bench on screen only (a
+   different job, or a reload, starts a fresh list), so nothing new is saved. Reset goes back to the motor the job
+   started with (the default motor on the free bench), and Undo brings yours back. */
+const UNDO_MAX=40;
+const RESET_HTML=`<div class="dz-reset"><button type="button" class="btn sm" data-reset="1">Reset to the starting motor</button><p class="hint">Undo (the arrow at the top) brings your motor back.</p></div>`;
+const histKey=()=>GAME.mode+":"+gameKey()+":"+((GAME.contract&&GAME.contract.daily)||"");
+const snapNow=()=>JSON.stringify(DZ.d);
+function remember(before){if(before==null||before===snapNow())return;DZ.hist.push(before);if(DZ.hist.length>UNDO_MAX)DZ.hist.shift();drawUndo();}
+function drawUndo(){const b=$("dzUndo");if(b)b.disabled=!DZ.hist.length;}
+/* swap the bench to another motor (a reference, a reset, an undo) and redraw */
+function benchSwap(d){DZ.dragSnap=null;BURN_SIM.normDesign(d);fitAirframe(d);setDesign(d);renderPanel();schedule(false);}
+function undo(){const s=DZ.hist.pop();if(s==null)return;benchSwap(JSON.parse(s));drawUndo();toast(DZ.hist.length?`Undone · ${DZ.hist.length} more to undo`:"Undone");}
+function resetDesign(){
+  const c=GAME.contract,d=c?startDesign(c):clone(BURN_SIM.DEFAULT_DESIGN);BURN_SIM.normDesign(d);fitAirframe(d);
+  if(JSON.stringify(d)===snapNow()){toast("This is already the starting motor");return;}
+  const before=snapNow();if(sheetOn())closeSheet();benchSwap(d);remember(before);toast("Back to the starting motor. Undo brings yours back",3600);}
+/* a flight job's motor needs a rocket: one that fits it, when the design has none (a reference motor, an old save) */
+function fitAirframe(d){if(isFlight()&&!BURN_SIM.airframeOf(d)){const m=BURN_SIM.motorFromDesign(d);d.airframe=m.ok?BURN_SIM.defaultAirframe(m):{body:"kraft43",nose:"ogive",fins:"three"};}}
 
 /* ---- the top: designation, live view, numbers, flags ---- */
 function drawAll(){
@@ -225,7 +250,8 @@ function dataSheet(){
   const r=DZ.res;
   const refs=Object.keys(BURN_SIM.REF_DESIGNS).map((k,i)=>`<button type="button" class="btn sm" data-ref="${i}">${esc(k)}</button>`).join("");
   openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at ${degC(DZ.tGrain)} grain, on the range. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
-    :`<p>${esc(r.errors.map(e=>e.text).join(" "))}</p>`)+`<h3>Start again from a reference motor</h3><div class="refs">${refs}</div>`);}
+    :`<p>${esc(r.errors.map(e=>e.text).join(" "))}</p>`)+`<h3>Start again</h3><div class="refs"><button type="button" class="btn sm" data-reset="1">${GAME.contract?"The job's starting motor":"The default motor"}</button>${refs}</div>
+    <p class="hint">Undo (the arrow at the top of the bench) brings your motor back.</p>`);}
 
 /* jump to the control a warning or error points at: switch tab, scroll to it, ring it */
 function goToField(f){
@@ -265,7 +291,8 @@ function initDesigner(){
   P.addEventListener("change",e=>{const f=e.target.dataset.slide;if(!f)return;change(f,+e.target.value,false);renderPanel();});
   P.addEventListener("click",e=>{
     const b=e.target.closest("button");if(!b||b.classList.contains("gl"))return;
-    if(b.dataset.set){const f=b.dataset.set;change(f,b.dataset.v,false);renderPanel();}
+    if(b.dataset.reset)resetDesign();
+    else if(b.dataset.set){const f=b.dataset.set;change(f,b.dataset.v,false);renderPanel();}
     else if(b.dataset.step){const c=ctlSpec(b.dataset.step),v=getF(DZ.d,c.f)+(+b.dataset.by);if(v>=c.min&&v<=c.max){change(c.f,v,false);renderPanel();}}
     else if(b.dataset.nudge){const c=ctlSpec(b.dataset.nudge),v=Math.max(c.min,Math.min(c.max,+(getF(DZ.d,c.f)+c.step*(+b.dataset.by)).toFixed(2)));change(c.f,v,false);renderPanel();
       const n=document.querySelector(`[data-nudge="${c.f}"][data-by="${b.dataset.by}"]`);if(n)n.focus({preventScroll:true});}});
@@ -275,7 +302,14 @@ function initDesigner(){
   /* buttons inside a sheet: jump to a control, or load a reference motor */
   document.addEventListener("click",e=>{const b=e.target.closest("#sheet button");if(!b)return;
     if(b.dataset.fix)goToField(b.dataset.fix);
-    else if(b.dataset.ref!=null){setDesign(clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]));closeSheet();renderPanel();schedule(false);toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]);}});
+    else if(b.dataset.reset)resetDesign();
+    else if(b.dataset.ref!=null){const before=snapNow();closeSheet();benchSwap(clone(Object.values(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]));remember(before);
+      toast("Loaded "+Object.keys(BURN_SIM.REF_DESIGNS)[+b.dataset.ref]+". Undo brings yours back",3600);}});
+  $("dzUndo").addEventListener("click",undo);
+  /* Ctrl+Z (Cmd+Z on a Mac) on the bench, when no sheet is open and no text box has the keys */
+  document.addEventListener("keydown",e=>{if($("design").hidden||sheetOn()||e.shiftKey||e.altKey||!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=="z")return;
+    const t=e.target;if(t&&(t.isContentEditable||t.tagName==="TEXTAREA"||(t.tagName==="INPUT"&&t.type!=="range")))return;
+    e.preventDefault();undo();});
   $("dzSheet").addEventListener("click",dataSheet);
   $("dzBack").addEventListener("click",()=>{if(inCareer())openBoard();else{renderTitle();showScreen("title");}});
   addEventListener("resize",()=>{if(!$("design").hidden&&DZ.res)drawView();});
@@ -285,7 +319,10 @@ function openDesigner(){
   if(!DZ.d)DZ.d=clone(BURN_SIM.DEFAULT_DESIGN);
   BURN_SIM.normDesign(DZ.d);   // an older save's design gets the newer grain fields
   /* a flight job's bench opens with a rocket that fits the motor */
-  if(isFlight()&&!BURN_SIM.airframeOf(DZ.d)){const m=BURN_SIM.motorFromDesign(DZ.d);DZ.d.airframe=m.ok?BURN_SIM.defaultAirframe(m):{body:"kraft43",nose:"ogive",fins:"three"};save();}
+  if(isFlight()&&!BURN_SIM.airframeOf(DZ.d)){fitAirframe(DZ.d);save();}
+  /* the undo list belongs to one bench: coming back from the stand keeps it, another job starts it fresh */
+  if(DZ.histKey!==histKey()){DZ.hist=[];DZ.histKey=histKey();}
+  DZ.dragSnap=null;
   renderTabs();showScreen("design");renderPanel();setView(DZ.view);
   $("dzScrub").value=Math.round(DZ.scrub*1000);
   DZ.res=null;DZ.fl=null;schedule(false);coachBench();

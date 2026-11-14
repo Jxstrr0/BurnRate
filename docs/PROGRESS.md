@@ -17,6 +17,14 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: night shift, voice, tier 3+ clients | 1.3.0.0 | Done |
 | After 1.0: why it differed, scatter, tap the curve | 1.4.0.0 | Done |
 
+## 1.4.1.0 — "i" badges on the bench
+
+- Every control's name on the bench (propellant grade, segments, core, throat, case material, wall...) now shows a
+  small "i" badge. The names were always glossary buttons, but only a faint dotted underline gave that away (Kelbo
+  asked, 14 Nov 2026).
+- The time slider under the bench's view gets its own "i" and a glossary entry ("The time slider"). Its readout no
+  longer runs off the right edge on a narrow phone. The scatter line's "?" became the same badge.
+
 ## 1.4.0.0 — After 1.0: why it differed, the scatter predictor, tap the curve
 
 Kelbo's picks (plan section 0, 14 November 2026).

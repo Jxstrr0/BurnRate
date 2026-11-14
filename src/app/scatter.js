@@ -59,7 +59,7 @@ function drawScatterLine(){
     txt=bits.join(" · ");
     if(c&&c.lot){const L=BURN_SIM.CAREER.lot;txt+=` · a lot of ${L.n}: ${Math.round(BURN_SIM.lotOdds(st.pass/st.n,L.n,L.need)*100)}% accepted`;}
     if(c&&c.flight)txt+=" · motor only, no flight";}
-  el.innerHTML=`<button type="button" class="btn sm${on?" on":""}" id="dzScatBtn" aria-pressed="${on}">Scatter</button><span class="mono" aria-live="polite">${esc(txt)}</span><button type="button" class="gl" data-g="scatter" aria-label="What the scatter shows">?</button>`;}
+  el.innerHTML=`<button type="button" class="btn sm${on?" on":""}" id="dzScatBtn" aria-pressed="${on}">Scatter</button><span class="mono" aria-live="polite">${esc(txt)}</span><button type="button" class="gl gib" data-g="scatter" aria-label="What the scatter shows"><span class="gi" aria-hidden="true">i</span></button>`;}
 function toggleScatter(){SETTINGS.scatter=SETTINGS.scatter===false;saveSettings();
   if(SETTINGS.scatter){SC.key="";scatterKick();}else{clearTimeout(SC.timer);SC.gen++;Object.assign(SC,{key:"",band:null,fails:[],done:false});drawScatterLine();drawView();}}
 /* the band and failure marks for the bench's curves, when they fit the design on the bench */

@@ -18,6 +18,18 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: why it differed, scatter, tap the curve | 1.4.0.0 | Done |
 | After 1.0: the high-quality Blender pass (range, motor, rocket) | 1.5.0.0 | Done |
 
+## 1.5.1.0 — Undo and Reset on the design bench
+
+Kelbo asked for an undo or reset button on the build screen. Both are in (`src/app/designer.js`, "undo and reset"):
+- **Undo:** the curved arrow beside Data sheet. It steps back one finished change at a time, up to 40: a tap on a card or
+  a button, a whole slider drag (one step, not one per pixel), a reference motor loaded, a reset. Greyed out when there's
+  nothing to undo. Ctrl+Z works too on a keyboard. The list is kept in memory for the bench on screen only, so it
+  survives a trip to the stand and back but not another job or a reload. Nothing new is saved and there is no new
+  storage key.
+- **Reset:** at the foot of each tab, and first under "Start again" in the data sheet. It puts back the motor the job
+  started with (the default motor on the free bench). There's no "are you sure?" because Undo brings yours back.
+- Loading a reference motor on a flight job now gives it a rocket that fits, as opening the bench already did.
+
 ## 1.5.0.1 — Graphics switch no longer piles up materials
 
 Switching Graphics between Full and Lite used to make a fresh copy of every 3D material each time and keep the old ones

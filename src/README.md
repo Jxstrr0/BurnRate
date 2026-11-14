@@ -50,7 +50,7 @@
 | `app/savecode.js` | Back up / Restore: the `BRN1:` save code (LZW + checksum), the backup file, the reminder bar |
 | `app/gloss.js` | `GLOSS`, the tap-to-explain glossary; any `data-g="key"` opens its entry |
 | `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js`, `models/range.glb` and `models/kit.glb`, builds the 3D range), the Settings sheet |
-| `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control; `showScreen` |
+| `app/designer.js` | the design bench: controls as data, live predict, flags, data sheet, jump-to-control, Undo and Reset (1.5.1); `showScreen` |
 | `app/scatter.js` | the bench's Scatter button: runs the virtual motors in chunks after the design settles, the band and the summary line (1.4) |
 | `app/game.js` | `GAME` (what's on the bench), taking a job, the bench's bottom bar, pre-fire checks, the slot sheet and bill, `startFiring` (fire, grade, settle, log), `replayFiring` |
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |

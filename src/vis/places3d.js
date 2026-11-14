@@ -23,7 +23,7 @@ const PLACES={
   s1:{glb:"stand1",name:"Stand 1",mount:"s1Mount",cradle:/^s1Cradle\d/,lowNode:"s1Low",flood:["s1Lamp0","s1Lamp1"],floodUp:0,
     shots:[{name:"Side on",kind:"side"},{name:"Nozzle close-up",kind:"close"},{name:"Bunker window",kind:"node",node:"s1Window",fovW:[1.7,2.6]}]},
   s0:{glb:"chamber",name:"Altitude chamber",indoor:true,mount:"s0Mount",cradle:/^s0Cradle\d/,lowNode:"s0Low",tank:["s0TankA","s0TankB",1.65],
-    lamps:["s0Lamp0","s0Lamp1"],outlet:"s0Outlet",vacuum:true,
+    lampI:7,lamps:["s0Lamp0","s0Lamp1"],outlet:"s0Outlet",vacuum:true,
     shots:[{name:"Chamber camera",kind:"node",node:"s0Cam",fov:68,solo:true},{name:"Nozzle close-up",kind:"close",solo:true},
       {name:"Outside",kind:"node",node:"s0Out",look:[29,-58,3.5],out:true,free:true}]},
   /* the design bench in the hush house's build bay: the motor on two V-blocks, no flame */
@@ -52,7 +52,7 @@ const S3_WX={clear:{fog:[400,7000],mix:null,sun:1,hemi:1,glow:1},
   haze:{fog:[150,3200],mix:[0xE4E0D8,0.35],sun:0.85,hemi:1.02,glow:0.8},
   overcast:{fog:[200,4200],mix:[0xB4B8BC,0.6],sun:0.3,hemi:1.12,glow:0.15},
   dust:{fog:[60,1700],mix:[0xD8C3A0,0.55],sun:0.6,hemi:1.0,glow:0.5}};
-/* indoors: the bounce from the walls and the lamps (cd at 1 m). Lite has no shadows, so the sun is turned right down */
+/* indoors: the bounce from the walls and the lamps (cd at 1 m; a place may set its own lampI, as the tank does: its lamps sit close to the wall). Lite has no shadows, so the sun is turned right down */
 const S3_IN={smoke:[0.86,0.84,0.8],hemi:[0xF0ECE4,0x8C877C,0.75],sunFull:0.45,sunLite:0.1,lamp:0xFFF0D8,lampI:26,lampD:16,env:0.25};
 const S3_FLOOD={c:0xFFE4BC,i:140,d:60};
 /* the firing's light: its slot's time of day and the day's weather, the same every replay. One dusk firing in five is
@@ -93,7 +93,7 @@ function s3Light(inside){
   /* two lamps: the place's own lights indoors, its floodlights at night outdoors, else off */
   const L=inside?pl.lamps:night?pl.flood:null;
   S3.lamps.forEach((l,i)=>{const p=L&&s3Node(L[i]);l.intensity=0;if(!p)return;
-    if(inside){l.position.copy(p).y-=0.25;l.color.set(S3_IN.lamp);l.intensity=S3_IN.lampI;l.distance=S3_IN.lampD;}
+    if(inside){l.position.copy(p).y-=0.25;l.color.set(S3_IN.lamp);l.intensity=pl.lampI||S3_IN.lampI;l.distance=S3_IN.lampD;}
     else{l.position.copy(p).y+=pl.floodUp||0;l.color.set(S3_FLOOD.c);l.intensity=S3_FLOOD.i;l.distance=S3_FLOOD.d;}});
   /* the environment map (Full, with the post chain) lights things too, so the bounce light gives way a little */
   const env=!!(S3.env&&S3.full);S3.sc.environment=env?S3.env:null;

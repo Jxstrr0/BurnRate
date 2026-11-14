@@ -536,7 +536,7 @@ function s3Camera(d,fail,age,still){
     if(sh.kind==="side"){dist=span*1.2+0.1;pos.set(tgt.x+dist*0.3,b.y+0.05+dist*0.14,b.z-dist);}
     else if(sh.kind==="close"){const ex=b.x+len;tgt.set(ex+o.re*3,b.y,b.z);dist=Math.max(0.35,o.dia*7+len*0.25);pos.set(ex+dist*0.55,b.y+dist*0.28,b.z-dist*0.8);}
     else if(sh.kind==="blockhouse"){const bh=S3.nodes.blockhouse;if(bh)pos.copy(bh.localToWorld(new T.Vector3(-3.8,2.05,0.6)));else pos.set(-33,2.05,22);fovW=Math.max(span*1.7,1.8);}
-    else if(sh.kind==="bench"){dist=Math.max(0.5,len*1.3+o.dia*5);pos.set(tgt.x-dist*0.3,b.y+dist*0.55,b.z-dist*0.8);}
+    else if(sh.kind==="bench"){dist=Math.max(0.36,len*1.2+o.dia*5);pos.set(tgt.x-dist*0.3,b.y+dist*0.55,b.z-dist*0.8);}
     else if(sh.kind==="benchEnd"){tgt.x=b.x+len*0.62;dist=Math.max(0.4,len*0.8+o.dia*6);pos.set(b.x+len+dist*0.7,b.y+dist*0.32,b.z-dist*0.5);}
     else{const p=s3Node(sh.node);if(p)pos.copy(p);else pos.set(tgt.x,b.y+2,b.z-8);
       if(sh.look)tgt.set(sh.look[0],sh.look[2],-sh.look[1]);if(sh.fovW)fovW=Math.max(span*sh.fovW[0],sh.fovW[1]);}

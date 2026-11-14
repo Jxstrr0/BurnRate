@@ -82,9 +82,11 @@ function clampDesign(d){
   return d;}
 
 /* ---- rendering the tab panel ---- */
+/* the "i" badge after a control's name: the name was always a glossary button, the badge shows it (1.4.1) */
+const GI='<span class="gi" aria-hidden="true">i</span>';
 function ctlHtml(c,d){
   if(c.type==="info")return c.html(d);
-  const v=getF(d,c.f),lab=`<button type="button" class="gl" data-g="${c.g}">${esc(c.label)}</button>`;
+  const v=getF(d,c.f),lab=`<button type="button" class="gl" data-g="${c.g}">${esc(c.label)}${GI}</button>`;
   if(c.type==="pick")return`<fieldset class="ctl pick" data-field="${c.f}"><legend>${lab}</legend>${Object.entries(c.items).map(([id,it])=>
     `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${isDaily()?BURN_SIM.inKit(GAME.contract.kit,c.f,id)?"":`<span class="tag lock">Not in today's kit</span>`:it.tier>1?`<span class="tag${partTier()&&it.tier>partTier()?" lock":""}">Tier ${it.tier}${partTier()&&it.tier>partTier()?" · locked":""}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
   if(c.type==="seg")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}</div><div class="segbar" role="group">${c.opts.map(([id,n])=>

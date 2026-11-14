@@ -2438,7 +2438,7 @@ const TEXL={c:new Map()};
 function texGet(key,normal,own,ph){
   const T=THREE,k=key+(normal?"-n":"");let e=TEXL.c.get(k);
   if(!e){e={img:null,deps:[]};TEXL.c.set(k,e);const img=new Image();
-    img.onload=()=>{e.img=img;for(const t of e.deps){t.image=img;t.needsUpdate=true;}if(typeof s3Redraw==="function"&&!(VIS.s3&&VIS.s3.S.playing))s3Redraw();};
+    img.onload=()=>{e.img=img;for(const t of e.deps){t.image=img;t.dispose();t.needsUpdate=true;}if(typeof s3Redraw==="function"&&!(VIS.s3&&VIS.s3.S.playing))s3Redraw();};
     img.onerror=()=>console.warn("texture missing:",k);img.src="textures/"+k+".jpg";}
   if(!own&&e.shared)return e.shared;
   let src=e.img||ph;
@@ -2515,6 +2515,8 @@ Object.assign(VIS,{glbScene,swapMats,texGet,texMat,uvScale});
    three.js (lib/three.min.js, loaded by app/gfx.js) draws Aqsor Range: the salt flat, far hills, the range model from
    models/range.glb (tools/blender-range.py: Stand 3, the blockhouse, the launch pad, the clutter), and, built here
    because they change with every design, the motor on the stand or the rocket on the rail, the plume, smoke and failures.
+   The motor and rocket hardware comes from models/kit.glb (tools/blender-kit.py: unit-size parts, each scaled here to the
+   design; the nozzle bell, nose and fins are lathed or built here from the real dimensions). Without the kit, plain parts.
 
    s3.init(canvas, glbBuffer, tier) once; s3.setup(o) for each firing; s3.draw(o) each frame. Like the 2D views it is
    driven by time: everything on screen (smoke, debris, the rocket's climb) is a function of the times passed in, so the
@@ -2619,66 +2621,262 @@ function s3Plume(core){
       "gl_FragColor=vec4((c+dm*hot)*a,a);}"});
   const m=new T.Mesh(geo,mat);m.frustumCulled=false;m.renderOrder=3;return m;}
 /* ---- per firing ---- */
+/* Texture tiles (m) for the parts made or re-materialled here: a texture repeats every tile metres */
+const S3_TILE={metal:0.4,paint:0.8,kraft:0.3,carbon:0.1,glass:0.2,graphite:0.06,wood:0.4};
+/* case materials (o.caseMat): colour, metalness, roughness, texture. Kraft and wood carry their own colour */
+const S3_CASE={phenolic:[0xB09C8A,0,0.45,"kraft"],mild:[0x6B7076,0.3,0.6,"paint"],al6061:[0xB8BDC3,0.7,0.38,"metal"],
+  cromo:[0x6A6F75,0.65,0.42,"metal"],composite:[0x4A4D52,0.2,0.45,"carbon"]};
+/* rocket finishes by body tube family (rk.body starts kraft, glass or carbon): body, fins, nose (moulded plastic, no
+   texture: the weathered paint looks dirty on a new nose), aft centering ring; tip: a metal nose tip */
+const S3_ROCKET={kraft:{body:[0xFFFFFF,0,0.85,"kraft"],fin:[0xFFFFFF,0,0.75,"wood"],nose:[0xEDEBE5,0.05,0.4,null],ring:[0xFFFFFF,0,0.8,"wood"],tip:false},
+  glass:{body:[0xE6E2D6,0.05,0.5,"glass"],fin:[0x2A55C9,0.05,0.5,"glass"],nose:[0xEDEBE5,0.05,0.45,"glass"],ring:[0x3E4247,0.3,0.6,"paint"],tip:true},
+  carbon:{body:[0x4A4D52,0.25,0.4,"carbon"],fin:[0x4A4D52,0.25,0.4,"carbon"],nose:[0xEDEBE5,0.05,0.35,null],ring:[0x3E4247,0.3,0.6,"paint"],tip:true}};
 function s3Setup(o){
   const T=THREE;S3.o=o;S3.shot=0;S3.orbit=null;S3.lastT=null;
-  if(S3.rig){S3.sc.remove(S3.rig);S3.rig.traverse(x=>{if(x.geometry)x.geometry.dispose();if(x.material&&x.material.dispose&&!x.userData.shared)x.material.dispose();});}
+  /* free the last firing's pieces; the kit's geometry and the shared (cached) materials stay */
+  if(S3.rig){S3.sc.remove(S3.rig);S3.rig.traverse(x=>{if(x.isInstancedMesh)x.dispose();if(x.geometry&&!x.geometry.userData.kit)x.geometry.dispose();
+    const m=x.material;if(m&&m.dispose&&!x.userData.shared&&!(m.userData&&m.userData.shared))m.dispose();});}
   const rig=S3.rig=new T.Group();S3.sc.add(rig);
-  const mat=(c,metal,rough)=>{const m=S3.full?new T.MeshStandardMaterial({color:c,metalness:Math.min(metal,0.4),roughness:rough}):new T.MeshLambertMaterial({color:c});m.userData.metal=metal;m.userData.rough=rough;return m;};
-  const CASEC={phenolic:[0x8A5A3A,0,0.8],mild:[0x5F646B,0.6,0.5],al6061:[0xB4B9BF,0.7,0.38],cromo:[0x4E5359,0.65,0.45],composite:[0x2B2D30,0.2,0.5]};
-  if(o.mode==="stand"){
-    const mt=S3.nodes.motorMount,base=mt?mt.position.clone():new T.Vector3(-0.04,0.85,0),r=o.dia/2,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
-    const g=S3.motor=new T.Group();g.position.copy(base);rig.add(g);
-    const cc=CASEC[o.caseMat]||CASEC.al6061,caseM=mat(cc[0],cc[1],cc[2]);
-    const cyl=(rad,len,x,m,seg)=>{const c=new T.Mesh(new T.CylinderGeometry(rad,rad,len,seg||28),m);c.rotation.z=-Math.PI/2;c.position.x=x;c.castShadow=c.receiveShadow=true;return c;};
-    const body=S3.caseMesh=cyl(r,cl,cl/2,caseM);g.add(body);
-    g.add(cyl(r*1.05,Math.max(0.008,r*0.25),Math.max(0.004,r*0.12),mat(0x3E4247,0.5,0.5)));          // forward closure
-    g.add(cyl(r*1.012,Math.max(0.01,cl*0.05),cl*0.14,mat(0xA8322A,0,0.8)));                            // stencil band
-    g.add(cyl(r*1.03,Math.max(0.006,r*0.18),cl-Math.max(0.003,r*0.09),mat(0x3E4247,0.5,0.5)));        // aft closure ring
-    /* nozzle: a graphite housing and the bell; it is its own group so an ejection can throw it */
-    const nz=S3.nozzle=new T.Group();nz.position.x=cl;g.add(nz);
-    const rt=Math.max(0.002,o.rt),re=Math.max(rt*1.05,o.re);
-    const prof=[[r*0.92,0],[r*0.92,nl*0.35],[Math.max(re*1.12,rt*1.6),nl],[re,nl],[rt,nl*0.38],[rt*1.4,nl*0.2],[r*0.6,0.0001]].map(([a,b])=>new T.Vector2(a,b));
-    const lat=new T.Mesh(new T.LatheGeometry(prof,28),mat(0x2E3034,0.1,0.7));lat.material.side=T.DoubleSide;lat.rotation.z=-Math.PI/2;lat.castShadow=true;nz.add(lat);
-    S3.exit=new T.Vector3(cl+nl,0,0);
-    /* saddles under the case at the stand's cradles (or one in the middle of a short motor) */
-    const sad=mat(0x3E4247,0.5,0.5),xs=Object.keys(S3.nodes).filter(k=>/^cradle/.test(k)).map(k=>S3.nodes[k].position.x).filter(x=>x>base.x+0.05&&x<base.x+cl-0.05);
-    const top=0.64;if(!xs.length)xs.push(base.x+cl/2);
-    for(const x of xs){const y0=xs.length===1&&x===base.x+cl/2?0.42:top,hgt=Math.max(0.01,base.y-r-y0);
-      const s=new T.Mesh(new T.BoxGeometry(0.05,hgt,Math.max(0.04,r*1.4)),sad);s.position.set(x,y0+hgt/2,0);s.castShadow=true;rig.add(s);
-      const band=new T.Mesh(new T.CylinderGeometry(r*1.06,r*1.06,0.03,24,1,true),sad);band.rotation.z=-Math.PI/2;band.position.set(x-base.x,0,0);g.add(band);}
-    /* plume (outer and core), the side jet for a burn-through */
-    S3.plume=s3Plume(false);S3.core=s3Plume(true);S3.plume.position.copy(S3.exit);S3.core.position.copy(S3.exit);g.add(S3.plume,S3.core);
-    S3.jet=s3Plume(false);S3.jet.position.set(cl*0.55,r,0);S3.jet.rotation.set(0.6,0,Math.PI/2);g.add(S3.jet);
-    /* the halves a burst throws */
-    S3.halves=[0,1].map(i=>{const h=new T.Mesh(new T.CylinderGeometry(r,r,cl,20,1,true,i*Math.PI,Math.PI),caseM);h.material.side=T.DoubleSide;h.castShadow=true;h.visible=false;rig.add(h);return h;});
-    S3.base=base;S3.scale=Math.max(o.len,0.25);
-  }else{
-    /* the rocket at the rail: body tube, nose, fins, the motor's nozzle peeping out. Local +Y is up, origin the aft end */
-    const rk=o.rocket,D=rk.D,L=rk.L,noseL=Math.min(L*0.4,3*D),bodyL=L-noseL,rb=S3.nodes.railBase,base=rb?rb.position.clone():new T.Vector3(-12,0.24,-70);
-    const BODYC=rk.body.startsWith("kraft")?[0xB98F5E,0,0.85]:rk.body.startsWith("glass")?[0xE6E2D6,0.05,0.5]:[0x2A2C2F,0.25,0.45];
-    const g=S3.rocket=new T.Group();g.position.set(base.x-(D/2+0.03),base.y+0.02,base.z);rig.add(g);
-    const bm=mat(BODYC[0],BODYC[1],BODYC[2]);
-    const tube=new T.Mesh(new T.CylinderGeometry(D/2,D/2,bodyL,24),bm);tube.position.y=bodyL/2;tube.castShadow=true;g.add(tube);
-    const band=new T.Mesh(new T.CylinderGeometry(D/2*1.01,D/2*1.01,Math.max(0.02,bodyL*0.06),24),mat(0x2A55C9,0.1,0.6));band.position.y=bodyL*0.72;g.add(band);
-    const np=[];for(let i=0;i<=12;i++){const u=i/12;const rr=rk.nose==="cone"?(1-u):rk.nose==="ogive"?Math.sqrt(Math.max(0,1-u*u)):Math.sqrt(Math.max(0,1-u))*(1-0.08*u);np.push(new T.Vector2(Math.max(0.0005,D/2*rr),u*noseL));}
-    const nose=new T.Mesh(new T.LatheGeometry(np,24),mat(0xEDEBE5,0.05,0.5));nose.position.y=bodyL;nose.castShadow=true;g.add(nose);
-    const nf=rk.fins==="four"||rk.fins==="long"?4:3,cr=rk.fins==="long"?2.6*D:rk.fins==="swept"?2.0*D:1.5*D,span=rk.fins==="swept"?1.3*D:D,sweep=rk.fins==="swept"?0.9*D:0.4*D,ct=rk.fins==="long"?1.8*D:0.6*D;
-    const fv=[0,0,0, 0,cr,0, span,cr-sweep,0, span,cr-sweep-ct,0];
-    const fg=new T.BufferGeometry();fg.setAttribute("position",new T.Float32BufferAttribute(fv,3));fg.setIndex([0,1,2,0,2,3]);fg.computeVertexNormals();
-    const fm=mat(0x2A55C9,0.1,0.6);fm.side=T.DoubleSide;
-    for(let i=0;i<nf;i++){const f=new T.Mesh(fg,fm),piv=new T.Group();f.position.set(D/2*0.98,0.01,0);f.castShadow=true;piv.add(f);piv.rotation.y=i/nf*Math.PI*2;g.add(piv);}
-    const nzl=new T.Mesh(new T.CylinderGeometry(Math.max(0.004,o.re*1.1),Math.max(0.004,o.re*0.8),Math.max(0.01,D*0.25),16,1,true),mat(0x2E3034,0.1,0.7));nzl.material.side=T.DoubleSide;nzl.position.y=-D*0.1;g.add(nzl);
-    S3.plume=s3Plume(false);S3.core=s3Plume(true);for(const p of[S3.plume,S3.core]){p.rotation.z=-Math.PI/2;p.position.y=-D*0.22;g.add(p);}
-    S3.jet=null;S3.halves=[];S3.base=base;S3.scale=L;S3.motor=null;
+  Object.assign(S3,{motor:null,rocket:null,nozzle:null,caseMesh:null,ign:null,keep:null,boltA:null,jet:null,halves:[],exitL:null,lift:0.02});
+  if(o.mode==="stand")(S3.kit?s3KitStand:s3PlainStand)(o,rig);
+  else{(S3.kit?s3KitLaunch:s3PlainLaunch)(o,rig);
     /* the wind blows along this direction (horizontal); the sim's drift x is along it */
-    S3.wdir=new T.Vector3(0.8,0,0.6).normalize();
-  }
+    S3.wdir=new T.Vector3(0.8,0,0.6).normalize();}
   S3.deb.count=0;S3.flash.style.opacity=0;s3Label();return S3.R!=null;}
+/* a material made here, cached for the tier and flagged shared (teardown keeps it, swapMats converts it on a tier change) */
+function s3Mat(c,metal,rough,tex,vc,side){
+  const C=S3.mc||(S3.mc=new Map()),k=[S3.full?1:0,c,metal,rough,tex||"",vc?1:0,side||0].join("|");let m=C.get(k);
+  if(!m){m=makeMat(S3.full,new THREE.Color(c),metal,rough,tex||null,!!vc,null);if(side)m.side=side;m.userData.shared=true;C.set(k,m);}
+  return m;}
+/* a kit material for the current tier (the kit was loaded at the tier of the day; a later change gets a cached copy) */
+function s3KitMat(m){
+  if(!!m.isMeshStandardMaterial===S3.full)return m;const A=S3.kalt||(S3.kalt=new Map());let n=A.get(m);
+  if(!n||!!n.isMeshStandardMaterial!==S3.full){const u=m.userData;n=makeMat(S3.full,m.color.clone(),u.metal??0,u.rough??1,u.tex,u.vc,u.emit);
+    n.side=m.side;n.name=m.name;n.userData.shared=true;A.set(m,n);}
+  return n;}
+/* a copy of a kit part (models/kit.glb, see tools/blender-kit.py for each part's unit and anchor) added to par. Its meshes
+   share the kit's geometry unless uv=[su,sv,swap] is given: then the geometry is copied and its uv multiplied (and u and v
+   swapped when swap is set: brushed metal streaks along a tube rather than round it). mat: one material
+   for all its meshes (else the kit's own). scl: a number or a Vector3 */
+function s3Kit(name,par,pos,scl,mat,uv){
+  const n=S3.kit.nodes[name];if(!n)return null;const T=THREE,g=new T.Group();g.name=name;
+  for(const c of n.children){if(!c.isMesh)continue;let geo=c.geometry;geo.userData.kit=true;
+    if(uv){geo=geo.clone();geo.userData={};uvScale(geo,uv[0],uv[1]);const a=geo.attributes.uv;if(uv[2]&&a)for(let i=0;i<a.count;i++)a.setXY(i,a.getY(i),a.getX(i));}
+    const m=new T.Mesh(geo,mat||s3KitMat(c.material));m.castShadow=m.receiveShadow=true;g.add(m);}
+  if(pos)g.position.copy(pos);if(typeof scl==="number")g.scale.setScalar(scl);else if(scl)g.scale.copy(scl);
+  if(par)par.add(g);return g;}
+/* a kit part repeated: one instanced mesh per material in it, one instance per matrix (bolt rings, saddles, buttons) */
+function s3KitInst(name,par,mats,mat,geoFn){
+  const n=S3.kit.nodes[name],out=[];if(!n||!mats.length)return out;
+  for(const c of n.children){if(!c.isMesh)continue;let geo=c.geometry;geo.userData.kit=true;if(geoFn){geo=geoFn(geo.clone());geo.userData={};}
+    const im=new THREE.InstancedMesh(geo,mat||s3KitMat(c.material),mats.length);mats.forEach((M,i)=>im.setMatrixAt(i,M));
+    im.instanceMatrix.needsUpdate=true;im.computeBoundingSphere();im.castShadow=im.receiveShadow=true;par.add(im);out.push(im);}
+  return out;}
+/* a lathe from a profile of [radius, height, sharp] points (sharp: a corner, its normals not smoothed round it), with the
+   uv in tiles: u round the axis at radius uR, v along the profile */
+function s3Lathe(P,seg,uR,tile){
+  const T=THREE,pts=[];
+  /* a corner gets a twin a hair along the next edge: three's lathe weights each edge's normal by its length, so the
+     twin splits the normals there */
+  P.forEach((p,k)=>{pts.push(new T.Vector2(p[0],p[1]));const q=P[k+1];if(p[2]&&q&&k>0)pts.push(new T.Vector2(p[0]+(q[0]-p[0])*0.004,p[1]+(q[1]-p[1])*0.004));});
+  const geo=new T.LatheGeometry(pts,seg),uv=geo.attributes.uv,np=pts.length,arc=[0];
+  for(let j=1;j<np;j++)arc.push(arc[j-1]+pts[j].distanceTo(pts[j-1]));
+  for(let i=0;i<=seg;i++)for(let j=0;j<np;j++)uv.setXY(i*np+j,i/seg*2*Math.PI*uR/tile,arc[j]/tile);
+  uv.needsUpdate=true;return geo;}
+/* the nozzle's graphite bell, lathed from the real contour: the converging inlet, the throat, the 15-degree cone to the
+   exit, the lip, and the outside back into the housing. Local +X is the flow; x = 0 is its seat, Hs the housing's face */
+function s3Bell(o,r,nl,Hs){
+  const T=THREE,RB=0.56*r,rt=Math.max(0.0015,Math.min(o.rt,RB*0.8)),re=Math.max(rt*1.05,o.re),w=Math.max(0.04*r,0.0012);
+  const xt=Math.max(nl*0.2,Math.min(nl*0.75,nl-(re-rt)/Math.tan(15*Math.PI/180))),rin=Math.min(0.92*RB,Math.max(rt*1.4,0.6*r));
+  const inner=x=>x>=xt?rt+(re-rt)*(x-xt)/(nl-xt):rin,eH=Math.max(0.92*RB,inner(Math.max(Hs,xt))+w);
+  const P=[[rin,0,1],[rin*0.97,0.3*xt,0],[rt+(rin-rt)*0.32,0.66*xt,0],[rt*1.05,0.9*xt,0],[rt,xt,0],[rt+(re-rt)*0.05,xt+0.05*(nl-xt),0],
+    [re,nl,1],[re+w,nl,1],[eH,Hs,1],[RB*0.995,Hs,1],[RB*0.995,0,0]];
+  const m=new T.Mesh(s3Lathe(P,S3.full?32:20,RB,S3_TILE.graphite),s3Mat(0x3A3C40,0.1,0.75,"graphite",false,T.DoubleSide));
+  m.rotation.z=-Math.PI/2;m.castShadow=m.receiveShadow=true;return m;}
+/* a fin: a slab of thickness th with its edges bevelled (width w) to a thin rounded edge, the root left square (it sits in
+   the body). P: the outline, counter-clockwise seen from +Z, its last edge (P[n-1] to P[0]) the root. UVs in tiles */
+function s3FinGeo(P,th,w,tile){
+  const T=THREE,n=P.length,Ls=[],I=[],pos=[],uv=[],h=th/2,e=th*0.14;
+  for(let k=0;k<n;k++){const a=P[k],b=P[(k+1)%n],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy),d=k===n-1?0:w;
+    Ls.push({a:[a[0]-dy/l*d,a[1]+dx/l*d],d:[dx/l,dy/l],o:[dy/l,-dx/l]});}
+  for(let k=0;k<n;k++){const A=Ls[(k+n-1)%n],B=Ls[k],den=A.d[0]*B.d[1]-A.d[1]*B.d[0],t=((B.a[0]-A.a[0])*B.d[1]-(B.a[1]-A.a[1])*B.d[0])/den;
+    I.push([A.a[0]+A.d[0]*t,A.a[1]+A.d[1]*t]);}
+  const tri=(a,b,c,wx,wy,wz)=>{const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+    if((uy*vz-uz*vy)*wx+(uz*vx-ux*vz)*wy+(ux*vy-uy*vx)*wz<0){const s=b;b=c;c=s;}
+    for(const p of[a,b,c]){pos.push(p[0],p[1],p[2]);uv.push(p[0]/tile,p[1]/tile);}};
+  const quad=(a,b,c,d,wx,wy,wz)=>{tri(a,b,c,wx,wy,wz);tri(a,c,d,wx,wy,wz);};
+  const at=(p,z)=>[p[0],p[1],z];
+  for(let k=1;k<n-1;k++){tri(at(I[0],h),at(I[k],h),at(I[k+1],h),0,0,1);tri(at(I[0],-h),at(I[k],-h),at(I[k+1],-h),0,0,-1);}
+  for(let k=0;k<n;k++){const j=(k+1)%n,o=Ls[k].o;
+    quad(at(I[k],h),at(I[j],h),at(P[j],e),at(P[k],e),o[0],o[1],0.6);
+    quad(at(P[k],e),at(P[j],e),at(P[j],-e),at(P[k],-e),o[0],o[1],0);
+    quad(at(P[k],-e),at(P[j],-e),at(I[j],-h),at(I[k],-h),o[0],o[1],-0.6);}
+  const geo=new T.BufferGeometry();geo.setAttribute("position",new T.Float32BufferAttribute(pos,3));geo.setAttribute("uv",new T.Float32BufferAttribute(uv,2));
+  geo.computeVertexNormals();return geo;}
+/* the motor on Stand 3, assembled from the kit to this design. Group origin: the load-cell face (motorMount); +X aft */
+function s3KitStand(o,rig){
+  const T=THREE,V=(x,y,z)=>new T.Vector3(x,y,z),Q0=new T.Quaternion(),mt=S3.nodes.motorMount,base=mt?mt.position.clone():V(-0.04,0.85,0);
+  const r=o.dia/2,s=r,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
+  /* the closures keep their shape (scaled by r) but give way on a stubby case: together at most 40% of its length */
+  const kx=Math.min(1,cl*0.4/(0.42*s)),x0=0.30*s*kx,x1=cl-0.12*s*kx,tl=Math.max(0.001,x1-x0);
+  const g=S3.motor=new T.Group();g.position.copy(base);rig.add(g);const keep=S3.keep=new Set();
+  /* the case: the tube in its own material, the stencil band, the test label and a taped thermocouple */
+  const cc=S3_CASE[o.caseMat]||S3_CASE.al6061,ct=S3_TILE[cc[3]],caseM=s3Mat(cc[0],cc[1],cc[2],cc[3]);
+  S3.caseMesh=s3Kit("caseTube",g,V(x0,0,0),V(tl,r,r),caseM,[r/ct,tl/ct,cc[3]==="metal"]);
+  const bw=Math.min(tl*0.08,Math.max(0.012,0.5*r)),pt=S3_TILE.paint;
+  if(tl>bw*4)s3Kit("caseBand",g,V(x0+0.12*tl,0,0),V(bw,r,r),s3Mat(0xA8322A,0,0.8,"paint"),[r/pt,bw/pt]);
+  /* the label goes where no saddle strap crosses it */
+  const xs=Object.keys(S3.nodes).filter(k=>/^cradle/.test(k)).map(k=>S3.nodes[k].position.x).filter(x=>x>base.x+x0+0.04&&x<base.x+x1-0.04);
+  const one=!xs.length;if(one)xs.push(base.x+x0+tl*0.5);
+  const sx=Math.max(0.035,Math.min(0.1,r)),lw=Math.min(r,tl*0.45/1.6);
+  const lx=[0.22,0.3,0.14,0.4,0.5].map(f=>x0+f*tl).find(a=>a+1.6*lw<x1-0.3*r&&xs.every(x=>x-base.x+0.12*sx<a||x-base.x-0.12*sx>a+1.6*lw));
+  s3Kit("caseLabel",g,V(lx!=null?lx:x0+0.22*tl,0,0),V(lw,r,r));
+  s3Kit("tcPatch",g,V(Math.max(x0+0.5*tl,Math.min(x0+0.8*tl,x1-0.3*r)),0,0),r);
+  /* the forward closure against the load cell, and the pressure transducer in its port: they stay put after a burst */
+  keep.add(s3Kit("fwdClosure",g,V(x0,0,0),V(s*kx,s,s)));
+  keep.add(s3Kit("transducer",g,V(x0-0.20*s*kx,0.56*s,0),0.01*Math.max(0.6,Math.min(1,r/0.04))));
+  /* bolt rings: radial screws through the case into each closure, instanced. The aft ring flies on a burst or ejection */
+  const hd=Math.max(0.004,Math.min(0.02,0.22*r)),nb=Math.max(6,Math.min(24,2*Math.round(Math.PI*r/(3.2*hd))));
+  const ring=x=>{const M=[];for(let i=0;i<nb;i++){const a=(i+0.5)/nb*Math.PI*2;
+    M.push(new T.Matrix4().compose(V(x,r*Math.cos(a),r*Math.sin(a)),new T.Quaternion().setFromAxisAngle(V(1,0,0),a),V(hd,hd,hd)));}return M;};
+  s3KitInst("bolt",g,ring(x0+0.16*s*kx)).forEach(m=>keep.add(m));
+  const rest=ring(x1-0.06*s*kx);S3.boltA={ims:s3KitInst("bolt",g,rest),rest,moved:false};S3.boltA.ims.forEach(m=>keep.add(m));
+  /* the aft closure, then the nozzle (its own group, so an ejection can throw it): steel housing, graphite bell, igniter */
+  s3Kit("aftClosure",g,V(cl,0,0),V(s*kx,s,s));
+  const nz=S3.nozzle=new T.Group();nz.position.x=cl;g.add(nz);
+  const hx=Math.min(s,nl*0.75/0.5);s3Kit("nozzleHousing",nz,null,V(hx,s,s));nz.add(s3Bell(o,r,nl,0.5*hx));
+  S3.ign=s3Kit("igniter",nz,V(nl,0,0),0.01*Math.max(0.7,Math.min(1,r/0.03)));
+  S3.exit=V(cl+nl,0,0);
+  /* saddles at the stand's cradles (or one in the middle of a short motor): strap and block on the case, a post below */
+  const SM=xs.map(x=>new T.Matrix4().compose(V(x-base.x,0,0),Q0,V(sx,r,r)));
+  for(const nm of["saddleBand","saddleBlock"])s3KitInst(nm,g,SM).forEach(m=>keep.add(m));
+  const y0=one?0.42:0.64,ph=Math.max(0.005,base.y-1.15*r-y0),pw=Math.max(0.03,0.3*sx),pd=Math.max(0.04,1.6*r);
+  const posts=new T.InstancedMesh(new T.BoxGeometry(1,1,1),s3Mat(0x3E4247,0.3,0.7,"paint"),xs.length);
+  xs.forEach((x,i)=>posts.setMatrixAt(i,new T.Matrix4().compose(V(x,y0+ph/2,0),Q0,V(pw,ph,pd))));
+  posts.instanceMatrix.needsUpdate=true;posts.computeBoundingSphere();posts.castShadow=posts.receiveShadow=true;rig.add(posts);
+  /* plume (outer and core), the side jet for a burn-through */
+  S3.plume=s3Plume(false);S3.core=s3Plume(true);S3.plume.position.copy(S3.exit);S3.core.position.copy(S3.exit);g.add(S3.plume,S3.core);
+  S3.jet=s3Plume(false);S3.jet.position.set(cl*0.55,r,0);S3.jet.rotation.set(0.6,0,Math.PI/2);g.add(S3.jet);
+  /* the halves a burst throws: the tube cut lengthwise, in the case's material seen from both sides */
+  const hm=caseM.clone();hm.side=T.DoubleSide;hm.userData.shared=false;
+  S3.halves=[0,1].map(i=>{const h=new T.Mesh(uvScale(new T.CylinderGeometry(r,r,tl,20,1,true,i*Math.PI,Math.PI),Math.PI*r/ct,tl/ct),hm);
+    h.castShadow=true;h.visible=false;rig.add(h);return h;});
+  S3.base=base;S3.scale=Math.max(o.len,0.25);}
+/* the rocket at the rail, from the kit and lathes: body tube, nose and tip, bevelled fins with fillets, rail buttons, the
+   avionics band, and the motor's aft end in its retainer. Group origin: the body's aft end on its axis; local +Y is up */
+function s3KitLaunch(o,rig){
+  const T=THREE,V=(x,y,z)=>new T.Vector3(x,y,z),Q0=new T.Quaternion(),rk=o.rocket,D=rk.D,R=D/2,L=rk.L,noseL=Math.min(L*0.4,3*D),bodyL=L-noseL;
+  const rb=S3.nodes.railBase,base=rb?rb.position.clone():V(-12,0.24,-70),seg=S3.full?32:20;
+  const F=S3_ROCKET[rk.body.startsWith("kraft")?"kraft":rk.body.startsWith("glass")?"glass":"carbon"],M=a=>s3Mat(a[0],a[1],a[2],a[3]),TL=a=>S3_TILE[a[3]];
+  const rm=o.dia/2,cl=o.caseLen,nl=Math.max(0.01,o.len-cl),ret=R>=1.55*rm;
+  const g=S3.rocket=new T.Group();rig.add(g);
+  /* the motor's aft end: held by the screw-on retainer when the body has room, else flush; mg's +X points down */
+  const ya=ret?-0.42*rm:-0.12*rm;if(ret)s3Kit("motorRetainer",g,null,rm);
+  const mg=new T.Group();mg.rotation.z=-Math.PI/2;mg.position.y=ya+cl;g.add(mg);
+  s3Kit("aftClosure",mg,V(cl,0,0),rm);
+  const nz=S3.nozzle=new T.Group();nz.position.x=cl;mg.add(nz);
+  const hx=Math.min(rm,nl*0.75/0.5);s3Kit("nozzleHousing",nz,null,V(hx,rm,rm));nz.add(s3Bell(o,rm,nl,0.5*hx));
+  /* the igniter leads hang out of the nozzle: tilted so both the leads and the wire fall roughly downward */
+  S3.ign=s3Kit("igniter",nz,V(nl,0,0),0.01*Math.max(0.7,Math.min(1,rm/0.03)));if(S3.ign)S3.ign.rotation.z=0.65;
+  S3.plume=s3Plume(false);S3.core=s3Plume(true);for(const p of[S3.plume,S3.core]){p.position.set(cl+nl,0,0);mg.add(p);}
+  S3.exitL=V(0,ya-nl,0);S3.lift=nl-ya+0.02;
+  g.position.set(base.x-(R+0.03),base.y+S3.lift,base.z);
+  /* body tube and the aft centering ring */
+  const bt=TL(F.body),bg=uvScale(new T.CylinderGeometry(R,R,bodyL,seg,1,true),2*Math.PI*R/bt,bodyL/bt);bg.translate(0,bodyL/2,0);
+  const body=new T.Mesh(bg,M(F.body));body.castShadow=body.receiveShadow=true;g.add(body);
+  const rgt=TL(F.ring),rg=uvScale(new T.RingGeometry(ret?1.45*rm:rm*1.02,R*0.995,seg,1),2*R/rgt,2*R/rgt);
+  const cr0=new T.Mesh(rg,M(F.ring));cr0.rotation.x=Math.PI/2;cr0.position.y=0.0015;g.add(cr0);
+  /* the nose: a real tangent ogive, von Karman or cone of length noseL, with its shoulder in the body, a seam groove at
+     the joint and (glass and carbon rockets) a metal tip */
+  const lt=F.tip?Math.max(0.008,Math.min(0.05,0.1*noseL)):0,gr=Math.max(0.0004,0.006*R),gw=Math.max(0.001,0.025*R);
+  const rho=(R*R+noseL*noseL)/(2*R),prof=x=>{const d=Math.max(0,noseL-x);
+    if(rk.nose==="cone")return R*d/noseL;
+    if(rk.nose==="karman"){const th=Math.acos(Math.max(-1,Math.min(1,1-2*d/noseL)));return R/Math.sqrt(Math.PI)*Math.sqrt(Math.max(0,th-Math.sin(2*th)/2));}
+    return Math.max(0,Math.sqrt(Math.max(0,rho*rho-(noseL-d)*(noseL-d)))+R-rho);};
+  const xe=noseL-lt,NP=[[0,-0.6*R,0],[0.97*R,-0.6*R,1],[0.97*R,0,1],[R-gr,0,1],[R-gr,gw*0.5,1],[R,gw,1]],nN=S3.full?26:14;
+  for(let i=1;i<=nN;i++){const u=i/nN,x=gw+(xe-gw)*(1-(1-u)*(1-u));NP.push([Math.max(lt?0:0.0002,prof(x)),x,0]);}
+  if(lt)NP.push([0,xe,0]);else NP[NP.length-1][0]=0;
+  const nt=TL(F.nose),nose=new T.Mesh(s3Lathe(NP,seg,R,nt),M(F.nose));nose.position.y=bodyL;nose.castShadow=nose.receiveShadow=true;g.add(nose);
+  if(lt)s3Kit("noseTip",g,V(0,bodyL+xe,0),V(prof(xe),lt,prof(xe)));
+  /* fins: bevelled slabs, instanced round the body, turned so none points at the rail; a fillet each side of each root */
+  const nf=rk.fins==="four"||rk.fins==="long"?4:3,cr=rk.fins==="long"?2.6*D:rk.fins==="swept"?2.0*D:1.5*D,span=rk.fins==="swept"?1.3*D:D,
+    sweep=rk.fins==="swept"?0.9*D:0.4*D,ct=rk.fins==="long"?1.8*D:0.6*D,th=Math.max(0.002,Math.min(0.008,0.04*D)),y0=0.01;
+  const fg=s3FinGeo([[0,0],[span,cr-sweep-ct],[span,cr-sweep],[0,cr]],th,Math.min(th*2.5,span*0.08),TL(F.fin));
+  const at=(i,x,y,z,sc)=>new T.Matrix4().makeRotationY((i+0.5)/nf*Math.PI*2).multiply(new T.Matrix4().compose(V(x,y,z),Q0,sc||V(1,1,1)));
+  const FI=[],FA=[],FB=[],fs=Math.max(0.003,Math.min(0.012,0.06*D)),fsc=V(fs,cr,fs);
+  for(let i=0;i<nf;i++){FI.push(at(i,R*0.97,y0,0));FA.push(at(i,R*0.995,y0,-th/2,fsc));FB.push(at(i,R*0.995,y0,th/2,fsc));}
+  const fins=new T.InstancedMesh(fg,M(F.fin),nf);FI.forEach((m,i)=>fins.setMatrixAt(i,m));fins.instanceMatrix.needsUpdate=true;fins.computeBoundingSphere();
+  fins.castShadow=fins.receiveShadow=true;g.add(fins);
+  const flm=s3Mat(F.fin[0],F.fin[1],F.fin[2],F.fin[3],true),fut=g2=>uvScale(g2,fs/TL(F.fin),cr/TL(F.fin));
+  s3KitInst("finFillet",g,FA,flm,fut);
+  s3KitInst("finFillet",g,FB,flm,g2=>{fut(g2);g2.scale(1,1,-1);const ix=g2.index;if(ix)for(let k=0;k<ix.count;k+=3){const a=ix.getX(k+1);ix.setX(k+1,ix.getX(k+2));ix.setX(k+2,a);}return g2;});
+  /* rail buttons on the rail side (+X), a low one and one up the body */
+  const bh=Math.max(0.0057,Math.min(0.011,0.07*D));
+  s3KitInst("railButton",g,[Math.min(bodyL*0.3,Math.max(cr*0.5,0.06)),bodyL*0.62].map(y=>new T.Matrix4().compose(V(R*0.995,y,0),Q0,V(0.03,bh,bh))));
+  /* the payload bay above the motor: switch band and vents, a camera pod on the big ones; shear pins at the nose joint and
+     the black roll pattern under it */
+  const mTop=ya+cl,bay=bodyL-mTop;
+  s3Kit("shearPins",g,V(0,bodyL-0.35*R,0),R);
+  const rl=Math.min(1.5*D,bodyL*0.15);s3Kit("rollBand",g,V(0,bodyL-0.8*R-rl,0),V(R,rl,R));
+  if(bay>2.4*R+rl){const yb=mTop+(bay-rl)*0.3;s3Kit("switchBand",g,V(0,yb,0),R);s3Kit("ventRing",g,V(0,yb+1.1*R,0),R);
+    if(D>=0.08){const cam=s3Kit("camShroud",g,V(0,mTop+bay*0.1,-R),0.01);if(cam)cam.rotation.y=Math.PI/2;}}
+  S3.base=base;S3.scale=L;}
+/* the plain stand when models/kit.glb is missing: cylinders and a lathe, no textures */
+function s3PlainMat(c,metal,rough){const T=THREE,m=S3.full?new T.MeshStandardMaterial({color:c,metalness:Math.min(metal,0.4),roughness:rough}):new T.MeshLambertMaterial({color:c});m.userData.metal=metal;m.userData.rough=rough;return m;}
+function s3PlainStand(o,rig){
+  const T=THREE,mat=s3PlainMat,CASEC={phenolic:[0x8A5A3A,0,0.8],mild:[0x5F646B,0.6,0.5],al6061:[0xB4B9BF,0.7,0.38],cromo:[0x4E5359,0.65,0.45],composite:[0x2B2D30,0.2,0.5]};
+  const mt=S3.nodes.motorMount,base=mt?mt.position.clone():new T.Vector3(-0.04,0.85,0),r=o.dia/2,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
+  const g=S3.motor=new T.Group();g.position.copy(base);rig.add(g);
+  const cc=CASEC[o.caseMat]||CASEC.al6061,caseM=mat(cc[0],cc[1],cc[2]);
+  const cyl=(rad,len,x,m,seg)=>{const c=new T.Mesh(new T.CylinderGeometry(rad,rad,len,seg||28),m);c.rotation.z=-Math.PI/2;c.position.x=x;c.castShadow=c.receiveShadow=true;return c;};
+  const body=S3.caseMesh=cyl(r,cl,cl/2,caseM);g.add(body);
+  g.add(cyl(r*1.05,Math.max(0.008,r*0.25),Math.max(0.004,r*0.12),mat(0x3E4247,0.5,0.5)));          // forward closure
+  g.add(cyl(r*1.012,Math.max(0.01,cl*0.05),cl*0.14,mat(0xA8322A,0,0.8)));                            // stencil band
+  g.add(cyl(r*1.03,Math.max(0.006,r*0.18),cl-Math.max(0.003,r*0.09),mat(0x3E4247,0.5,0.5)));        // aft closure ring
+  /* nozzle: a graphite housing and the bell; it is its own group so an ejection can throw it */
+  const nz=S3.nozzle=new T.Group();nz.position.x=cl;g.add(nz);
+  const rt=Math.max(0.002,o.rt),re=Math.max(rt*1.05,o.re);
+  const prof=[[r*0.92,0],[r*0.92,nl*0.35],[Math.max(re*1.12,rt*1.6),nl],[re,nl],[rt,nl*0.38],[rt*1.4,nl*0.2],[r*0.6,0.0001]].map(([a,b])=>new T.Vector2(a,b));
+  const lat=new T.Mesh(new T.LatheGeometry(prof,28),mat(0x2E3034,0.1,0.7));lat.material.side=T.DoubleSide;lat.rotation.z=-Math.PI/2;lat.castShadow=true;nz.add(lat);
+  S3.exit=new T.Vector3(cl+nl,0,0);
+  /* saddles under the case at the stand's cradles (or one in the middle of a short motor) */
+  const sad=mat(0x3E4247,0.5,0.5),xs=Object.keys(S3.nodes).filter(k=>/^cradle/.test(k)).map(k=>S3.nodes[k].position.x).filter(x=>x>base.x+0.05&&x<base.x+cl-0.05);
+  const top=0.64;if(!xs.length)xs.push(base.x+cl/2);
+  for(const x of xs){const y0=xs.length===1&&x===base.x+cl/2?0.42:top,hgt=Math.max(0.01,base.y-r-y0);
+    const s=new T.Mesh(new T.BoxGeometry(0.05,hgt,Math.max(0.04,r*1.4)),sad);s.position.set(x,y0+hgt/2,0);s.castShadow=true;rig.add(s);
+    const band=new T.Mesh(new T.CylinderGeometry(r*1.06,r*1.06,0.03,24,1,true),sad);band.rotation.z=-Math.PI/2;band.position.set(x-base.x,0,0);g.add(band);}
+  /* plume (outer and core), the side jet for a burn-through */
+  S3.plume=s3Plume(false);S3.core=s3Plume(true);S3.plume.position.copy(S3.exit);S3.core.position.copy(S3.exit);g.add(S3.plume,S3.core);
+  S3.jet=s3Plume(false);S3.jet.position.set(cl*0.55,r,0);S3.jet.rotation.set(0.6,0,Math.PI/2);g.add(S3.jet);
+  /* the halves a burst throws */
+  S3.halves=[0,1].map(i=>{const h=new T.Mesh(new T.CylinderGeometry(r,r,cl,20,1,true,i*Math.PI,Math.PI),caseM);h.material.side=T.DoubleSide;h.castShadow=true;h.visible=false;rig.add(h);return h;});
+  S3.base=base;S3.scale=Math.max(o.len,0.25);}
+function s3PlainLaunch(o,rig){
+  const T=THREE,mat=s3PlainMat;
+  /* the rocket at the rail: body tube, nose, fins, the motor's nozzle peeping out. Local +Y is up, origin the aft end */
+  const rk=o.rocket,D=rk.D,L=rk.L,noseL=Math.min(L*0.4,3*D),bodyL=L-noseL,rb=S3.nodes.railBase,base=rb?rb.position.clone():new T.Vector3(-12,0.24,-70);
+  const BODYC=rk.body.startsWith("kraft")?[0xB98F5E,0,0.85]:rk.body.startsWith("glass")?[0xE6E2D6,0.05,0.5]:[0x2A2C2F,0.25,0.45];
+  const g=S3.rocket=new T.Group();g.position.set(base.x-(D/2+0.03),base.y+0.02,base.z);rig.add(g);
+  const bm=mat(BODYC[0],BODYC[1],BODYC[2]);
+  const tube=new T.Mesh(new T.CylinderGeometry(D/2,D/2,bodyL,24),bm);tube.position.y=bodyL/2;tube.castShadow=true;g.add(tube);
+  const band=new T.Mesh(new T.CylinderGeometry(D/2*1.01,D/2*1.01,Math.max(0.02,bodyL*0.06),24),mat(0x2A55C9,0.1,0.6));band.position.y=bodyL*0.72;g.add(band);
+  const np=[];for(let i=0;i<=12;i++){const u=i/12;const rr=rk.nose==="cone"?(1-u):rk.nose==="ogive"?Math.sqrt(Math.max(0,1-u*u)):Math.sqrt(Math.max(0,1-u))*(1-0.08*u);np.push(new T.Vector2(Math.max(0.0005,D/2*rr),u*noseL));}
+  const nose=new T.Mesh(new T.LatheGeometry(np,24),mat(0xEDEBE5,0.05,0.5));nose.position.y=bodyL;nose.castShadow=true;g.add(nose);
+  const nf=rk.fins==="four"||rk.fins==="long"?4:3,cr=rk.fins==="long"?2.6*D:rk.fins==="swept"?2.0*D:1.5*D,span=rk.fins==="swept"?1.3*D:D,sweep=rk.fins==="swept"?0.9*D:0.4*D,ct=rk.fins==="long"?1.8*D:0.6*D;
+  const fv=[0,0,0, 0,cr,0, span,cr-sweep,0, span,cr-sweep-ct,0];
+  const fg=new T.BufferGeometry();fg.setAttribute("position",new T.Float32BufferAttribute(fv,3));fg.setIndex([0,1,2,0,2,3]);fg.computeVertexNormals();
+  const fm=mat(0x2A55C9,0.1,0.6);fm.side=T.DoubleSide;
+  for(let i=0;i<nf;i++){const f=new T.Mesh(fg,fm),piv=new T.Group();f.position.set(D/2*0.98,0.01,0);f.castShadow=true;piv.add(f);piv.rotation.y=i/nf*Math.PI*2;g.add(piv);}
+  const nzl=new T.Mesh(new T.CylinderGeometry(Math.max(0.004,o.re*1.1),Math.max(0.004,o.re*0.8),Math.max(0.01,D*0.25),16,1,true),mat(0x2E3034,0.1,0.7));nzl.material.side=T.DoubleSide;nzl.position.y=-D*0.1;g.add(nzl);
+  S3.plume=s3Plume(false);S3.core=s3Plume(true);for(const p of[S3.plume,S3.core]){p.rotation.z=-Math.PI/2;p.position.y=-D*0.22;g.add(p);}
+  S3.jet=null;S3.halves=[];S3.base=base;S3.scale=L;S3.motor=null;
+  }
 /* ---- per frame ---- */
 function s3Draw(d){
   if(!S3.ok||!S3.o)return;const T=THREE,o=S3.o,t=d.t,still=!!d.still,fail=d.fail||null,age=fail?fail.age:0;S3.last=d;
   s3Size();s3Perf();
   const flame=t>=0&&d.f>0.003&&!(fail&&(fail.key==="cato"||fail.key==="eject")&&age>0.02)&&!(fail&&fail.key==="hangfire");
+  if(S3.ign)S3.ign.visible=t<0.02||!!(fail&&fail.key==="hangfire");   // the igniter goes with the first flame
   const pr=d.p*(o.prE||0.05)/S3_AIR,diam=flame&&pr>1.15?Math.min(1,Math.log(pr)/1.2):0,pinch=flame&&pr<0.75?Math.min(1,(0.75-pr)*2):0;
   const fl=Math.max(0.03,Math.min(1.25,d.f)),re=Math.max(0.004,o.re);
   const L=re*(12+46*fl)*(o.mode==="launch"?1.3:1);
@@ -2686,7 +2884,7 @@ function s3Draw(d){
   /* nozzle light */
   const ex=new T.Vector3();
   if(o.mode==="stand"){ex.copy(S3.exit);S3.motor.localToWorld(ex);}
-  else{s3Rocket(t,d);ex.set(0,-o.rocket.D*0.3,0);S3.rocket.localToWorld(ex);}
+  else{s3Rocket(t,d);if(S3.exitL)ex.copy(S3.exitL);else ex.set(0,-o.rocket.D*0.3,0);S3.rocket.localToWorld(ex);}
   S3.fire.position.copy(ex).add(new T.Vector3(re*6,o.mode==="launch"?-re*4:0.15,0));const reach=Math.max(0.3,o.len+L);S3.fire.intensity=flame?(still?1:0.85+0.15*Math.sin(t*61))*fl*2.2*reach*reach:0;S3.fire.distance=reach*8;
   if(o.mode==="stand")s3Fail(d,fail,age,still);
   s3Smoke(d,fail,age,ex);
@@ -2698,8 +2896,9 @@ function s3Redraw(){if(S3.last)s3Draw(S3.last);}
 /* failure pieces on the stand: the case halves after a burst, the thrown nozzle, the side jet of a burn-through, debris */
 function s3Fail(d,fail,age,still){
   const T=THREE,o=S3.o,key=fail&&age>=0?fail.key:null,g=S3.motor,b=S3.base,r=o.dia/2,cl=o.caseLen,G=9.81;
-  const split=key==="cato";S3.caseMesh.visible=!split;
-  g.children.forEach(c=>{if(c!==S3.nozzle&&c!==S3.plume&&c!==S3.core&&c!==S3.jet)c.visible=!split;});
+  const split=key==="cato",keep=S3.keep;if(S3.caseMesh)S3.caseMesh.visible=!split;
+  /* a burst hides the case; the forward closure, transducer, saddles and the bolt rings (kit stand) stay or fly on their own */
+  g.children.forEach(c=>{if(c!==S3.nozzle&&c!==S3.plume&&c!==S3.core&&c!==S3.jet&&!(keep&&keep.has(c)))c.visible=!split;});
   /* a body thrown from p0 with velocity v, stopping where it lands */
   const toss=(p0,v,a,floor)=>{const tl=(v.y+Math.sqrt(v.y*v.y+2*G*Math.max(0,p0.y-floor)))/G,tt=Math.min(a,tl);
     return{p:new T.Vector3(p0.x+v.x*tt,Math.max(floor,p0.y+v.y*tt-0.5*G*tt*tt),p0.z+v.z*tt),tt};};
@@ -2710,6 +2909,14 @@ function s3Fail(d,fail,age,still){
   if(key==="eject"||key==="cato"){const v=key==="eject"?new T.Vector3(22,5,1.5):new T.Vector3(6,3.5,-1),q=toss(new T.Vector3(b.x+cl,b.y,0),v,age,0.05);
     g.worldToLocal(q.p);nz.position.copy(q.p);nz.rotation.set(q.tt*5,q.tt*2,q.tt*7);}
   else{nz.position.set(cl,0,0);nz.rotation.set(0,0,0);}
+  /* the aft bolt ring: on a burst or an ejection each screw flies off outward and lands on the salt */
+  const BA=S3.boltA;
+  if(BA&&(key==="cato"||key==="eject")){const p=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3(),e=new T.Euler(),m=new T.Matrix4();
+    BA.rest.forEach((M,i)=>{M.decompose(p,q,sc);const v=new T.Vector3(0,p.y,p.z).normalize().multiplyScalar(2.5+h01(i+50)*4).add(new T.Vector3(1+h01(i+51)*2,1.5,0));
+      const w=toss(p.clone().add(b),v,age,0.006);w.p.sub(b);q.multiply(new T.Quaternion().setFromEuler(e.set(w.tt*(9+i),w.tt*7,0)));m.compose(w.p,q,sc);
+      for(const im of BA.ims)im.setMatrixAt(i,m);});
+    for(const im of BA.ims){im.instanceMatrix.needsUpdate=true;im.computeBoundingSphere();}BA.moved=true;}
+  else if(BA&&BA.moved){BA.rest.forEach((M,i)=>{for(const im of BA.ims)im.setMatrixAt(i,M);});for(const im of BA.ims){im.instanceMatrix.needsUpdate=true;im.computeBoundingSphere();}BA.moved=false;}
   if(S3.jet){const on=key==="burnthrough"&&age<1.6,u=S3.jet.material.uniforms;S3.jet.visible=on;if(on){const a=1-age/1.6;u.L.value=Math.max(0.1,r*14*a);u.R.value=r*0.25;u.F.value=a;u.time.value=d.t;u.dia.value=0;u.pinch.value=0;u.flick.value=still?0:1;}}
   /* debris: a fixed pattern of chunks on ballistic arcs */
   if(split){const n=S3.deb.count=28,m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),sc=new T.Vector3();
@@ -2720,7 +2927,7 @@ function s3Fail(d,fail,age,still){
 /* the rocket's place and attitude at time t along the flown path; on the rail before liftoff */
 function s3Rocket(t,d){
   const T=THREE,o=S3.o,g=S3.rocket,P=o.path,b=S3.base,D=o.rocket.D;
-  const at=BURN_VIS.pathAt(P,Math.max(0,Math.min(t,P.t[P.t.length-1]))),pos=new T.Vector3(b.x-(D/2+0.03),b.y+0.02+at.h,b.z).addScaledVector(S3.wdir,at.x);
+  const at=BURN_VIS.pathAt(P,Math.max(0,Math.min(t,P.t[P.t.length-1]))),pos=new T.Vector3(b.x-(D/2+0.03),b.y+(S3.lift||0.02)+at.h,b.z).addScaledVector(S3.wdir,at.x);
   g.position.copy(pos);
   /* attitude: along the air flowing past, from the path's slope less the wind */
   const i=Math.min(P.t.length-2,Math.max(0,at.i));let dir=new T.Vector3(0,1,0);

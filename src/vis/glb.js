@@ -18,7 +18,7 @@ const TEXL={c:new Map()};
 function texGet(key,normal,own,ph){
   const T=THREE,k=key+(normal?"-n":"");let e=TEXL.c.get(k);
   if(!e){e={img:null,deps:[]};TEXL.c.set(k,e);const img=new Image();
-    img.onload=()=>{e.img=img;for(const t of e.deps){t.image=img;t.needsUpdate=true;}if(typeof s3Redraw==="function"&&!(VIS.s3&&VIS.s3.S.playing))s3Redraw();};
+    img.onload=()=>{e.img=img;for(const t of e.deps){t.image=img;t.dispose();t.needsUpdate=true;}if(typeof s3Redraw==="function"&&!(VIS.s3&&VIS.s3.S.playing))s3Redraw();};
     img.onerror=()=>console.warn("texture missing:",k);img.src="textures/"+k+".jpg";}
   if(!own&&e.shared)return e.shared;
   let src=e.img||ph;

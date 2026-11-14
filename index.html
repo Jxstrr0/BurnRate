@@ -2502,14 +2502,16 @@ function glbScene(buf,full){
     if(o.name)nodes[o.name]=o;(n.children||[]).forEach(c=>o.add(build(c)));return o;};
   (g.scenes[g.scene||0].nodes).forEach(i=>root.add(build(i)));
   return{root,nodes,mats};}
-/* switch every mesh under root to the other tier's materials, keeping colours, textures and AO */
+/* switch every mesh under root to the other tier's materials, keeping colours, textures and AO. Each material and its
+   other-tier twin are made once and remembered (TWIN), so flipping Full/Lite again and again reuses the same pair
+   instead of making a new set each time */
+const TWIN=new WeakMap();
 function swapMats(root,full){
-  const cache=new Map();
   root.traverse(o=>{if(!o.isMesh||o.userData.keepMat)return;const m=o.material;if(!m||m.isShaderMaterial||!!m.isMeshStandardMaterial===full)return;
-    if(!cache.has(m)){const u=m.userData,n=makeMat(full,m.color.clone(),u.metal??0,u.rough??1,u.tex,u.vc,u.emit);
-      n.side=m.side;n.name=m.name;n.userData.shared=u.shared;cache.set(m,n);}
-    o.material=cache.get(m);});
-  cache.forEach((n,m)=>{if(!m.userData.shared)m.dispose();});}
+    let n=TWIN.get(m);
+    if(!n){const u=m.userData;n=makeMat(full,m.color.clone(),u.metal??0,u.rough??1,u.tex,u.vc,u.emit);
+      n.side=m.side;n.name=m.name;n.userData.shared=u.shared;TWIN.set(m,n);TWIN.set(n,m);}
+    o.material=n;});}
 Object.assign(VIS,{glbScene,swapMats,texGet,texMat,uvScale});
 /* ===================== vis/stand3d.js: the test range in 3D (stage 7, plan section 9.3) =====================
    three.js (lib/three.min.js, loaded by app/gfx.js) draws Aqsor Range: the salt flat, far hills, the range model from
@@ -3208,7 +3210,7 @@ return{unlock,setOn,stop,beep,voice:{lang:voiceLang,preload:voicePreload,ready:v
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="1.5.0.0";
+const VERSION="1.5.0.1";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */

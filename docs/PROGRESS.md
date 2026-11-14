@@ -18,6 +18,12 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: why it differed, scatter, tap the curve | 1.4.0.0 | Done |
 | After 1.0: the high-quality Blender pass (range, motor, rocket) | 1.5.0.0 | Done |
 
+## 1.5.0.1 — Graphics switch no longer piles up materials
+
+Switching Graphics between Full and Lite used to make a fresh copy of every 3D material each time and keep the old ones
+(20 switches on the range: 609 materials). `swapMats` in `src/vis/glb.js` now remembers each material's twin for the
+other tier and reuses it, so the count stays at one set per tier (58).
+
 ## 1.5.0.0 — After 1.0: the high-quality Blender pass
 
 Kelbo's picks (plan section 0, 14 November 2026): textured realism, a motor kit stretched to fit, a heavy touch on the

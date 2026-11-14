@@ -226,6 +226,9 @@ p{margin:0 0 .7em}
 .temp{align-self:flex-start;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font-size:.72rem;min-height:28px;padding:0 9px;cursor:pointer}
 .temp[disabled]{cursor:default;color:var(--stateD);border-color:var(--state);opacity:1}
 .cks{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:.8rem;line-height:1.25}
+button.cks{background:none;border:0;padding:2px 0;margin:0;font:inherit;font-size:.8rem;text-align:left;color:inherit;cursor:pointer;border-radius:4px}
+.btn[hidden]{display:none}
+.jb-spec td.good{color:var(--good)}.jb-spec td.crit{color:var(--crit)}
 .ck{white-space:nowrap;color:var(--muted)}.ck i{font-style:normal;font-weight:700;margin-right:3px}
 .ck.ok{color:var(--good)}.ck.no{color:var(--crit)}.ck b{font-weight:600;color:var(--ink)}
 .has-go #toast{bottom:calc(84px + var(--safeB))}

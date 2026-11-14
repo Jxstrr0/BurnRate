@@ -25,6 +25,17 @@ function lsCut(tab,x){
   for(let j=0;j<=N;j++){const v=j<N?tab.s[j*N+i]:NaN,solid=v===v&&v>=0&&v>x;
     if(solid&&a<0)a=j;else if(!solid&&a>=0){out.push([-R+a*c,-R+j*c,a>0&&tab.s[(a-1)*N+i]===tab.s[(a-1)*N+i],j<N&&v===v]);a=-1;}}
   return out;}   // [y0, y1, burning below, burning above]
+/* the end view of the aft segment at web distance x (looking forward from the nozzle): case, liner, propellant, the
+   burning front; a disc dE across centred on (cx, cy). The bench's chart readout draws it too (vis/chart.js). */
+function endView(c,m,x,cx,cyE,dE,k){
+  const R0=m.id/2+m.wall,sE=dE/2/R0,G=m.grain,g=G.segs[G.segs.length-1];
+  const disc=(r,col)=>{c.fillStyle=col;c.beginPath();c.arc(cx,cyE,Math.max(0,r*sE),0,7);c.fill();};
+  disc(R0,k.metal);disc(m.id/2,k.liner);disc(m.od/2,k.card);
+  if(g.kind==="ls"){const tab=g.pieces[g.pieces.length-1].tab,im=lsImage(tab,x,Math.max(tab.c,1.3/sE),k);
+    c.save();c.beginPath();c.arc(cx,cyE,g.R*sE,0,7);c.clip();c.imageSmoothingEnabled=true;c.drawImage(im,cx-g.R*sE,cyE-g.R*sE,2*g.R*sE,2*g.R*sE);c.restore();}
+  else if(x<g.web){
+    disc(g.R,g.kind==="end"?k.burn:k.prop);
+    if(g.kind!=="end"){const r=g.rc+x;disc(r,k.card);c.strokeStyle=k.burn;c.lineWidth=2;c.beginPath();c.arc(cx,cyE,r*sE,0,7);c.stroke();}}}
 function section(cv,m,x,info,h){
   const{c,W,H}=fit(cv,h||(w=>Math.min(w*0.62,300))),k=tokens(),T=BURN_SIM.TUNING;
   const G=m.grain,id=m.id,R0=id/2+m.wall,clThk=T.closureThk*id,len=m.length,pad=10;
@@ -73,18 +84,12 @@ function section(cv,m,x,info,h){
   /* the axis */
   c.strokeStyle=k.muted;c.lineWidth=1;c.setLineDash([8,3,2,3]);c.beginPath();c.moveTo(X(0)-4,cy);c.lineTo(X(len)+4,cy);c.stroke();c.setLineDash([]);
   /* end view of the aft segment (looking forward from the nozzle) */
-  const top=cy+Y(R0)+12,dE=Math.max(36,Math.min(H-top-4,W*0.4)),cx=pad+dE/2,cyE=top+dE/2,sE=dE/2/R0,g=G.segs[G.segs.length-1];
-  const disc=(r,col)=>{c.fillStyle=col;c.beginPath();c.arc(cx,cyE,Math.max(0,r*sE),0,7);c.fill();};
-  disc(R0,k.metal);disc(id/2,k.liner);disc(m.od/2,k.card);
-  if(g.kind==="ls"){const tab=g.pieces[g.pieces.length-1].tab,im=lsImage(tab,x,Math.max(tab.c,1.3/sE),k);
-    c.save();c.beginPath();c.arc(cx,cyE,g.R*sE,0,7);c.clip();c.imageSmoothingEnabled=true;c.drawImage(im,cx-g.R*sE,cyE-g.R*sE,2*g.R*sE,2*g.R*sE);c.restore();}
-  else if(x<g.web){
-    disc(g.R,g.kind==="end"?k.burn:k.prop);
-    if(g.kind!=="end"){const r=g.rc+x;disc(r,k.card);c.strokeStyle=k.burn;c.lineWidth=2;c.beginPath();c.arc(cx,cyE,r*sE,0,7);c.stroke();}}
+  const top=cy+Y(R0)+12,dE=Math.max(36,Math.min(H-top-4,W*0.4));
+  endView(c,m,x,pad+dE/2,top+dE/2,dE,k);
   /* the readouts beside the end view, in columns of up to three lines */
   c.textAlign="left";c.textBaseline="top";
   const lines=info||[],rows=Math.min(3,lines.length),lh=Math.min(17,(H-top)/rows),colW=Math.max(96,(W-pad-dE-14)/2);
   lines.forEach((ln,i)=>{const col=Math.floor(i/rows),row=i%rows;c.font=i?`11px ${k.mono}`:`600 12px ${k.mono}`;c.fillStyle=i?k.muted:k.ink;
     c.fillText(ln,pad+dE+14+col*colW,top+4+row*lh);});
 }
-Object.assign(VIS,{section});
+Object.assign(VIS,{section,endView});

@@ -40,7 +40,7 @@ function hydrate(o){
   for(let v=o.v;v<SAVE_V;v++){if(!MIGRATE[v])return false;o=MIGRATE[v](o);o.v=v+1;}
   if(o.career!=null&&!careerOk(o.career))return false;
   if(!designOk(o.free)||!dailyOk(o.daily)||!dailyHistOk(o.dailyHist)||!sandboxOk(o.sandbox))return false;
-  if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
+  if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;if(!isNum(o.career.compute))o.career.compute=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
   S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0,hutT:isNum(o.hutT)?o.hutT:20,daily:o.daily||null,dailyHist:o.dailyHist||{},sandbox:o.sandbox||{designs:{},n:0}});
   return true;}
 function readKey(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return isObj(o)?o:null;}catch(e){return null;}}

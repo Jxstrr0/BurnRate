@@ -101,17 +101,53 @@ function renderReport(){
       <p class="rp-meta mono">${esc(ps.designation)} · ${sl.name.toLowerCase()} · ${degC(tG)} grain · ${LT?`lot of ${LT.fires.length}, motor ${LT.sel+1} below`:`${fly?"launch":"motor"} ${L.n}`}${c?` · ${esc(c.client)}`:""}</p>
       <span class="stamp big ${pass?"pass":"fail"}">${esc(stamp)}</span>${c?` <button type="button" class="gl hint" data-g="gradeLetter">How grades work</button>`:""}</header>
     ${broke}${dl}${LT?lotCard(L):""}${fly?flightCard(f,tG):""}<section class="card rp-chart">${fly?`<h3>Onboard logger: the motor</h3>`:""}<canvas id="rpCv" role="img" aria-label="Predicted and measured pressure and thrust"></canvas>
-      <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured</p></section>
+      <p class="dz-key"><span class="k-pr"></span>Predicted at ${degC(tG)}<span class="k-me"></span>Measured<span class="tap">Tap the chart to read it</span></p></section>
     ${cause?`<section class="card rp-cause"><h3>${fl&&FAIL_GLOSS[fl.key]?`<button type="button" class="gl" data-g="${FAIL_GLOSS[fl.key]}">Root cause</button>`:fl?"Root cause":"Why it missed"}</h3><p>${esc(cause)}</p>
       ${factors.length?`<h3><button type="button" class="gl" data-g="variance">What pushed it</button></h3><p class="hint">Red pushed it towards the line; green held it back. Ranked.</p><ol class="factors">${factors.map(x=>`<li><span class="bar ${x.pct>0?"up":"dn"}" style="width:${Math.round(Math.min(1,Math.abs(x.pct)/maxF)*100)}%"></span><span>${esc(x.text)}</span></li>`).join("")}</ol>`:""}
       ${fixes.length?`<h3>Where to fix it</h3><div class="row">${fixes.map(fd=>`<button type="button" class="btn" data-goto="${fd}">${esc(ctlSpec(fd).label)} ›</button>`).join("")}</div>`:""}</section>`:""}
+    ${whyCard(L,f,c,tG)}
     ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
     <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
     ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
       <p class="hint"><button type="button" class="gl" data-g="blockhouse">The blockhouse</button>. ${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
     <div class="rp-act">${act}${canShareSheet(L)?`<button type="button" class="btn" id="rpSheet">Data sheet</button>`:""}</div>`;
-  drawReportChart();}
+  initReportTap();drawReportChart();}
+/* "Why it differed from the bench" (1.4): on a firing that ran to the end, what moved the real motor away from the
+   bench's 20 °C prediction, one cause at a time (sim/explain.js), as a share of each spec number. With the basic logger
+   only the temperature and the batch are split out; the rest is one "everything else" row. Worked out once per firing. */
+const WHY_SHORT={I:"Impulse",Fav:"Avg thrust",tb:"Burn time",Pmax:"Peak MPa",Fmax:"Peak N",prog:"Shape",Isp:"Isp"};
+const WHY_CACHE=new WeakMap();
+function whyKeys(c){
+  const out=[];for(const x of c?c.spec:[])if(BURN_SIM.EXPLAIN_KEYS.includes(x.k)&&!out.includes(x.k))out.push(x.k);
+  for(const k of["Pmax","I","tb"])if(out.length<3&&!out.includes(k))out.push(k);
+  return out.slice(0,3);}
+function whyCard(L,f,c,tG){
+  if(!f.ok||f.failure&&(f.failure.destructive||f.failure.key==="hangfire"))return"";
+  let ex=WHY_CACHE.get(f);if(ex===undefined){ex=BURN_SIM.explainFiring(f,whyKeys(c));WHY_CACHE.set(f,ex);}
+  if(!ex)return"";
+  const d=f.draws,full=L.bunker>=1,b=ex.bench;
+  const label={temp:`${tG>20?"Warm":"Cold"} grain, ${degC(tG)}`,batch:`Propellant batch, ${pctS(d.aMul-1)} burn rate`,
+    igniter:`Igniter, ${pctS(d.ignMul-1)} gas`,throat:`Throat wear ×${d.eroMul.toFixed(2)}`,
+    defect:d.void&&d.crack?"Void and crack":d.void?`Casting void, +${Math.round(d.void.frac*100)}% area`:`Grain crack, +${Math.round((d.crack||{frac:0}).frac*100)}% area`};
+  let rows=ex.steps.map(s=>({key:s.key,text:label[s.key],d:s.d}));
+  if(!full){const rest=rows.filter(r=>r.key!=="temp"&&r.key!=="batch");
+    rows=rows.filter(r=>r.key==="temp"||r.key==="batch");
+    if(rest.length)rows.push({key:"rest",text:"Everything else",d:b.map((_,i)=>rest.reduce((a,r)=>a+r.d[i],0))});}
+  const rel=(v,i)=>Math.abs(b[i])>1e-12?v/Math.abs(b[i]):0;
+  rows=rows.filter(r=>r.d.some((v,i)=>Math.abs(rel(v,i))>=0.005));
+  const cell=(v,i)=>{const r=rel(v,i);return Math.abs(r)<0.005?"·":pctS(r);};
+  let top=null;for(const r of rows)r.d.forEach((v,i)=>{const a=Math.abs(rel(v,i));if(!top||a>top.a)top={a,r,i,v};});
+  const what=k=>({I:"total impulse",Fav:"average thrust",tb:"burn time",Pmax:"peak pressure",Fmax:"peak thrust",prog:"the curve shape",Isp:"specific impulse"})[k];
+  const head=top?`The biggest mover: ${top.r.key==="rest"?"the deviations the basic logger can't split out":top.r.text.charAt(0).toLowerCase()+top.r.text.slice(1)}, ${pctS(rel(top.v,top.i))} ${what(ex.keys[top.i])}.`
+    :"The real motor fired within half a percent of the bench on every number.";
+  const th=ex.keys.map(k=>`<th>${esc(WHY_SHORT[k])}</th>`).join("");
+  return`<section class="card rp-why"><h3><button type="button" class="gl" data-g="whyDiffer">Why it differed from the bench</button></h3><p>${esc(head)}</p>
+    <table class="dtab mono why"><thead><tr><th></th>${th}</tr></thead><tbody>
+    <tr><th>Bench, 20 °C</th>${ex.bench.map((v,i)=>`<td>${fmtSpec(ex.keys[i],v)}</td>`).join("")}</tr>
+    ${rows.map(r=>`<tr class="${r===(top&&top.r)?"top":""}"><th>${esc(r.text)}</th>${r.d.map((v,i)=>`<td>${cell(v,i)}</td>`).join("")}</tr>`).join("")}
+    <tr class="sep"><th>Measured</th>${ex.meas.map((v,i)=>`<td><b>${fmtSpec(ex.keys[i],v)}</b></td>`).join("")}</tr></tbody></table>
+    <p class="hint">${full?"Each row adds one of this motor's own deviations to the one above, so they add up to what the stand measured.":"The basic data logger splits out only the grain temperature and the batch. Blockhouse instruments (Facilities) would name the rest: igniter, throat wear, voids and cracks."}</p></section>`;}
 /* a tender's lot: one row per motor (tap one to read its details below), and the rule it was judged by */
 function lotCard(L){const LT=L.lot,G=LT.gl,R=BURN_SIM.CAREER.lot;
   const rows=LT.fires.map((f,i)=>{const g=G.grades[i],s=f.meas.sum,res=g.pass?`Pass ${g.letter}`:(STAMP[g.why]||"Fail");
@@ -140,8 +176,22 @@ function flightCard(f,tG){
 function drawReportChart(){
   const L=GAME.last;if(!L||$("report").hidden&&!$("rpCv"))return;const f=L.lot?L.lot.fires[L.lot.sel]:L.f,fl=f.failure,fly=f.flight;
   if(fly&&$("rpFly"))BURN_VIS.altitude($("rpFly"),{pred:f.fpred.samples,meas:fly.samples,apoP:f.fpred.apogee,apoM:fly.apogee,lost:fly.lost?{t:fly.tLost,h:fly.hLost}:null});
-  BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
-    events:f.events.map(e=>({t:e.t,label:e.key})),others:L.lot?L.lot.fires.filter(x=>x!==f).map(x=>x.log):null});}
+  /* a tapped moment (1.4): predicted against measured, as the strip's readout */
+  let rd=null;const t=RP_CUR.t;
+  if(t!=null&&RP_CUR.f===f){const A=f.plog,M=f.log,ia=BURN_VIS.at(A,t),im=BURN_VIS.at(M,t),aOn=t<=A.t[A.t.length-1],mOn=t<=M.t[M.t.length-1];
+    const row=(w,on,s,i)=>`${w} ${on?`${(s.p[i]/1e6).toFixed(2)} MPa  ${Math.round(s.f[i])} N`:"burned out"}`;
+    rd=[`t ${t.toFixed(2)} s`,row("pred",aOn,A,ia),row("meas",mOn,M,im)];}
+  RP_GEOM=BURN_VIS.strip($("rpCv"),{pred:f.plog,meas:f.log,pLine:f.limits.pBurst,mark:fl&&FAIL_LABEL[fl.key]?{t:fl.t,label:FAIL_LABEL[fl.key]}:null,
+    events:f.events.map(e=>({t:e.t,label:e.key})),others:L.lot?L.lot.fires.filter(x=>x!==f).map(x=>x.log):null,cursor:rd?t:null,readout:rd});}
+/* tap or drag on the report's chart to read both traces at that moment; it stays until the report changes */
+let RP_GEOM=null;const RP_CUR={t:null,f:null};
+function initReportTap(){
+  const cv=$("rpCv");if(!cv||cv.dataset.tap)return;cv.dataset.tap="1";let held=false;
+  const to=e=>{const L=GAME.last,g=RP_GEOM;if(!L||!g)return;const b=cv.getBoundingClientRect();
+    RP_CUR.t=Math.max(0,Math.min(g.tMax,(e.clientX-b.left-g.L)/g.w*g.tMax));RP_CUR.f=L.lot?L.lot.fires[L.lot.sel]:L.f;drawReportChart();};
+  cv.addEventListener("pointerdown",e=>{held=true;try{cv.setPointerCapture(e.pointerId);}catch(err){}to(e);});
+  cv.addEventListener("pointermove",e=>{if(held)to(e);});
+  for(const ev of["pointerup","pointercancel"])cv.addEventListener(ev,()=>{held=false;});}
 function initReport(){
   $("rpBody").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
     if(b.dataset.goto){if(GAME.last&&GAME.last.replay)return;showScreen("design");drawAll();goToField(b.dataset.goto);coachFix();}

@@ -33,6 +33,8 @@ const FACILITIES={
     note:"The medium stand: motors up to 900 mm long and 110 mm across, a 10 kN load cell. Opens tier 2 work and tier 2 parts."},
   hut:{name:"Conditioning hut",cost:3500,need:14,give:{hut:1},
     note:"An insulated hut that holds a motor at the temperature you set, −20 to 50 °C, overnight before it fires. Some qualification jobs need it. 60 cr a firing."},
+  compute:{name:"Computing room",cost:6000,need:18,give:{compute:1},
+    note:"The old programme's computing room, its racks rewired for one job: firing your design 40 times over with the real dice, before the stand fires it once. The bench gets a Scatter button: the spread of the real motors drawn round the prediction, and how many of them would burst, chuff or miss the spec."},
   s1:{name:"Stand 1 lease",cost:16000,need:24,give:{stand:"s1",tier:3},
     note:"The old state booster stand: motors up to 2 m long and 170 mm across, a 40 kN load cell. Opens tier 3 work and tier 3 parts."},
   tenders:{name:"Range tender register",cost:30000,need:45,after:"s1",give:{tier:4},

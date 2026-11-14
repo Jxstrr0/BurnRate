@@ -23,7 +23,8 @@
    biggest at the start of a narrow-port motor, which is the erosive spike; opts.noErosive turns it off (tests).
 
    cond: {tGrain (°C, default 20), pAmb (Pa, default TUNING.pAmb)}
-   opts (all optional): noErosive, steps (regression steps over the web; fewer = faster, for live dragging), and the variance
+   opts (all optional): noErosive, steps (regression steps over the web; fewer = faster, for live dragging), dtMul (scales
+   the igniter's step and the longest step: over 1 = coarser and faster, for the scatter predictor), and the variance
    model's hooks (stage 3): {aMul, eroMul, ignMul, ignLight (strength under which the grain never lights),
    areaAdd(t, x) -> extra burning area in m² (a void or a crack; its propellant comes out of the grain's web)}
    Returns {ok, t[], p[], f[], kn[], x[], mdot[], at[], ign:{strength, delay, spread}, sepAny, chuffAny, notLit,
@@ -34,7 +35,7 @@ function simulate(motor,cond,opts){
   const T=TUNING,prop=motor.prop,G=motor.grain,g=prop.gamma,cs=prop.cStar,rho=prop.rho;
   const RT=Math.pow(cs*vdk(g),2),n=prop.n,Pa=cond.pAmb!=null?cond.pAmb:T.pAmb,tGrain=cond.tGrain!=null?cond.tGrain:T.tRef;
   const a=propCoef(prop,tGrain)*(opts.aMul||1),eroRate=motor.throatMat.ero/1000*(opts.eroMul==null?1:opts.eroMul);
-  const Vch=motor.Vch,web=G.web,dxT=web/(opts.steps||T.steps),areaAdd=opts.areaAdd||null;   // opts.steps: fewer while the player drags a slider
+  const Vch=motor.Vch,web=G.web,dxT=web/(opts.steps||T.steps),areaAdd=opts.areaAdd||null,dtK=opts.dtMul||1;   // opts.steps: fewer while the player drags a slider
   /* igniter */
   const ig=motor.igniter,igGas=ig.gas*(opts.ignMul==null?1:opts.ignMul),need=T.ignNeedVol*(Vch-G.V(0))+T.ignNeedArea*G.A(0);
   const S=Math.max(1e-6,igGas/need),delay=T.ignDelay/S,spread=T.ignSpread/(S*S);
@@ -58,8 +59,8 @@ function simulate(motor,cond,opts){
     steps++;
     const At=PI*rt*rt,burning=x<web,inIgn=t<ignEnd+0.01;
     let dt;
-    if(inIgn)dt=T.dtIgn;
-    else if(burning)dt=Math.min(T.dtMax,dxT/Math.max(rLast,1e-5));
+    if(inIgn)dt=T.dtIgn*dtK;
+    else if(burning)dt=Math.min(T.dtMax*dtK,dxT/Math.max(rLast,1e-5));
     else{const tau=Math.max(1e-5,(Vch-G.V(x))/(At*cs*vdk(g)*vdk(g)));dt=Math.min(0.01,Math.max(2e-4,tau/4));}
     const t1=t+dt,fl=lit(t1),ign=igIn(t,t1),V0=G.V(x),mOld=mg;
     /* extra burning area from the variance model (a void or a crack) burns at the same rate as the grain, and the

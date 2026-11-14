@@ -5,7 +5,9 @@
    a burst runs off the top of the chart instead of giving itself away before it happens.
    o: {h, pred:{t,p,f}, meas:{t,p,f}, upto, pLine (Pa, the case's burst rating), mark:{t,label} (the failure moment),
        events:[{t,label}] (a void, a crack), now (true: draw a pen dot at the head of the measured trace), others (more measured
-       traces, faint), fix ({W, dpr}: a set size, for the share card)} */
+       traces, faint), fix ({W, dpr}: a set size, for the share card), cursor (s: a tapped moment, a line through both panels
+       with a dot on each trace), readout (lines of text for it, in a box)}. Returns the plot's {L, w, tMax}, so a tap can
+       be turned into a time. */
 function strip(cv,o){
   const{c,W,H}=fit(cv,o.h||(w=>Math.min(w*0.62,300)),o.fix),k=tokens();
   const P=o.pred,M=o.meas,nP=P.t.length,nM=M.t.length;
@@ -46,5 +48,11 @@ function strip(cv,o){
     c.globalAlpha=0.85;trace(P,nP,pn,k.pred,1.5,Infinity);c.globalAlpha=1;
     const last=trace(M,nM,pn,k.meas,2.4,upto);
     if(o.now&&last>=0){const x=X(M.t[last]),y=Math.max(pn.y0,pn.Y(pn.get(M,last)));c.fillStyle=k.meas;c.beginPath();c.arc(x,y,3.5,0,7);c.fill();}}
+  /* the tapped moment: a line, a dot on each trace (clamped into its panel), and the readout */
+  if(o.cursor!=null){const t=o.cursor,x=X(t);c.save();c.strokeStyle=k.muted;c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(x,T);c.lineTo(x,H-B);c.stroke();c.restore();
+    for(const pn of panels)for(const[s,col]of[[P,k.pred],[M,k.meas]]){if(t>s.t[s.t.length-1])continue;const i=at(s,t),y=Math.max(pn.y0,Math.min(pn.y0+pn.h,pn.Y(pn.get(s,i))));
+      c.fillStyle=k.card;c.beginPath();c.arc(x,y,4,0,7);c.fill();c.strokeStyle=col;c.lineWidth=2;c.stroke();}
+    if(o.readout)readoutBox(c,k,o.readout,x,L,T,w,H-T-B,null);}
+  return{L,w,tMax};
 }
 Object.assign(VIS,{strip});

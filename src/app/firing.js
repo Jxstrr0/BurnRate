@@ -12,9 +12,10 @@
    the measured thrust and crackles when the pressure gets rough, a bang when it goes. The speaker button mutes both.
    Ruslan's voice (1.3, Settings: English, Russian or off): once his range calls are loaded the countdown opens with
    "Stand is armed. Range is clear." and he calls three, two, one, fire over the tannoy in place of the beeps; a hold
-   during the countdown gets "Hold, hold, hold" and "Countdown held", and the end of a run "Range is safe". */
-const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false,pre:0};
-const SND={n:-1,lit:false,boom:false,out:false,saved:false};   // which sounds this run has made
+   during the countdown gets "Hold, hold, hold" and "Countdown held", and the end of a run "Range is safe".
+   Each call starts a beat early (VOICE_BEAT) so its stressed vowel lands as the number shows, in either language. */
+const FR={raf:0,t0:0,phase:"idle",sp:1,count:0,tEnd:0,fPk:1,tFly:0,spC:1,d3:false,rp0:0,rp1:0,replayed:false,pre:0,vc:false};
+const SND={c:0,armed:false,lit:false,boom:false,out:false,saved:false};   // which sounds this run has made (c: countdown calls made)
 const REPLAY_SP=0.3,REPLAY_PRE=0.5,REPLAY_POST=1.4;   // replay speed, and seconds shown before and after the failure
 const COAST_S=4;   // seconds the coast to apogee takes on screen
 /* sim time at el seconds into the burn phase: the burn at FR.sp, then a launch's coast at FR.spC, or real time after a
@@ -23,6 +24,11 @@ const frTime=el=>{const tb=FR.tEnd/FR.sp;return el<=tb?el*FR.sp:FR.tEnd+(el-tb)*
 const FIRE_COUNT=3,COUNT_STEP=0.7,AFTER=2.6;   // countdown from 3, seconds per number; seconds the stand keeps running after the burn
 const ARMED_S=2.4;   // seconds before "3" while Ruslan says the stand is armed (only when his voice is on and loaded)
 const VOICE_CALLS=["armed","count-3","count-2","count-1","fire","hold","held","safe"];
+const COUNT_CALLS=["count-3","count-2","count-1","fire"];   // the countdown's calls, in order
+/* seconds from the start of each countdown clip to its stressed vowel, the moment a listener hears as the beat (read off
+   the clips' spectrograms). English gets there almost at once; Russian "Два" opens on "дв" and "Один" is a-DIN, so they
+   take an eighth and a fifth of a second. Each call starts that much before its number shows, so both land on it. */
+const VOICE_BEAT={en:{"count-3":0.01,"count-2":0.04,"count-1":0.01,fire:0.01},ru:{"count-3":0.07,"count-2":0.12,"count-1":0.21,fire:0.01}};
 /* load his range calls ahead, so the countdown never waits on the network */
 const voicePrep=()=>{if(SETTINGS.sound&&SETTINGS.voice!=="off")BURN_SOUND.voice.preload(VOICE_CALLS);};
 /* AFTER in sim seconds at the speed the end of the run plays (real time, or a launch's sped-up coast) */
@@ -38,7 +44,7 @@ function openFiring(){
   const n=f.log.t.length;FR.tEnd=f.log.t[n-1];
   FR.tFly=fly?Math.max(FR.tEnd,fly.lost?fly.tLost:fly.tApo):0;FR.spC=fly?Math.max(1,(FR.tFly-FR.tEnd)/COAST_S):1;
   FR.fPk=Math.max(1,...f.plog.f);FR.pPk=1;for(const p of f.log.p)if(p>FR.pPk)FR.pPk=p;
-  Object.assign(SND,{n:-1,lit:false,boom:false,out:false,saved:false});BURN_SOUND.stop();BURN_SOUND.chirp(false);
+  Object.assign(SND,{c:0,armed:false,lit:false,boom:false,out:false,saved:false});BURN_SOUND.stop();BURN_SOUND.chirp(false);
   const dur=Math.max(2,Math.min(7,FR.tEnd));FR.sp=FR.tEnd/dur;
   $("frSpeed").textContent=FR.sp<0.85?`slowed ×${FR.sp.toFixed(2)}`:FR.sp>1.15?`sped up ×${FR.sp.toFixed(1)}`:"real time";
   $("frNext").hidden=true;$("frAbort").hidden=false;$("frAbort").disabled=false;$("frReplay").hidden=true;$("frPlume").hidden=true;$("frSlow").hidden=true;
@@ -48,7 +54,10 @@ function openFiring(){
   if(FR.d3)setup3d(L);
   const fl=f.failure;FR.replayed=false;FR.rp0=fl&&fl.destructive?Math.max(0,fl.t-REPLAY_PRE):-1;FR.rp1=fl&&fl.destructive?fl.t+REPLAY_POST:-1;
   FR.phase=reduced()?"burn":"count";FR.t0=performance.now();
-  voicePrep();FR.pre=FR.phase==="count"&&BURN_SOUND.voice.ready("armed")?ARMED_S:0;
+  /* he calls the countdown only if every call is already decoded (otherwise it all beeps, never half and half), and
+     his sign-off for the report is fetched now so it starts the moment the report opens */
+  voicePrep();FR.vc=FR.phase==="count"&&["armed",...COUNT_CALLS].every(BURN_SOUND.voice.ready);FR.pre=FR.vc?ARMED_S:0;
+  if(SETTINGS.sound&&!L.replay)BURN_SOUND.voice.preload([rsoClip(rsoKeyOf(L),L.n)]);
   cancelAnimationFrame(FR.raf);FR.raf=requestAnimationFrame(frameFiring);}
 /* hand the firing to the 3D stand: motor size, nozzle, thrust curve, and for a launch the rocket and its path */
 function setup3d(L){
@@ -64,13 +73,13 @@ function frameFiring(now){
   if(FR.phase==="replay"){const t=FR.rp0+el*REPLAY_SP;drawFiring(Math.min(t,FR.rp1),still);sndAt(Math.min(t,FR.rp1),true);
     if(t<FR.rp1)FR.raf=requestAnimationFrame(frameFiring);else endReplay();return;}
   if(FR.phase==="count"){
-    const ec=el-FR.pre,V=BURN_SOUND.voice;
-    if(ec<0){$("frCount").textContent="Armed";$("frCount").hidden=false;
-      if(SND.n!=="armed"){SND.n="armed";V.say("armed",{pa:true,now:true});}
-      drawFiring(-1,still);FR.raf=requestAnimationFrame(frameFiring);return;}
+    const ec=el-FR.pre,V=BURN_SOUND.voice,beat=VOICE_BEAT[SETTINGS.voice]||{};
+    if(FR.vc&&!SND.armed){SND.armed=true;V.say("armed",{pa:true,now:true});}
+    /* call k is due k steps in, less its beat when he's calling it (a late frame sounds only the latest one due) */
+    let due=-1;while(SND.c<=FIRE_COUNT&&ec>=SND.c*COUNT_STEP-(FR.vc?beat[COUNT_CALLS[SND.c]]||0:0))due=SND.c++;
+    if(due>=0&&!(FR.vc&&V.say(COUNT_CALLS[due],{pa:true,now:true})))BURN_SOUND.beep(due===FIRE_COUNT);
     const left=FIRE_COUNT-Math.floor(ec/COUNT_STEP);
-    $("frCount").textContent=left>0?String(left):"Fire";$("frCount").hidden=false;
-    if(left!==SND.n){SND.n=left;if(!V.say(left>0?"count-"+left:"fire",{pa:true,now:true}))BURN_SOUND.beep(left<=0);}
+    $("frCount").textContent=ec<0?"Armed":left>0?String(left):"Fire";$("frCount").hidden=false;
     drawFiring(-1,still);
     if(ec>=FIRE_COUNT*COUNT_STEP+0.25){FR.phase="burn";FR.t0=now;$("frCount").hidden=true;}
     FR.raf=requestAnimationFrame(frameFiring);return;}

@@ -116,9 +116,6 @@ function mediaHash() {
   for (const dir of ["models", "sounds", "textures"]) walk(dir);
   return h.digest("hex").slice(0, 8);
 }
-/* Ruslan's voice: every line in tools/voice-lines.json has a clip in sounds/voice/en/ and sounds/voice/ru/, the sign-offs
-   match RSO_LINES in src/app/report.js (same keys, same count, same English), and the calls match VOICE_CALLS in
-   src/app/firing.js. A missing clip only means silence in the game, so this is the place that notices. */
 /* every texture a model's materials name (glTF extras.tex, from tools/blender_lib.py) or the 3D stand asks for in
    src/vis/ (texGet / texMat with a quoted key) must exist in textures/ as <key>.jpg and <key>-n.jpg */
 function checkTextures() {
@@ -137,6 +134,10 @@ function checkTextures() {
     if (!fs.existsSync(path.join(ROOT, "textures", k + suf + ".jpg"))) bad.push(`textures/${k}${suf}.jpg is missing (named in ${from})`);
   if (bad.length) die(bad.join("\n"));
 }
+/* Ruslan's voice: every line in tools/voice-lines.json has a clip in sounds/voice/en/ and sounds/voice/ru/, the sign-offs
+   match RSO_LINES in src/app/report.js (same keys, same count, same English), and the calls match VOICE_CALLS in
+   src/app/firing.js, each countdown call with a beat (VOICE_BEAT) in both languages. A missing clip only means silence in
+   the game, so this is the place that notices. */
 function checkVoice() {
   const jf = path.join(ROOT, "tools", "voice-lines.json");
   if (!fs.existsSync(jf)) return;
@@ -152,9 +153,19 @@ function checkVoice() {
     for (const w of want) if (!have.has(w.id)) bad.push(`voice-lines.json has no sign-off ${w.id}`); else if (have.get(w.id) !== w.en) bad.push(`sign-off ${w.id} differs from RSO_LINES: "${have.get(w.id)}"`);
     if (j.signoffs.length !== want.length) bad.push(`voice-lines.json has ${j.signoffs.length} sign-offs, RSO_LINES ${want.length}`);
   }
-  const fc = fs.readFileSync(path.join(SRC, "app", "firing.js"), "utf8").match(/const VOICE_CALLS=(\[[^\]]*\]);/);
+  const fsrc = fs.readFileSync(path.join(SRC, "app", "firing.js"), "utf8"), fc = fsrc.match(/const VOICE_CALLS=(\[[^\]]*\]);/);
   if (!fc) bad.push("no VOICE_CALLS in src/app/firing.js");
   else if (JSON.stringify(JSON.parse(fc[1])) !== JSON.stringify(j.calls.map(l => l.id))) bad.push("VOICE_CALLS in src/app/firing.js differs from the calls in voice-lines.json");
+  /* every countdown call has its beat (seconds to the stressed vowel) in both languages, so the count lands in either */
+  const cc = fsrc.match(/const COUNT_CALLS=(\[[^\]]*\]);/), vb = fsrc.match(/const VOICE_BEAT=(\{[^\n]*\});/);
+  if (!cc || !vb) bad.push("no COUNT_CALLS or VOICE_BEAT in src/app/firing.js");
+  else {
+    const B = vm.runInNewContext("(" + vb[1] + ")");
+    for (const lang of ["en", "ru"]) for (const id of JSON.parse(cc[1])) {
+      const v = B[lang] && B[lang][id];
+      if (!(typeof v === "number" && v >= 0 && v < 0.35)) bad.push(`VOICE_BEAT.${lang}["${id}"] is missing or not 0 to 0.35 s`);
+    }
+  }
   if (bad.length) die("voice clips:\n  " + bad.join("\n  "));
 }
 function version() {

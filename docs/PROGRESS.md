@@ -49,6 +49,18 @@ rocket.
 - Checked in a 390 px browser: the three stand shots and three launch shots, motors from 29 mm to 300 mm in every case
   material, four airframes, Full and Lite, burst, ejection, burn-through and hang fire. No console errors.
 
+## 1.4.1.1 — Ruslan's countdown in sync, English and Russian
+
+- In Russian, Ruslan's "Два" and "Один" landed late: the clips start on time, but the stressed vowel (what you hear as
+  the beat) comes 0.12 s into "Два" and 0.21 s into "Один" (a-DIN), against about 0.01 s for the English words. Each
+  countdown call now starts that much before its number shows (`VOICE_BEAT` in `src/app/firing.js`, read off the clips'
+  spectrograms), so every call lands within a frame of its number in both languages. Measured in Chromium: before,
+  "Один" was 210 ms behind the "1"; now under 10 ms either way.
+- The countdown is all voice or all beeps, never half and half: he calls it only if all five clips are already loaded.
+- The report's sign-off clip is fetched while the motor burns, so he starts reading as the report opens rather than
+  after a download (the Russian clips are the bigger ones).
+- `node build.js` checks every countdown call has a beat for both languages.
+
 ## 1.4.1.0 — "i" badges on the bench
 
 - Every control's name on the bench (propellant grade, segments, core, throat, case material, wall...) now shows a

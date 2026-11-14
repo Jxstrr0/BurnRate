@@ -35,6 +35,12 @@ const rsoLine=(key,n)=>RSO_LINES[rsoKey(key)][rsoIdx(key,n)];
 /* the sign-off's voice clip (sounds/voice/<lang>/<key>-<n>.mp3, n from 1; the ids in tools/voice-lines.json) */
 const rsoClip=(key,n)=>rsoKey(key)+"-"+(rsoIdx(key,n)+1);
 let rsoSaid="";   // the clip for the report on screen, which openReport hands to Ruslan
+/* which set of sign-offs a firing gets: a lot's verdict, a lost rocket, the grade (flyA for a clean launch) or what went
+   wrong, or a free firing's. app/firing.js uses it too, to fetch the clip while the motor burns. */
+function rsoKeyOf(L){
+  const LT=L.lot;if(LT){const G=LT.gl;return G.pass?(G.letter==="A"&&!G.fails?"lotA":G.letter):"lot";}
+  const f=L.f,g=L.g,c=L.c,fl=f.failure,fly=f.flight||null;
+  return fly&&fly.lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");}
 const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
 /* the report's number: S-n in the sandbox, D<daily no>-n on the Daily Spec, 41-nnn otherwise */
 const reportNo=L=>L.sandbox?`S-${L.n}`:L.daily?`D${L.c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`;
@@ -45,9 +51,9 @@ function renderReport(){
   /* a lot: the details below are for the selected motor; the stamp is the lot's */
   const LT=L.lot,f=LT?LT.fires[LT.sel]:L.f,g=LT?LT.gl.grades[LT.sel]:L.g,c=L.c,sl=BURN_SIM.SLOTS[L.slot],tG=L.tGrain??sl.tGrain,fl=f.failure,ms=f.meas.sum,ps=f.pred.sum,m=f.motor;
   const fly=f.flight||null,lost=!!(fly&&fly.lost);
-  let pass=c?g.pass:!fl,key=lost?"lost":c?(g.pass?(fly&&g.letter==="A"?"flyA":g.letter):g.why):(fl?fl.key:"free");
+  let pass=c?g.pass:!fl;const key=rsoKeyOf(L);
   let stamp=lost?"Rocket lost":c?(g.pass?`Pass · ${g.letter}`:STAMP[g.why]||"Fail"):(fl?STAMP[fl.key]:"Logged");
-  if(LT){const G=LT.gl;pass=G.pass;key=G.pass?(G.letter==="A"&&!G.fails?"lotA":G.letter):"lot";stamp=G.pass?`Lot accepted · ${G.letter}`:"Tender lost";}
+  if(LT){const G=LT.gl;pass=G.pass;stamp=G.pass?`Lot accepted · ${G.letter}`:"Tender lost";}
   rsoSaid=rsoClip(key,L.n);
   /* the spec, line by line: band, predicted at this temperature, measured */
   const checks=c?g.checks.length?g.checks:BURN_SIM.specCheck(c.spec,ms,m):[];

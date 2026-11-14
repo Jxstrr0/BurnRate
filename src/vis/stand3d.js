@@ -18,30 +18,43 @@
 const S3={ok:false,R:null,sc:null,cam:null,cv:null,full:true,dpr:1,world:null,nodes:{},mats:null,o:null,last:null,
   shot:0,orbit:null,ptr:new Map(),drag:null,flash:null,label:null,labelT:0,frames:[],stepped:0,onStep:null,onShot:null};
 const S3_AIR=101325,S3_N={full:720,lite:260};
-const SHOTS={stand:["Side on","Nozzle close-up","Blockhouse window"],launch:["Chase","Pad camera","Downrange"]};
+/* the hand-written shaders (sky, plume, smoke) write display colours; through the post chain (vis/post3d.js), which works
+   in linear light and encodes at the end, they are made linear first (lin = 1) so they look the same either way */
+const S3_LIN="uniform float lin;vec3 s3Lin(vec3 c){return lin>0.5?mix(c/12.92,pow((c+0.055)/1.055,vec3(2.4)),step(0.04045,c)):c;}";
+/* a sky colour as a display value (the sky shader mixes display colours, like the hand-tuned values it replaced) */
+const s3Hex=(c,x)=>c.setHex(x,THREE.LinearSRGBColorSpace);
 /* deterministic per-particle randomness (0..1): the same smoke every replay */
 const h01=k=>{const s=Math.sin(k*127.1+311.7)*43758.5453;return s-Math.floor(s);};
 function s3Init(cv,buf,tier,kit){
   const T=THREE;S3.cv=cv;S3.full=tier!=="lite";
-  try{S3.R=new T.WebGLRenderer({canvas:cv,antialias:S3.full,powerPreference:"high-performance"});}catch(e){S3.ok=false;return false;}
+  /* where the post chain can run it does the antialiasing itself, so the canvas needn't be multisampled too */
+  const canPost=!!VIS.p3&&s3CanPost();
+  try{S3.R=new T.WebGLRenderer({canvas:cv,antialias:S3.full&&!canPost,powerPreference:"high-performance"});}catch(e){S3.ok=false;return false;}
   const R=S3.R;R.toneMapping=T.NoToneMapping;R.shadowMap.enabled=S3.full;
+  /* the post chain (Full only) and, with it, an environment map so metal can be metal */
+  S3.post=canPost&&VIS.p3.init(R,{samples:4});
+  if(S3.post){S3.env=VIS.p3.env(R,0x8FB0CC,0xE9E4D8,0xB9B09C);GLB.metalCap=0.85;}
   const sc=S3.sc=new T.Scene();
   sc.fog=new T.Fog(0xE9E4D8,400,7000);
   S3.cam=new T.PerspectiveCamera(30,1,0.05,40000);
   /* the sky: a gradient dome that follows the camera, faded steppe blue to a pale dusty horizon, with a sun glow */
   const sky=new T.Mesh(new T.SphereGeometry(20000,24,12),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,fog:false,
-    uniforms:{sun:{value:new T.Vector3(0.42,0.62,-0.6).normalize()}},
+    uniforms:{sun:{value:new T.Vector3(0.40,0.69,-0.58).normalize()},hor:{value:s3Hex(new T.Color(),0xE9E4D8)},zen:{value:s3Hex(new T.Color(),0x8FB0CC)},
+      sunC:{value:s3Hex(new T.Color(),0xFFF2DC)},glow:{value:1},stars:{value:0},lin:{value:0}},
     vertexShader:"varying vec3 vd;void main(){vd=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_Position.z=gl_Position.w;}",
-    fragmentShader:"uniform vec3 sun;varying vec3 vd;void main(){float y=max(vd.y,0.0);vec3 hor=vec3(0.914,0.894,0.847),zen=vec3(0.56,0.69,0.80);"+
-      "vec3 c=mix(hor,zen,pow(y,0.55));float s=max(dot(vd,sun),0.0);c+=vec3(1.0,0.93,0.78)*(pow(s,40.0)*0.35+pow(s,600.0)*0.6);"+
-      "if(vd.y<0.0)c=hor;gl_FragColor=vec4(c,1.0);}"}));
+    fragmentShader:S3_LIN+"uniform vec3 sun,hor,zen,sunC;uniform float glow,stars;varying vec3 vd;void main(){float y=max(vd.y,0.0);"+
+      "vec3 c=mix(hor,zen,pow(y,0.55));float s=max(dot(vd,sun),0.0);c+=sunC*glow*(pow(s,40.0)*0.35+pow(s,600.0)*0.6);"+
+      "if(stars>0.0){vec3 q=floor(vd*420.0);float h=fract(sin(dot(q,vec3(12.9898,78.233,37.719)))*43758.5453);c+=vec3(0.85,0.88,1.0)*step(0.9965,h)*stars*smoothstep(0.02,0.25,vd.y);}"+
+      "if(vd.y<0.0)c=hor;gl_FragColor=vec4(s3Lin(c),1.0);}"}));
   sky.renderOrder=-1;sky.frustumCulled=false;sc.add(sky);S3.sky=sky;
   /* lights: the steppe sun and a bright sky bounce; the plume's own light sits at the nozzle */
-  sc.add(new T.HemisphereLight(0xF4F2EC,0xB9B09C,1.9));
+  S3.hemi=new T.HemisphereLight(0xF4F2EC,0xB9B09C,1.9);sc.add(S3.hemi);
   const sun=S3.sun=new T.DirectionalLight(0xFFF2DC,1.6);sun.position.set(35,60,-50);sun.castShadow=true;
   sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:200});sun.shadow.bias=-0.0006;
   sc.add(sun);sc.add(sun.target);
   S3.fire=new T.PointLight(0xFFB868,0,30,2);sc.add(S3.fire);
+  /* two more: the place's lamps indoors, or its floodlights on a night firing (always two, so no shader is rebuilt) */
+  S3.lamps=[0,1].map(()=>{const l=new T.PointLight(0xFFF0D8,0,16,2);sc.add(l);return l;});
   /* the salt flat: a big plane with the salt-crust texture (textures/salt.jpg, one tile is 20 m; its normal map on Full).
      The plane is cut into 64 x 64 cells (huge single triangles break depth on some GPUs) and follows the camera in whole
      tiles, growing with height, so the crust stays put while the edge stays in the haze */
@@ -57,7 +70,7 @@ function s3Init(cv,buf,tier,kit){
   const hg=new T.BufferGeometry();hg.setAttribute("position",new T.Float32BufferAttribute(pos,3));hg.computeVertexNormals();
   const hills=new T.Mesh(hg,new T.MeshLambertMaterial({color:0xA9AEAF,side:T.DoubleSide,flatShading:true}));hills.userData.keepMat=true;sc.add(hills);
   /* the range model */
-  const W=glbScene(buf,S3.full);S3.world=W.root;S3.nodes=W.nodes;S3.mats=W.mats;sc.add(W.root);W.root.updateMatrixWorld(true);
+  const W=glbScene(buf,S3.full);S3.world=W.root;S3.nodes=W.nodes;S3.mats=W.mats;sc.add(W.root);W.root.updateMatrixWorld(true);S3.roots={};
   /* the motor and rocket parts (models/kit.glb): not in the scene; s3Setup clones what each design needs */
   if(kit){const K=glbScene(kit,S3.full);K.root.traverse(o=>{if(o.material)o.material.userData.shared=true;});S3.kit={nodes:K.nodes,mats:K.mats,root:K.root};}
   /* sprites: smoke (normal blending) and glow (additive), one Points each, positions rewritten every frame */
@@ -76,36 +89,36 @@ function s3Points(n,add){
   geo.setAttribute("alpha",new T.BufferAttribute(A,1).setUsage(T.DynamicDrawUsage));geo.setAttribute("seed",new T.BufferAttribute(C,1));
   for(let i=0;i<n;i++)C[i]=h01(i*3.1);
   const mat=new T.ShaderMaterial({transparent:true,depthWrite:false,blending:add?T.AdditiveBlending:T.NormalBlending,
-    uniforms:{scale:{value:500},tint:{value:add?new T.Vector3(1,0.72,0.38):new T.Vector3(0.70,0.69,0.67)}},
+    uniforms:{scale:{value:500},tint:{value:add?new T.Vector3(1,0.72,0.38):new T.Vector3(0.70,0.69,0.67)},lin:{value:0}},
     vertexShader:"attribute float size;attribute float alpha;attribute float seed;uniform float scale;varying float va;varying float vs;"+
       "void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(size*scale/max(0.05,-mv.z),0.0,700.0);va=alpha*clamp((-mv.z-size*0.25)/(size*0.5),0.0,1.0);vs=seed;}",
-    fragmentShader:add?"uniform vec3 tint;varying float va;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float a=va*pow(max(0.0,1.0-d),2.0);"+
-        "gl_FragColor=vec4(mix(tint,vec3(1.0,0.97,0.88),pow(max(0.0,1.0-d),5.0))*a,a);}"
-      :"uniform vec3 tint;varying float va;varying float vs;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float lump=0.82+0.18*sin(atan(q.y,q.x)*3.0+vs*40.0);"+
-        "float a=va*(1.0-smoothstep(0.35*lump,1.0*lump,d));if(a<0.004)discard;vec3 c=tint*(1.06-0.22*gl_PointCoord.y);gl_FragColor=vec4(c,a);}"});
+    fragmentShader:add?S3_LIN+"uniform vec3 tint;varying float va;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float a=va*pow(max(0.0,1.0-d),2.0);"+
+        "gl_FragColor=vec4(s3Lin(mix(tint,vec3(1.0,0.97,0.88),pow(max(0.0,1.0-d),5.0)))*a,a);}"
+      :S3_LIN+"uniform vec3 tint;varying float va;varying float vs;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q)*2.0;float lump=0.82+0.18*sin(atan(q.y,q.x)*3.0+vs*40.0);"+
+        "float a=va*(1.0-smoothstep(0.35*lump,1.0*lump,d));if(a<0.004)discard;vec3 c=tint*(1.06-0.22*gl_PointCoord.y);gl_FragColor=vec4(s3Lin(c),a);}"});
   const pts=new T.Points(geo,mat);pts.frustumCulled=false;pts.renderOrder=2;
   return{pts,P,Z,A,n,geo};}
 /* the plume: a shell whose radius profile and glow come from a shader. Local +X is the exhaust direction, origin the exit */
 function s3Plume(core){
   const T=THREE,geo=new T.CylinderGeometry(1,1,1,22,32,true);geo.translate(0,0.5,0);geo.rotateZ(-Math.PI/2);
   const mat=new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,
-    uniforms:{L:{value:1},R:{value:0.02},F:{value:0},time:{value:0},dia:{value:0},pinch:{value:0},flick:{value:1},core:{value:core?1:0}},
-    vertexShader:"uniform float L,R,F,dia,pinch,time,flick,core;varying float vu;varying vec3 vn;varying vec3 vv;"+
-      "void main(){float u=position.x;vu=u;float spread=core>0.5?0.8:2.4+1.8*F;"+
+    uniforms:{L:{value:1},R:{value:0.02},F:{value:0},time:{value:0},dia:{value:0},pinch:{value:0},flick:{value:1},core:{value:core?1:0},wide:{value:0},lin:{value:0}},
+    vertexShader:"uniform float L,R,F,dia,pinch,time,flick,core,wide;varying float vu;varying vec3 vn;varying vec3 vv;"+
+      "void main(){float u=position.x;vu=u;float spread=core>0.5?0.8+0.6*wide:(2.4+1.8*F)*(1.0+1.5*wide);"+
       "float r=R*(1.0+spread*u)*(1.0-0.75*smoothstep(0.55,1.0,u));"+
       "r*=1.0+dia*0.22*sin(u*18.0)*(1.0-u);r*=1.0-pinch*0.35*sin(min(u*5.0,3.1416));"+
       "r*=1.0+flick*0.05*sin(time*53.0+u*9.0);"+
       "vec3 p=vec3(u*L,position.y*r,position.z*r);vec4 mv=modelViewMatrix*vec4(p,1.0);vv=normalize(-mv.xyz);vn=normalize(normalMatrix*vec3(0.0,position.y,position.z));"+
       "gl_Position=projectionMatrix*mv;}",
-    fragmentShader:"uniform float F,dia,time,flick,core;varying float vu;varying vec3 vn;varying vec3 vv;"+
+    fragmentShader:S3_LIN+"uniform float F,dia,time,flick,core,wide;varying float vu;varying vec3 vn;varying vec3 vv;"+
       "void main(){float face=pow(abs(dot(vn,vv)),core>0.5?1.2:2.2);"+
       "vec3 hot=vec3(1.0,0.97,0.86),mid=vec3(1.0,0.66,0.26),cool=vec3(0.86,0.32,0.14);"+
       "vec3 c=vu<0.25?mix(hot,mid,vu/0.25):mix(mid,cool,(vu-0.25)/0.75);"+
       "float fade=(1.0-smoothstep(0.35,1.0,vu))*smoothstep(0.0,0.03,vu+0.03);"+
       "float fl=1.0+flick*(0.12*sin(time*71.0+vu*23.0)+0.08*sin(time*137.0-vu*41.0));"+
       "float dm=dia*exp(-pow(fract(vu*5.5)-0.5,2.0)*60.0)*(1.0-vu)*1.4;"+
-      "float a=face*fade*fl*(core>0.5?0.95:0.55)*clamp(F*1.4,0.0,1.0)+dm*face;"+
-      "gl_FragColor=vec4((c+dm*hot)*a,a);}"});
+      "float a=face*fade*fl*(core>0.5?0.95:0.55*(1.0-0.4*wide))*clamp(F*1.4,0.0,1.0)+dm*face;"+
+      "gl_FragColor=vec4(s3Lin(c+dm*hot)*a,a);}"});
   const m=new T.Mesh(geo,mat);m.frustumCulled=false;m.renderOrder=3;return m;}
 /* ---- per firing ---- */
 /* Texture tiles (m) for the parts made or re-materialled here: a texture repeats every tile metres */
@@ -119,17 +132,31 @@ const S3_ROCKET={kraft:{body:[0xFFFFFF,0,0.85,"kraft"],fin:[0xFFFFFF,0,0.75,"woo
   glass:{body:[0xE6E2D6,0.05,0.5,"glass"],fin:[0x2A55C9,0.05,0.5,"glass"],nose:[0xEDEBE5,0.05,0.45,"glass"],ring:[0x3E4247,0.3,0.6,"paint"],tip:true},
   carbon:{body:[0x4A4D52,0.25,0.4,"carbon"],fin:[0x4A4D52,0.25,0.4,"carbon"],nose:[0xEDEBE5,0.05,0.35,null],ring:[0x3E4247,0.3,0.6,"paint"],tip:true}};
 function s3Setup(o){
-  const T=THREE;S3.o=o;S3.shot=0;S3.orbit=null;S3.lastT=null;
+  const T=THREE;S3.o=o;S3.shot=0;S3.orbit=null;S3.lastT=null;S3.introOff=false;S3.lightKey=null;
+  S3.pl=s3Place(o);S3.day=o.day||{tod:"noon",wx:"clear"};S3.fogNF=S3_WX.clear.fog;
   /* free the last firing's pieces; the kit's geometry and the shared (cached) materials stay */
   if(S3.rig){S3.sc.remove(S3.rig);S3.rig.traverse(x=>{if(x.isInstancedMesh)x.dispose();if(x.geometry&&!x.geometry.userData.kit)x.geometry.dispose();
     const m=x.material;if(m&&m.dispose&&!x.userData.shared&&!(m.userData&&m.userData.shared))m.dispose();});}
   const rig=S3.rig=new T.Group();S3.sc.add(rig);
   Object.assign(S3,{motor:null,rocket:null,nozzle:null,caseMesh:null,ign:null,keep:null,boltA:null,jet:null,halves:[],exitL:null,lift:0.02});
-  if(o.mode==="stand")(S3.kit?s3KitStand:s3PlainStand)(o,rig);
+  if(o.mode!=="launch")(S3.kit?s3KitStand:s3PlainStand)(o,rig);
   else{(S3.kit?s3KitLaunch:s3PlainLaunch)(o,rig);
     /* the wind blows along this direction (horizontal); the sim's drift x is along it */
     S3.wdir=new T.Vector3(0.8,0,0.6).normalize();}
-  S3.deb.count=0;S3.flash.style.opacity=0;s3Label();return S3.R!=null;}
+  /* indoors, the smoke goes into the augmenter or the diffuser at x = inX */
+  const pl=S3.pl,inl=s3Node(pl.inlet),tb=pl.tank&&s3Node(pl.tank[1]);S3.inX=inl?inl.x:tb?tb.x-0.5:Infinity;
+  /* the floor thrown parts land on: the cell's slab, the tank's bottom, or the salt */
+  const bx=pl.box&&s3Node(pl.box[0]),bx2=pl.box&&s3Node(pl.box[1]);S3.floorY=bx&&bx2?Math.min(bx.y,bx2.y):tb?tb.y-pl.tank[2]+0.12:0;
+  S3.deb.count=0;S3.flash.style.opacity=0;if(o.mode!=="bench")s3Label();return S3.R!=null;}
+/* where the motor sits at this place: base (the load-cell face, or on the bench), the cradle tops {x, y} and the height
+   a single post starts from */
+function s3Cradles(o){
+  const T=THREE,pl=S3.pl,r=o.dia/2;
+  if(pl.bench){const b=s3Node(pl.bench)||new T.Vector3(-56,0.95,12),base=new T.Vector3(b.x-o.len*0.5,b.y+1.15*r+0.022,b.z);
+    return{base,cr:[0.22,0.78].map(f=>({x:base.x+o.caseLen*f,y:b.y})),low:b.y};}
+  const base=s3Node(pl.mount)||new T.Vector3(-0.04,0.85,0),lw=pl.lowNode&&s3Node(pl.lowNode);
+  const cr=Object.keys(S3.nodes).filter(k=>pl.cradle.test(k)).map(k=>{const p=s3Node(k);return{x:p.x,y:p.y};});
+  return{base,cr,low:lw?lw.y:(pl.low??base.y-0.4)};}
 /* a material made here, cached for the tier and flagged shared (teardown keeps it, swapMats converts it on a tier change) */
 function s3Mat(c,metal,rough,tex,vc,side){
   const C=S3.mc||(S3.mc=new Map()),k=[S3.full?1:0,c,metal,rough,tex||"",vc?1:0,side||0].join("|");let m=C.get(k);
@@ -202,7 +229,7 @@ function s3FinGeo(P,th,w,tile){
   geo.computeVertexNormals();return geo;}
 /* the motor on Stand 3, assembled from the kit to this design. Group origin: the load-cell face (motorMount); +X aft */
 function s3KitStand(o,rig){
-  const T=THREE,V=(x,y,z)=>new T.Vector3(x,y,z),Q0=new T.Quaternion(),mt=S3.nodes.motorMount,base=mt?mt.position.clone():V(-0.04,0.85,0);
+  const T=THREE,V=(x,y,z)=>new T.Vector3(x,y,z),Q0=new T.Quaternion(),CR=s3Cradles(o),base=CR.base;
   const r=o.dia/2,s=r,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
   /* the closures keep their shape (scaled by r) but give way on a stubby case: together at most 40% of its length */
   const kx=Math.min(1,cl*0.4/(0.42*s)),x0=0.30*s*kx,x1=cl-0.12*s*kx,tl=Math.max(0.001,x1-x0);
@@ -213,7 +240,7 @@ function s3KitStand(o,rig){
   const bw=Math.min(tl*0.08,Math.max(0.012,0.5*r)),pt=S3_TILE.paint;
   if(tl>bw*4)s3Kit("caseBand",g,V(x0+0.12*tl,0,0),V(bw,r,r),s3Mat(0xA8322A,0,0.8,"paint"),[r/pt,bw/pt]);
   /* the label goes where no saddle strap crosses it */
-  const xs=Object.keys(S3.nodes).filter(k=>/^cradle/.test(k)).map(k=>S3.nodes[k].position.x).filter(x=>x>base.x+x0+0.04&&x<base.x+x1-0.04);
+  const cin=CR.cr.filter(c=>c.x>base.x+x0+0.04&&c.x<base.x+x1-0.04),xs=cin.map(c=>c.x);
   const one=!xs.length;if(one)xs.push(base.x+x0+tl*0.5);
   const sx=Math.max(0.035,Math.min(0.1,r)),lw=Math.min(r,tl*0.45/1.6);
   const lx=[0.22,0.3,0.14,0.4,0.5].map(f=>x0+f*tl).find(a=>a+1.6*lw<x1-0.3*r&&xs.every(x=>x-base.x+0.12*sx<a||x-base.x-0.12*sx>a+1.6*lw));
@@ -237,9 +264,9 @@ function s3KitStand(o,rig){
   /* saddles at the stand's cradles (or one in the middle of a short motor): strap and block on the case, a post below */
   const SM=xs.map(x=>new T.Matrix4().compose(V(x-base.x,0,0),Q0,V(sx,r,r)));
   for(const nm of["saddleBand","saddleBlock"])s3KitInst(nm,g,SM).forEach(m=>keep.add(m));
-  const y0=one?0.42:0.64,ph=Math.max(0.005,base.y-1.15*r-y0),pw=Math.max(0.03,0.3*sx),pd=Math.max(0.04,1.6*r);
+  const pw=Math.max(0.03,0.3*sx),pd=Math.max(0.04,1.6*r);
   const posts=new T.InstancedMesh(new T.BoxGeometry(1,1,1),s3Mat(0x3E4247,0.3,0.7,"paint"),xs.length);
-  xs.forEach((x,i)=>posts.setMatrixAt(i,new T.Matrix4().compose(V(x,y0+ph/2,0),Q0,V(pw,ph,pd))));
+  xs.forEach((x,i)=>{const y0=one?CR.low:cin[i].y,ph=Math.max(0.005,base.y-1.15*r-y0);posts.setMatrixAt(i,new T.Matrix4().compose(V(x,y0+ph/2,base.z),Q0,V(pw,ph,pd)));});
   posts.instanceMatrix.needsUpdate=true;posts.computeBoundingSphere();posts.castShadow=posts.receiveShadow=true;rig.add(posts);
   /* plume (outer and core), the side jet for a burn-through */
   S3.plume=s3Plume(false);S3.core=s3Plume(true);S3.plume.position.copy(S3.exit);S3.core.position.copy(S3.exit);g.add(S3.plume,S3.core);
@@ -312,7 +339,7 @@ function s3KitLaunch(o,rig){
 function s3PlainMat(c,metal,rough){const T=THREE,m=S3.full?new T.MeshStandardMaterial({color:c,metalness:Math.min(metal,0.4),roughness:rough}):new T.MeshLambertMaterial({color:c});m.userData.metal=metal;m.userData.rough=rough;return m;}
 function s3PlainStand(o,rig){
   const T=THREE,mat=s3PlainMat,CASEC={phenolic:[0x8A5A3A,0,0.8],mild:[0x5F646B,0.6,0.5],al6061:[0xB4B9BF,0.7,0.38],cromo:[0x4E5359,0.65,0.45],composite:[0x2B2D30,0.2,0.5]};
-  const mt=S3.nodes.motorMount,base=mt?mt.position.clone():new T.Vector3(-0.04,0.85,0),r=o.dia/2,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
+  const CR=s3Cradles(o),base=CR.base,r=o.dia/2,cl=o.caseLen,nl=Math.max(0.01,o.len-cl);
   const g=S3.motor=new T.Group();g.position.copy(base);rig.add(g);
   const cc=CASEC[o.caseMat]||CASEC.al6061,caseM=mat(cc[0],cc[1],cc[2]);
   const cyl=(rad,len,x,m,seg)=>{const c=new T.Mesh(new T.CylinderGeometry(rad,rad,len,seg||28),m);c.rotation.z=-Math.PI/2;c.position.x=x;c.castShadow=c.receiveShadow=true;return c;};
@@ -327,10 +354,10 @@ function s3PlainStand(o,rig){
   const lat=new T.Mesh(new T.LatheGeometry(prof,28),mat(0x2E3034,0.1,0.7));lat.material.side=T.DoubleSide;lat.rotation.z=-Math.PI/2;lat.castShadow=true;nz.add(lat);
   S3.exit=new T.Vector3(cl+nl,0,0);
   /* saddles under the case at the stand's cradles (or one in the middle of a short motor) */
-  const sad=mat(0x3E4247,0.5,0.5),xs=Object.keys(S3.nodes).filter(k=>/^cradle/.test(k)).map(k=>S3.nodes[k].position.x).filter(x=>x>base.x+0.05&&x<base.x+cl-0.05);
-  const top=0.64;if(!xs.length)xs.push(base.x+cl/2);
-  for(const x of xs){const y0=xs.length===1&&x===base.x+cl/2?0.42:top,hgt=Math.max(0.01,base.y-r-y0);
-    const s=new T.Mesh(new T.BoxGeometry(0.05,hgt,Math.max(0.04,r*1.4)),sad);s.position.set(x,y0+hgt/2,0);s.castShadow=true;rig.add(s);
+  const sad=mat(0x3E4247,0.5,0.5),cin=CR.cr.filter(c=>c.x>base.x+0.05&&c.x<base.x+cl-0.05);
+  if(!cin.length)cin.push({x:base.x+cl/2,y:CR.low});
+  for(const{x,y:y0}of cin){const hgt=Math.max(0.01,base.y-r-y0);
+    const s=new T.Mesh(new T.BoxGeometry(0.05,hgt,Math.max(0.04,r*1.4)),sad);s.position.set(x,y0+hgt/2,base.z);s.castShadow=true;rig.add(s);
     const band=new T.Mesh(new T.CylinderGeometry(r*1.06,r*1.06,0.03,24,1,true),sad);band.rotation.z=-Math.PI/2;band.position.set(x-base.x,0,0);g.add(band);}
   /* plume (outer and core), the side jet for a burn-through */
   S3.plume=s3Plume(false);S3.core=s3Plume(true);S3.plume.position.copy(S3.exit);S3.core.position.copy(S3.exit);g.add(S3.plume,S3.core);
@@ -364,21 +391,40 @@ function s3Draw(d){
   s3Size();s3Perf();
   const flame=t>=0&&d.f>0.003&&!(fail&&(fail.key==="cato"||fail.key==="eject")&&age>0.02)&&!(fail&&fail.key==="hangfire");
   if(S3.ign)S3.ign.visible=t<0.02||!!(fail&&fail.key==="hangfire");   // the igniter goes with the first flame
-  const pr=d.p*(o.prE||0.05)/S3_AIR,diam=flame&&pr>1.15?Math.min(1,Math.log(pr)/1.2):0,pinch=flame&&pr<0.75?Math.min(1,(0.75-pr)*2):0;
+  /* the back-pressure: the air, or the altitude chamber's near-vacuum, where the plume balloons out and the diamonds
+     go faint and far apart */
+  const vac=!!S3.pl.vacuum,pr=d.p*(o.prE||0.05)/(vac?(o.pAmb||3000):S3_AIR);
+  const diam=flame&&pr>1.15?Math.min(1,Math.log(pr)/1.2)*(vac?0.3:1):0,pinch=flame&&pr<0.75?Math.min(1,(0.75-pr)*2):0;
   const fl=Math.max(0.03,Math.min(1.25,d.f)),re=Math.max(0.004,o.re);
-  const L=re*(12+46*fl)*(o.mode==="launch"?1.3:1);
-  for(const[p,k]of[[S3.plume,1],[S3.core,0.32]]){const u=p.material.uniforms;p.visible=flame;u.L.value=L*k;u.R.value=re*(k<1?0.75:1);u.F.value=fl;u.time.value=t;u.dia.value=k<1?0:diam;u.pinch.value=pinch;u.flick.value=still?0:1;}
+  const L=re*(12+46*fl)*(o.mode==="launch"?1.3:vac?1.35:1);
+  for(const[p,k]of[[S3.plume,1],[S3.core,0.32]]){const u=p.material.uniforms;p.visible=flame;u.L.value=L*k;u.R.value=re*(k<1?0.75:1);u.F.value=fl;u.time.value=t;u.dia.value=k<1?0:diam;u.pinch.value=pinch;u.flick.value=still?0:1;u.wide.value=vac?1:0;}
   /* nozzle light */
   const ex=new T.Vector3();
-  if(o.mode==="stand"){ex.copy(S3.exit);S3.motor.localToWorld(ex);}
+  if(o.mode!=="launch"){ex.copy(S3.exit);S3.motor.localToWorld(ex);}
   else{s3Rocket(t,d);if(S3.exitL)ex.copy(S3.exitL);else ex.set(0,-o.rocket.D*0.3,0);S3.rocket.localToWorld(ex);}
   S3.fire.position.copy(ex).add(new T.Vector3(re*6,o.mode==="launch"?-re*4:0.15,0));const reach=Math.max(0.3,o.len+L);S3.fire.intensity=flame?(still?1:0.85+0.15*Math.sin(t*61))*fl*2.2*reach*reach:0;S3.fire.distance=reach*8;
-  if(o.mode==="stand")s3Fail(d,fail,age,still);
-  s3Smoke(d,fail,age,ex);
+  if(o.mode!=="launch")s3Fail(d,fail,age,still);
   s3Camera(d,fail,age,still);
+  s3Smoke(d,fail,age,ex);
   /* the flash after a burst (a short soft fade with reduced motion) */
   S3.flash.style.opacity=fail&&fail.key==="cato"&&age>=0&&age<0.5?((still?0.5:0.9)*(1-age/0.5)).toFixed(3):"0";
-  S3.R.render(S3.sc,S3.cam);}
+  s3Render(d,ex,flame,fl,L);}
+/* one frame to the canvas: straight, or (Full, where it can run) through the post chain with bloom, heat shimmer behind
+   the nozzle, the day's colour grade and a vignette */
+function s3Render(d,ex,flame,fl,L){
+  const T=THREE,o=S3.o,post=S3.post&&S3.full,lin=post?1:0;
+  for(const p of[S3.sky,S3.smoke.pts,S3.glow.pts,S3.plume,S3.core,S3.jet])if(p)p.material.uniforms.lin.value=lin;
+  if(!post){S3.R.render(S3.sc,S3.cam);return;}
+  const P=VIS.p3,sz=S3.R.getSize(S3.v2||(S3.v2=new T.Vector2()));P.size(sz.x,sz.y,S3.R.getPixelRatio());
+  /* the shimmer: along the plume while it burns, then a fainter one off the hot nozzle for a few seconds */
+  let sh=null;const after=o.mode!=="launch"&&d.t>o.tEnd&&d.t<o.tEnd+4&&!(d.fail&&d.fail.key!=="hangfire");
+  if(!d.still&&ex&&(flame||after)){const dir=o.mode==="launch"?new T.Vector3(0,-1,0).applyQuaternion(S3.rocket.quaternion):new T.Vector3(1,0,0);
+    const k=flame?0.3+0.45*Math.min(1,fl):0.22*(1-(d.t-o.tEnd)/4),len=flame?L*1.25:Math.max(0.15,o.dia*5);
+    sh=P.aim(S3.cam,ex,ex.clone().addScaledVector(dir,len),Math.max(0.004,o.re)*1.4,k,S3.shObj||(S3.shObj={}));}
+  P.render(S3.sc,S3.cam,{bloom:d.fail&&d.fail.key==="cato"&&d.fail.age<0.6?1.5:1,exposure:1,shimmer:sh,grade:S3.grade,vignette:0.22,time:d.t>0?d.t:0});}
+/* can this phone run the post chain? (WebGL2 and float colour targets, checked on a throwaway canvas) */
+function s3CanPost(){try{const gl=document.createElement("canvas").getContext("webgl2");if(!gl)return false;
+  const ok=!!(gl.getExtension("EXT_color_buffer_float")||gl.getExtension("EXT_color_buffer_half_float"));const lc=gl.getExtension("WEBGL_lose_context");if(lc)lc.loseContext();return ok;}catch(e){return false;}}
 function s3Redraw(){if(S3.last)s3Draw(S3.last);}
 /* failure pieces on the stand: the case halves after a burst, the thrown nozzle, the side jet of a burn-through, debris */
 function s3Fail(d,fail,age,still){
@@ -389,18 +435,18 @@ function s3Fail(d,fail,age,still){
   /* a body thrown from p0 with velocity v, stopping where it lands */
   const toss=(p0,v,a,floor)=>{const tl=(v.y+Math.sqrt(v.y*v.y+2*G*Math.max(0,p0.y-floor)))/G,tt=Math.min(a,tl);
     return{p:new T.Vector3(p0.x+v.x*tt,Math.max(floor,p0.y+v.y*tt-0.5*G*tt*tt),p0.z+v.z*tt),tt};};
-  S3.halves.forEach((h,i)=>{h.visible=split;if(!split)return;const s=i?1:-1,v=new T.Vector3(1.2,4+2*o.dia*0,s*2.6),q=toss(new T.Vector3(b.x+cl/2,b.y,s*r*0.3),v,age,r*0.5);
-    h.position.copy(q.p);h.rotation.set(s*q.tt*3,0,-Math.PI/2+q.tt*1.3);});
+  S3.halves.forEach((h,i)=>{h.visible=split;if(!split)return;const s=i?1:-1,v=new T.Vector3(1.2,4+2*o.dia*0,s*2.6),q=toss(new T.Vector3(b.x+cl/2,b.y,b.z+s*r*0.3),v,age,S3.floorY+r*0.5);
+    s3Keep(q.p,r);h.position.copy(q.p);h.rotation.set(s*q.tt*3,0,-Math.PI/2+q.tt*1.3);});
   /* the nozzle: thrown downrange after an ejection (a burst throws it too, shorter) */
   const nz=S3.nozzle;
-  if(key==="eject"||key==="cato"){const v=key==="eject"?new T.Vector3(22,5,1.5):new T.Vector3(6,3.5,-1),q=toss(new T.Vector3(b.x+cl,b.y,0),v,age,0.05);
-    g.worldToLocal(q.p);nz.position.copy(q.p);nz.rotation.set(q.tt*5,q.tt*2,q.tt*7);}
+  if(key==="eject"||key==="cato"){const v=key==="eject"?new T.Vector3(22,5,1.5):new T.Vector3(6,3.5,-1),q=toss(new T.Vector3(b.x+cl,b.y,b.z),v,age,S3.floorY+0.05);
+    s3Keep(q.p,r);g.worldToLocal(q.p);nz.position.copy(q.p);nz.rotation.set(q.tt*5,q.tt*2,q.tt*7);}
   else{nz.position.set(cl,0,0);nz.rotation.set(0,0,0);}
   /* the aft bolt ring: on a burst or an ejection each screw flies off outward and lands on the salt */
   const BA=S3.boltA;
   if(BA&&(key==="cato"||key==="eject")){const p=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3(),e=new T.Euler(),m=new T.Matrix4();
     BA.rest.forEach((M,i)=>{M.decompose(p,q,sc);const v=new T.Vector3(0,p.y,p.z).normalize().multiplyScalar(2.5+h01(i+50)*4).add(new T.Vector3(1+h01(i+51)*2,1.5,0));
-      const w=toss(p.clone().add(b),v,age,0.006);w.p.sub(b);q.multiply(new T.Quaternion().setFromEuler(e.set(w.tt*(9+i),w.tt*7,0)));m.compose(w.p,q,sc);
+      const w=toss(p.clone().add(b),v,age,S3.floorY+0.006);s3Keep(w.p,0.01);w.p.sub(b);q.multiply(new T.Quaternion().setFromEuler(e.set(w.tt*(9+i),w.tt*7,0)));m.compose(w.p,q,sc);
       for(const im of BA.ims)im.setMatrixAt(i,m);});
     for(const im of BA.ims){im.instanceMatrix.needsUpdate=true;im.computeBoundingSphere();}BA.moved=true;}
   else if(BA&&BA.moved){BA.rest.forEach((M,i)=>{for(const im of BA.ims)im.setMatrixAt(i,M);});for(const im of BA.ims){im.instanceMatrix.needsUpdate=true;im.computeBoundingSphere();}BA.moved=false;}
@@ -408,7 +454,7 @@ function s3Fail(d,fail,age,still){
   /* debris: a fixed pattern of chunks on ballistic arcs */
   if(split){const n=S3.deb.count=28,m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),sc=new T.Vector3();
     for(let i=0;i<n;i++){const sp=4+h01(i+1)*14,az=h01(i+7)*Math.PI*2,el=0.2+h01(i+13)*1.1,v=new T.Vector3(Math.cos(az)*Math.cos(el)*sp,Math.sin(el)*sp,Math.sin(az)*Math.cos(el)*sp);
-      const p0=new T.Vector3(b.x+cl*(0.15+0.7*h01(i+21)),b.y,0),z=Math.max(0.012,r*(0.15+0.35*h01(i+5))),tt=toss(p0,v,age,z/2);
+      const p0=new T.Vector3(b.x+cl*(0.15+0.7*h01(i+21)),b.y,b.z),z=Math.max(0.012,r*(0.15+0.35*h01(i+5))),tt=toss(p0,v,age,S3.floorY+z/2);s3Keep(tt.p,z);
       e.set(tt.tt*(4+i),tt.tt*(3+i*0.5),0);q.setFromEuler(e);sc.set(z*1.6,z*0.5,z);m.compose(tt.p,q,sc);S3.deb.setMatrixAt(i,m);}
     S3.deb.instanceMatrix.needsUpdate=true;}else S3.deb.count=0;}
 /* the rocket's place and attitude at time t along the flown path; on the rail before liftoff */
@@ -433,7 +479,8 @@ function s3Rocket(t,d){
 function s3Smoke(d,fail,age,ex){
   const o=S3.o,t=d.t,S=S3.smoke,G=S3.glow,n=S3.full?S3_N.full:S3_N.lite,launch=o.mode==="launch";
   const tEnd=launch?Math.min(o.tBurn,o.tEnd):o.tEnd,wind=Math.max(0.5,o.wind||1.5),sz=Math.max(0.03,o.dia);
-  const life=launch?1e9:4.2,emitEnd=(fail&&(fail.key==="cato"||fail.key==="eject")?Math.min(tEnd,t-age):tEnd)+(launch?0:1.2);
+  const pl=S3.pl,IN=!!pl.indoor&&!launch,out=!!(pl.shots[S3.shot]||{}).out&&!!pl.outlet,outP=out&&s3Node(pl.outlet);
+  const life=launch?1e9:IN?9:4.2,emitEnd=(fail&&(fail.key==="cato"||fail.key==="eject")?Math.min(tEnd,t-age):tEnd)+(launch?0:1.2);
   const rate=launch?n/Math.max(0.6,emitEnd+0.4):n/life,dt=1/rate,P=S.P,Z=S.Z,A=S.A;let m=0;
   const kNow=Math.min(Math.floor(Math.max(0,t)/dt),Math.floor(emitEnd/dt)),T=THREE,w=launch?S3.wdir:new THREE.Vector3(0.25,0,0.97);
   if(t>=0&&!(fail&&fail.key==="hangfire"))for(let j=0;j<n&&m<n;j++){const k=kNow-j;if(k<0)break;const te=k*dt,a=t-te;if(te>emitEnd||a<0||a>life)continue;
@@ -442,18 +489,33 @@ function s3Smoke(d,fail,age,ex){
     if(launch){const pa=BURN_VIS.pathAt(o.path,te),D=o.rocket.D,bx=S3.base.x-(D/2+0.03),bz=S3.base.z;
       const sp=(0.4+a*0.9)*(0.6+hk);P[m*3]=bx+S3.wdir.x*(pa.x+wind*a*0.9)+(hk-0.5)*sp;P[m*3+1]=S3.base.y+Math.max(0.2,pa.h-D*2+(hk2-0.5)*sp*0.6)+Math.min(a,8)*0.25;P[m*3+2]=bz+S3.wdir.z*(pa.x+wind*a*0.9)+(hk3-0.5)*sp;
       const gap=1.7*(o.path.v[Math.min(pa.i,o.path.v.length-1)]||0)/rate;Z[m]=Math.max(D*2.5,gap,(D*3.5+a*1.6)*(0.7+0.6*hk)*(0.6+fe));A[m]=Math.min(0.6,0.5*fe+0.15)*Math.min(1,a*40)*Math.max(0,1-a/60);}
+    else if(outP){/* seen from outside the altitude chamber: steam and smoke out of the silencer stack, up and away */
+      if(a>6)continue;const sp=(0.5+a*0.8)*(0.6+hk);
+      P[m*3]=outP.x+w.x*wind*a*0.9+(hk-0.5)*sp;P[m*3+1]=outP.y+(1.6+0.8*hk2)*a-0.06*a*a+0.3;P[m*3+2]=outP.z+w.z*wind*a*0.7+(hk3-0.5)*sp;
+      Z[m]=(1.0+a*1.6)*(0.7+0.6*hk)*(0.6+0.6*fe);A[m]=(0.22+0.3*fe)*Math.min(1,a*4)*Math.pow(Math.max(0,1-a/6),1.2);}
+    else if(IN){/* indoors there is no wind: most of the smoke runs downstream into the augmenter (or the chamber's diffuser)
+       and is drawn in; about a quarter curls back and hangs in the room as a haze, rising slowly */
+      const haze=hk<0.27,Lp=o.re*(12+46*fe),run=Lp*(0.55+0.5*hk2+1.6*(1-Math.exp(-a/0.6)))*(haze?0.55:1);
+      let x=ex.x+run+(hk-0.5)*sz*2*a,y=ex.y+(haze?0.2*a:0.04*a)+(hk2-0.5)*sz*2,z=ex.z+(hk3-0.5)*sz*(1.5+(haze?4:1)*a),al;
+      if(haze){x-=Math.min(a,6)*0.12*(0.3+hk3);Z[m]=sz*(5+a*5)*(0.7+0.6*hk2);al=(0.05+0.09*fe)*Math.min(1,a*1.5)*Math.max(0,1-a/life);}
+      else{const k=Math.max(0,Math.min(1,(x-(S3.inX-0.5))/0.6));y+=(ex.y-y)*k;z+=(ex.z-z)*k;
+        Z[m]=sz*(3+a*(3+5*fe))*(0.7+0.6*hk)*(1-0.5*k);al=(0.26+0.4*fe)*Math.min(1,a*5)*Math.pow(Math.max(0,1-a/4.2),1.3)*Math.max(0,1-Math.max(0,x-S3.inX)/0.5);}
+      if(al<=0.003)continue;const q=new T.Vector3(x,y,z);s3Keep(q,Z[m]*0.3);P[m*3]=q.x;P[m*3+1]=q.y;P[m*3+2]=q.z;A[m]=al;}
     else{/* puffs start where the plume thins out and drift on: downrange, up, and away with the wind */
       const Lp=o.re*(12+46*fe),run=Lp*(0.55+0.5*hk+1.4*(1-Math.exp(-a/0.7)));
       P[m*3]=ex.x+run+w.x*wind*a*0.8+(hk-0.5)*sz*4*a;P[m*3+1]=Math.max(sz,ex.y+(0.15+0.3*hk2)*a+0.06*a*a)+(hk2-0.5)*sz*2;P[m*3+2]=ex.z+w.z*wind*a*0.6+(hk3-0.35)*sz*(2+6*a);
       Z[m]=sz*(3+a*(7+12*fe))*(0.7+0.6*hk);A[m]=(0.28+0.42*fe)*Math.min(1,a*5)*Math.pow(Math.max(0,1-a/life),1.3);}
     m++;}
+  const sk=S3.smokeK||[1,1,1],tn=outP?[0.9,0.9,0.89]:[0.70,0.69,0.67];   // the grey, in the light of the day (places3d.js)
+  S.pts.material.uniforms.tint.value.set(tn[0]*sk[0],tn[1]*sk[1],tn[2]*sk[2]);
   /* a hang fire: a thin wisp from the nozzle; a burst: a big grey cloud from the case */
   const wisp=fail&&age>=0&&fail.key==="hangfire",burst=fail&&age>=0&&(fail.key==="cato"||fail.key==="burnthrough"||fail.key==="eject")&&!launch;
   if(wisp)for(let j=0;j<40&&m<n;j++){const a=age-j*0.12;if(a<0)break;P[m*3]=ex.x+0.1+a*0.1;P[m*3+1]=ex.y+a*0.35;P[m*3+2]=ex.z+a*0.4*(h01(j)-0.3);Z[m]=sz+a*0.15;A[m]=0.16*Math.max(0,1-a/5);m++;}
   if(burst){const c=S3.base.clone();c.x+=o.caseLen*0.5;const big=(fail.key==="cato"?1:0.45)*Math.max(0.35,Math.min(3,o.len*2.5));
     for(let j=0;j<120&&m<n;j++){const a=age-j*0.008;if(a<0)break;const az=h01(j+40)*6.283,el=h01(j+41)*1.4,sp=(2+h01(j+42)*5)*big,run=sp*0.6*(1-Math.exp(-a/0.6));
       P[m*3]=c.x+Math.cos(az)*Math.cos(el)*run+w.x*wind*a;P[m*3+1]=Math.max(0.2,c.y+Math.sin(el)*run+0.4*a);P[m*3+2]=c.z+Math.sin(az)*Math.cos(el)*run+w.z*wind*a;
-      Z[m]=(0.6+a*1.4)*big*(0.7+0.6*h01(j+43))+sz*2;A[m]=0.42*big*Math.max(0,1-a/7)*Math.min(1,a*10);m++;}}
+      Z[m]=(0.6+a*1.4)*big*(0.7+0.6*h01(j+43))+sz*2;A[m]=0.42*big*Math.max(0,1-a/7)*Math.min(1,a*10);
+      if(IN){const q=new T.Vector3(P[m*3],P[m*3+1],P[m*3+2]);s3Keep(q,0.2);P[m*3]=q.x;P[m*3+1]=q.y;P[m*3+2]=q.z;}m++;}}
   S.geo.setDrawRange(0,m);for(const k of["position","size","alpha"])S.geo.attributes[k].needsUpdate=true;
   /* glow: one sprite on the nozzle, and a fireball after a burst */
   let gN=0;const gl=(x,y,z,s,a)=>{G.P[gN*3]=x;G.P[gN*3+1]=y;G.P[gN*3+2]=z;G.Z[gN]=s;G.A[gN]=a;gN++;};
@@ -466,13 +528,23 @@ function s3Smoke(d,fail,age,ex){
   G.geo.setDrawRange(0,gN);for(const k of["position","size","alpha"])G.geo.attributes[k].needsUpdate=true;}
 /* ---- cameras: the set shot, then any orbit the player dragged in ---- */
 function s3Camera(d,fail,age,still){
-  const T=THREE,o=S3.o,cam=S3.cam,tgt=new T.Vector3(),pos=new T.Vector3();let fovW=0,dist=0;
-  if(o.mode==="stand"){
-    const b=S3.base,len=o.len,plumeL=o.re*(12+46*1.0),span=Math.max(len*1.15+plumeL*0.9,0.7);
-    tgt.set(b.x+len*0.5+plumeL*0.45,b.y,0);
-    if(S3.shot===0){dist=span*1.2+0.1;pos.set(tgt.x+dist*0.3,b.y+0.05+dist*0.14,-dist);}
-    else if(S3.shot===1){const ex=b.x+len;tgt.set(ex+o.re*3,b.y,0);dist=Math.max(0.35,o.dia*7+len*0.25);pos.set(ex+dist*0.55,b.y+dist*0.28,-dist*0.8);}
-    else{const bh=S3.nodes.blockhouse;if(bh)pos.copy(bh.localToWorld(new T.Vector3(-3.8,2.05,0.6)));else pos.set(-33,2.05,22);fovW=Math.max(span*1.7,1.8);dist=pos.distanceTo(tgt);}
+  const T=THREE,o=S3.o,cam=S3.cam,tgt=new T.Vector3(),pos=new T.Vector3(),pl=S3.pl,sh=pl.shots[S3.shot]||pl.shots[0];
+  let fovW=0,dist=0,fov=0,inside=false,solo=false;
+  if(o.mode!=="launch"){
+    const b=S3.base,len=o.len,plumeL=o.mode==="bench"?0:o.re*(12+46*(pl.vacuum?1.35:1)),span=Math.max(len*1.15+plumeL*0.9,o.mode==="bench"?0.3:0.7);
+    tgt.set(b.x+len*0.5+plumeL*0.45,b.y,b.z);
+    if(sh.kind==="side"){dist=span*1.2+0.1;pos.set(tgt.x+dist*0.3,b.y+0.05+dist*0.14,b.z-dist);}
+    else if(sh.kind==="close"){const ex=b.x+len;tgt.set(ex+o.re*3,b.y,b.z);dist=Math.max(0.35,o.dia*7+len*0.25);pos.set(ex+dist*0.55,b.y+dist*0.28,b.z-dist*0.8);}
+    else if(sh.kind==="blockhouse"){const bh=S3.nodes.blockhouse;if(bh)pos.copy(bh.localToWorld(new T.Vector3(-3.8,2.05,0.6)));else pos.set(-33,2.05,22);fovW=Math.max(span*1.7,1.8);}
+    else if(sh.kind==="bench"){dist=Math.max(0.36,len*1.2+o.dia*5);pos.set(tgt.x-dist*0.3,b.y+dist*0.55,b.z-dist*0.8);}
+    else if(sh.kind==="benchEnd"){tgt.x=b.x+len*0.62;dist=Math.max(0.4,len*0.8+o.dia*6);pos.set(b.x+len+dist*0.7,b.y+dist*0.32,b.z-dist*0.5);}
+    else{const p=s3Node(sh.node);if(p)pos.copy(p);else pos.set(tgt.x,b.y+2,b.z-8);
+      if(sh.look)tgt.set(sh.look[0],sh.look[2],-sh.look[1]);if(sh.fovW)fovW=Math.max(span*sh.fovW[0],sh.fovW[1]);}
+    if(sh.fov)fov=sh.fov;
+    inside=!!pl.indoor&&!sh.out;solo=!!sh.solo;
+    /* the hush house's opening: from the build bay through the blast door to the set shot, over the countdown */
+    if(pl.intro&&S3.shot===0&&!S3.orbit&&!S3.introOff&&!still&&d.intro!=null&&d.intro<1&&s3IntroPath(pl,pos,tgt,d.intro)){solo=false;fovW=0;fov=0;S3.inIntro=true;}
+    else S3.inIntro=false;
   }else{
     const g=S3.rocket,L=o.rocket.L,up=new T.Vector3(0,1,0).applyQuaternion(g.quaternion);tgt.copy(g.position).addScaledVector(up,L*0.5);
     const h=g.position.y-S3.base.y,b=S3.base;
@@ -487,24 +559,28 @@ function s3Camera(d,fail,age,still){
   /* orbit: drag spins the camera round the target */
   if(S3.orbit){const off=pos.clone().sub(tgt),r=off.length()*S3.orbit.zoom;let az=Math.atan2(off.z,off.x)+S3.orbit.az,el=Math.asin(Math.max(-1,Math.min(1,off.y/off.length())))+S3.orbit.el;
     el=Math.max(-0.05,Math.min(1.45,el));pos.set(tgt.x+r*Math.cos(el)*Math.cos(az),tgt.y+r*Math.sin(el),tgt.z+r*Math.cos(el)*Math.sin(az));
-    if(fovW)fovW*=S3.orbit.zoom;}
+    if(fovW)fovW*=S3.orbit.zoom;if(fov)fov=Math.max(20,Math.min(80,fov*Math.sqrt(S3.orbit.zoom)));}
+  /* indoors the camera stays inside the walls (the cell, the bay or the tank), except for the shots that stand outside them */
+  if(inside&&!sh.free&&!S3.inIntro)s3Clamp(pl,pos);
   if(pos.y<0.15)pos.y=0.15;
   /* shake for a moment after a burst */
   if(fail&&fail.key==="cato"&&age>=0&&age<0.7&&!still){const a=(1-age/0.7)*0.04*Math.max(1,pos.distanceTo(tgt)*0.25);pos.x+=Math.sin(age*93)*a;pos.y+=Math.cos(age*71)*a*0.6;}
   cam.position.copy(pos);cam.lookAt(tgt);dist=pos.distanceTo(tgt);
-  cam.fov=fovW?Math.max(0.4,Math.min(60,2*Math.atan(fovW/2/dist)*180/Math.PI)):38;
+  cam.fov=fov||(fovW?Math.max(0.4,Math.min(60,2*Math.atan(fovW/2/dist)*180/Math.PI)):38);
   cam.near=Math.max(0.02,Math.min(dist*0.05,5));cam.far=40000;cam.updateProjectionMatrix();
   S3.sky.position.copy(pos);
-  const alt=Math.max(0,pos.y);S3.sc.fog.near=400+alt;S3.sc.fog.far=7000+alt*3;
+  s3Light(inside);s3Solo(pl,solo);
+  const alt=Math.max(0,pos.y),nf=S3.fogNF||[400,7000];S3.sc.fog.near=nf[0]+alt;S3.sc.fog.far=nf[1]+alt*3;
   const gs=Math.ceil((S3.sc.fog.far*2.2)/2000);S3.ground.scale.set(gs,gs,1);for(const m of[S3.ground.material.map,S3.ground.material.normalMap])if(m)m.repeat.set(S3.groundRep*gs,S3.groundRep*gs);
   S3.ground.position.set(Math.round(pos.x/40)*40,0,Math.round(pos.z/40)*40);
   /* the sun's shadow box follows what we look at */
-  S3.sun.target.position.copy(tgt);S3.sun.position.copy(tgt).add(new T.Vector3(35,60,-50));
-  const sh=Math.max(6,Math.min(60,dist*0.8));Object.assign(S3.sun.shadow.camera,{left:-sh,right:sh,top:sh,bottom:-sh});S3.sun.shadow.camera.updateProjectionMatrix();
+  S3.sun.target.position.copy(tgt);S3.sun.position.copy(tgt).addScaledVector(S3.sunDir||new T.Vector3(0.4,0.69,-0.58),85);
+  /* indoors the box takes in the whole roof, so its shadow keeps the sun off the floor inside */
+  const sb=inside||S3.inIntro?20:Math.max(6,Math.min(60,dist*0.8));Object.assign(S3.sun.shadow.camera,{left:-sb,right:sb,top:sb,bottom:-sb,far:240});S3.sun.shadow.camera.updateProjectionMatrix();
   /* points: pixel size of one metre at one metre away */
   const sc=S3.R.getDrawingBufferSize(new T.Vector2()).y/(2*Math.tan(cam.fov*Math.PI/360));S3.smoke.pts.material.uniforms.scale.value=sc;S3.glow.pts.material.uniforms.scale.value=sc;}
-function s3NextShot(){if(!S3.o)return;const n=SHOTS[S3.o.mode].length;S3.shot=(S3.shot+1)%n;S3.orbit=null;s3Label();s3Redraw();if(S3.onShot)S3.onShot(S3.shot);}
-function s3Label(){if(!S3.label||!S3.o)return;S3.label.textContent=SHOTS[S3.o.mode][S3.shot];S3.label.classList.add("on");clearTimeout(S3.labelT);S3.labelT=setTimeout(()=>S3.label.classList.remove("on"),1800);}
+function s3NextShot(){if(!S3.o)return;const n=S3.pl.shots.length;S3.shot=(S3.shot+1)%n;S3.orbit=null;S3.introOff=true;s3Label();s3Redraw();if(S3.onShot)S3.onShot(S3.shot);}
+function s3Label(){if(!S3.label||!S3.o)return;S3.label.textContent=S3.pl.shots[S3.shot].name;S3.label.classList.add("on");clearTimeout(S3.labelT);S3.labelT=setTimeout(()=>S3.label.classList.remove("on"),1800);}
 /* drag to orbit (one finger or the mouse), pinch to zoom; a tap with no drag moves to the next set shot */
 function s3Input(cv){
   cv.style.touchAction="none";
@@ -512,7 +588,7 @@ function s3Input(cv){
     if(S3.ptr.size===2){const[a,b]=[...S3.ptr.values()];S3.pinch=Math.hypot(a.x-b.x,a.y-b.y);}});
   cv.addEventListener("pointermove",e=>{const p=S3.ptr.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
     if(Math.hypot(p.x-p.x0,p.y-p.y0)>6)p.moved=true;if(!p.moved)return;
-    S3.orbit=S3.orbit||{az:0,el:0,zoom:1};
+    S3.orbit=S3.orbit||{az:0,el:0,zoom:1};S3.introOff=true;
     if(S3.ptr.size===2){const[a,b]=[...S3.ptr.values()],dd=Math.hypot(a.x-b.x,a.y-b.y);if(S3.pinch)S3.orbit.zoom=Math.max(0.25,Math.min(4,S3.orbit.zoom*S3.pinch/dd));S3.pinch=dd;}
     else{S3.orbit.az+=dx*0.008;S3.orbit.el+=dy*0.006;}
     if(!S3.playing)s3Redraw();});
@@ -523,7 +599,7 @@ function s3Input(cv){
   cv.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();s3NextShot();}});}
 /* size the drawing buffer to the canvas's CSS box */
 function s3Size(){
-  const cv=S3.cv,W=Math.max(200,cv.clientWidth||320),H=Math.round(Math.min(W*0.78,Math.max(240,innerHeight*0.42)));
+  const cv=S3.cv,W=Math.max(200,cv.clientWidth||320),H=Math.round(S3.hFn?S3.hFn(W):Math.min(W*0.78,Math.max(240,innerHeight*0.42)));
   cv.style.height=H+"px";const pr=S3.dpr;
   if(S3.R.getPixelRatio()!==pr)S3.R.setPixelRatio(pr);
   const sz=S3.R.getSize(new THREE.Vector2());if(sz.x!==W||sz.y!==H){S3.R.setSize(W,H,false);S3.cam.aspect=W/H;}}
@@ -541,4 +617,4 @@ function s3Perf(){
   const now=performance.now();if(S3.prev){S3.frames.push(now-S3.prev);if(S3.frames.length>90)S3.frames.shift();}S3.prev=now;
   if(S3.frames.length<90)return;const avg=S3.frames.reduce((a,b)=>a+b,0)/S3.frames.length;
   if(avg>30&&S3.stepped<2){S3.stepped++;S3.frames.length=0;s3Tier("lite");if(S3.onStep)S3.onStep(S3.stepped);}}
-Object.assign(VIS,{s3:{S:S3,init:s3Init,setup:s3Setup,draw:s3Draw,redraw:s3Redraw,next:s3NextShot,tier:s3Tier,SHOTS}});
+Object.assign(VIS,{s3:{S:S3,init:s3Init,setup:s3Setup,draw:s3Draw,redraw:s3Redraw,next:s3NextShot,tier:s3Tier}});

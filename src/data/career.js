@@ -10,7 +10,6 @@ const CAREER={
   shopBase:30,         // machining a motor: a flat charge, cr
   shopPerMm:0.8,       // ... plus this per mm of case bore (bigger cases, bigger lathe time), cr
   perBolt:2,           // ... plus this per closure bolt, cr
-  hutFee:60,           // holding a motor in the conditioning hut overnight, per firing, cr
   gradePay:{A:1.2,B:1,C:0.8},   // a pass pays the job's fee times this
   rep:{A:3,B:2,C:1},   // reputation for a first delivery (repeat orders earn half, rounded down)
   lateCut:0.1,         // each range day past the deadline takes this share off the pay ...
@@ -20,7 +19,7 @@ const CAREER={
   logMax:120,          // logbook entries kept in the save (the oldest go first)
   logRate:{0:120,1:400}, // the data logger's sample rate by blockhouse level, Hz
   /* tier 4 range tenders (Kelbo, 13 November 2026): a lot of five motors from one design fires on one range day for one
-     stand fee (and one hut fee); four must pass. One failure still delivers but cuts the pay; two or more lose the
+     stand fee; four must pass. One failure still delivers but cuts the pay; two or more lose the
      tender, which the range puts out again some days later. The lot's grade is its worst passing motor's. */
   lot:{n:5,need:4,failPay:0.7,retender:6}
 };
@@ -31,8 +30,10 @@ const FACILITIES={
     note:"A faster data logger and the full blockhouse readout: 400 samples a second instead of 120, and every deviation the motor rolled shows on the report."},
   s2:{name:"Stand 2 lease",cost:5000,need:10,give:{stand:"s2",tier:2},
     note:"The medium stand: motors up to 900 mm long and 110 mm across, a 10 kN load cell. Opens tier 2 work and tier 2 parts."},
-  hut:{name:"Conditioning hut",cost:3500,need:14,give:{hut:1},
-    note:"An insulated hut that holds a motor at the temperature you set, −20 to 50 °C, overnight before it fires. Some qualification jobs need it. 60 cr a firing."},
+  /* the hush house's climate plant (Kelbo, 14 November 2026; was the Conditioning hut, so the save still calls it hut):
+     the test cell is heated or chilled to the setting, no overnight hold and no fee per firing */
+  hut:{name:"Hush house climate plant",cost:3500,need:14,give:{hut:1},
+    note:"The hush house's old heating and refrigeration plant, brought back to life: it heats or chills the test cell and the bay to the temperature you set, −20 to 50 °C, so a motor fires at that temperature with no overnight hold. Motors for the outdoor stands are conditioned in the bay and trucked out. Some qualification jobs need it. No charge per firing."},
   compute:{name:"Computing room",cost:6000,need:18,give:{compute:1},
     note:"The old programme's computing room, its racks rewired for one job: firing your design 40 times over with the real dice, before the stand fires it once. The bench gets a Scatter button: the spread of the real motors drawn round the prediction, and how many of them would burst, chuff or miss the spec."},
   s1:{name:"Stand 1 lease",cost:16000,need:24,give:{stand:"s1",tier:3},

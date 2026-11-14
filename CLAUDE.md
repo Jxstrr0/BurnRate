@@ -28,8 +28,12 @@ weapons.
 - Assets: CC0 and CC-BY only (never NC or ND), each with a line in `CREDITS.md`. Generated art (Higgsfield) is credited
   as AI-generated; **never spend Higgsfield or ElevenLabs credits without Kelbo's yes** (quote the cost first).
 - Blender: scripted only (`tools/blender-*.py`, run headless with `bpy`; `pip install bpy` works in a session), output
-  committed: `blender-range.py` → `models/range.glb`, `blender-kit.py` → `models/kit.glb` (the motor and rocket parts),
-  `blender-textures.py` → `textures/`. They share `tools/blender_lib.py` (texture keys, world-scale UVs, baked AO).
+  committed: `blender-range.py` → `models/range.glb` (Stand 2, the blockhouse, the launch rail), `blender-hush.py` →
+  `models/hush.glb` (the hush house: build bay and Stand 3's test cell), `blender-stands.py` → `models/stand1.glb` and
+  `models/chamber.glb`, `blender-site.py` → `models/site.glb` (the rest of Site 41), `blender-kit.py` → `models/kit.glb`
+  (the motor and rocket parts), `blender-textures.py` → `textures/`. They share `tools/blender_lib.py` (texture keys,
+  world-scale UVs, baked AO) and `tools/blender_parts.py` (stand hardware, stencils). Each stand's place, its node names
+  and shots, is `PLACES` in `src/vis/places3d.js`.
 
 ## Commands (repo root)
 

@@ -4,7 +4,7 @@
    bench's design for each job) or, in free mode, S.free.
    The bench's bottom bar checks the prediction against the spec and leads to the stand: pre-fire checks (does it fit,
    is the load cell rated for it, are the parts open to you), then the firing slot (dawn, noon or dusk sets the grain
-   temperature; the conditioning hut, once leased, fires at a temperature you set) with what the firing will cost, then
+   temperature; the hush house's climate plant, once leased, fires at a temperature you set) with what the firing will cost, then
    app/firing.js. In a career each firing costs a range day, the stand's
    fee and the motor's materials; a pass pays and finishes the job (sim/career.js settle).
    A flight job (contract.flight) goes to the launch rail instead: the range's launch checks too (sim/flight.js
@@ -12,12 +12,12 @@
    A tier 4 tender (contract.lot) offers two buttons on the slot sheet: one development motor (costs, pays nothing) or the
    lot of five (one range day, one stand fee, five motors: sim/career.js fireLot, gradeLot). */
 const GAME={mode:"free",contract:null,slot:"dusk",last:null};
-/* the slots the player can pick: the hut only once it's leased (always on the free bench) */
+/* the slots the player can pick: the climate plant only once it's leased (always on the free bench) */
 const hutOpen=()=>!inCareer()||!!(S.career&&S.career.hut);
 const slotChoices=()=>["dawn","noon","dusk"].concat(hutOpen()?["hut"]:[]);
-/* a slot's grain temperature for the job on the bench: the hut fires at the contract's temperature or the hut's setting */
+/* a slot's grain temperature for the job on the bench: the climate plant fires at the contract's temperature or its setting */
 const slotT=id=>BURN_SIM.slotTemp(id,GAME.contract,S.hutT);
-const slotLabel=id=>id==="hut"?`Hut ${degC(slotT(id))}`:`${BURN_SIM.SLOTS[id].name} ${degC(slotT(id))}`;
+const slotLabel=id=>id==="hut"?`Climate ${degC(slotT(id))}`:`${BURN_SIM.SLOTS[id].name} ${degC(slotT(id))}`;
 const inCareer=()=>GAME.mode==="career"&&!!S.career;
 /* the parts tier open on the bench: the career's in a career or the Sandbox (app/sandbox.js), none on the free bench */
 const partTier=()=>(inCareer()||isSandbox())&&S.career?S.career.tier:null;
@@ -61,7 +61,7 @@ function cycleTemp(){
   DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
   toast(nx==="ref"?"Predicting at the reference 20 °C":nx==="hut"?`Predicting at the hut's setting: ${degC(DZ.tGrain)} grain`
     :`Predicting at ${BURN_SIM.SLOTS[nx].name.toLowerCase()}: ${degC(DZ.tGrain)} grain`);}
-/* the hut's dial in the slot sheet: −/+ one step, which also moves the bench's prediction if it's on the hut */
+/* the climate plant's dial in the slot sheet: −/+ one step, which also moves the bench's prediction if it's on the climate slot */
 function stepHut(dir){const H=BURN_SIM.HUT;S.hutT=Math.max(H.min,Math.min(H.max,(S.hutT??20)+dir*H.step));save();
   if(DZ.predSlot==="hut"){DZ.tGrain=slotT("hut");schedule(false);}
   GAME.slot="hut";slotSheet();}
@@ -88,18 +88,18 @@ function slotSheet(){
     const pf=fly?BURN_SIM.predictFlight(DZ.d,p.motor,p.run,payloadKg()):null,s=pf?Object.assign({},p.sum,{apogee:pf.apogee}):p.sum;
     const crit=s.warnings.filter(w=>w.sev==="crit").length,ok=c?BURN_SIM.specCheck(c.spec,s,p.motor).filter(k=>k.ok).length:null;
     return`<button type="button" class="opt${id===GAME.slot?" on":""}" data-slot="${id}" aria-pressed="${id===GAME.slot}"><b>${sl.name} · ${degC(t)}</b>${crit?`<span class="tag crit">${crit} critical</span>`:""}
-      <small>${esc(sl.hut&&fixedT?"Held overnight in the conditioning hut at the client's temperature.":sl.note)}${sl.hut&&inCareer()?` ${fmtCr(BURN_SIM.CAREER.hutFee)} a firing.`:""}</small><small class="mono">${pf?`apogee ${Math.round(pf.apogee)} m · `:""}peak ${(s.Pmax/1e6).toFixed(2)} MPa · ${pf?"":`avg ${Math.round(s.Fav)} N · `}${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
-  const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Hut set to <b class="mono">${degC(hutT)}</b></span>
+      <small>${esc(sl.hut&&fixedT?"Held at the client's temperature by the climate plant.":sl.note)}</small><small class="mono">${pf?`apogee ${Math.round(pf.apogee)} m · `:""}peak ${(s.Pmax/1e6).toFixed(2)} MPa · ${pf?"":`avg ${Math.round(s.Fav)} N · `}${s.tb.toFixed(2)} s${c?` · spec ${ok}/${c.spec.length}`:""}</small></button>`;}).join("");
+  const hutT=slotT("hut"),dial=slots.includes("hut")&&!fixedT?`<div class="hut-dial"><span>Cell set to <b class="mono">${degC(hutT)}</b></span>
     <button type="button" class="btn sm" data-hut="-1" aria-label="Colder"${hutT<=H.min?" disabled":""}>−</button><button type="button" class="btn sm" data-hut="1" aria-label="Warmer"${hutT>=H.max?" disabled":""}>+</button></div>`:"";
   const b=firingBill(),car=S.career,tender=isTender(),bl=tender?firingBill(true):null,LT=BURN_SIM.CAREER.lot;
-  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} <button type="button" class="gl" data-g="rangeFee">fee</button> ${fmtCr(b.fee)}${b.hut?` + hut ${fmtCr(b.hut)}`:""}${b.air?` + rocket ${fmtCr(b.air)}`:""} + <button type="button" class="gl" data-g="buildCost">motor</button> ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
-    ${bl?`<p class="mono">The lot: fee ${fmtCr(bl.fee)}${bl.hut?` + hut ${fmtCr(bl.hut)}`:""} + ${LT.n} motors ${fmtCr(bl.motors)} = <b>${fmtCr(bl.total)}</b></p>`:""}
+  const bill=b?`<div class="bill"><p class="mono">${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} <button type="button" class="gl" data-g="rangeFee">fee</button> ${fmtCr(b.fee)}${b.air?` + rocket ${fmtCr(b.air)}`:""} + <button type="button" class="gl" data-g="buildCost">motor</button> ${fmtCr(b.build.total)} = <b>${fmtCr(b.total)}</b></p>
+    ${bl?`<p class="mono">The lot: fee ${fmtCr(bl.fee)} + ${LT.n} motors ${fmtCr(bl.motors)} = <b>${fmtCr(bl.total)}</b></p>`:""}
     <p class="hint">Day ${car.day} · you have ${fmtCr(car.money)}${car.jobs[c.id]?` · due day ${car.jobs[c.id].due}`:""}. ${fly?"A lost rocket still costs.":"A failed motor still costs."}</p>
     ${b.ok?"":`<p class="sev crit">The bank won't cover it: it lends down to ${fmtCr(-BURN_SIM.CAREER.overdraft)}. Make the motor cheaper or finish another job first.</p>`}
     ${bl&&b.ok&&!bl.ok?`<p class="sev warn">The bank won't cover the whole lot yet. A development motor is still within reach.</p>`:""}</div>`:"";
-  const lead=fixedT?(c.slot==="hut"?`This contract is a qualification firing: the motor is held in the conditioning hut at ${degC(slotT("hut"))} overnight.`
+  const lead=fixedT?(c.slot==="hut"?`This contract is a qualification firing: the climate plant holds the motor at ${degC(slotT("hut"))}.`
       :"This contract fires at "+BURN_SIM.SLOTS[c.slot].name.toLowerCase()+".")
-    :`Pick when to ${fly?"launch":"fire"}. The grain sits out overnight, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless you hold it in the hut":""}.`;
+    :`Pick when to ${fly?"launch":"fire"}. Nothing is heated, so it ${fly?"flies":"fires"} at the air's temperature${hutOpen()?", unless the climate plant holds it at your setting":""}.`;
   const windNote=fly?` The wind on the rail is light, but it changes every day: you'll only know it on the morning.`:"";
   openSheet(fly?"Launch slot":"Firing slot",`<p class="hint"><button type="button" class="gl" data-g="firingSlot">${fly?"Launch":"Firing"} slots</button>: ${lead} <button type="button" class="gl" data-g="grainTemp">Why the temperature matters</button>. Each line is the predictor at that temperature${fly?", with no wind":""}; the real motor won't match it exactly.${windNote}</p>
     <div class="pick">${cards}</div>${dial}${bill}${tender?`<p class="hint">A tender is delivered as a lot: ${LT.n} motors from this design on one range day, and ${LT.need} must pass. One failure still delivers at ${Math.round(LT.failPay*100)}% of the pay; two or more lose the tender for ${LT.retender} days. A development motor first shows how this design fires, but the client doesn't take it.</p>

@@ -4,7 +4,7 @@
      pay (cr, before the grade), days (range days from taking it to the deadline), repeat ({pay, every}: once delivered,
      the client orders again after `every` days for this share of the pay; optional),
      slot (null: the player picks dawn, noon or dusk; or a fixed SLOTS id; "hut" with tGrain: conditioned to that
-     temperature, which needs the hut), spec (criteria, sim/grade.js),
+     temperature, which needs the climate plant), spec (criteria, sim/grade.js),
      flight ({payload} in kg: a flight job, sim/flight.js; the motor flies in a rocket from the launch rail instead of
      firing on a stand, which then only sets the size class), lot (true: a tier 4 tender, delivered as a lot of
      CAREER.lot.n motors; sim/career.js gradeLot), final (true: the capstone, offered once every other tender is won), start (the design the bench opens with: a REF_DESIGNS name or a design), solution (a design that passes: the balance check in
@@ -12,7 +12,7 @@
 const GRADING={a:0.5,b:0.2};   // grade A: every two-sided criterion in the middle half of its band; B: the middle 80%
 /* stands: the longest and widest motor the clamps take (mm), the load cell's rating (N) and the range fee per firing (cr) */
 const STANDS={
-  s3:{name:"Stand 3",len:420,dia:64,cell:2000,fee:150,note:"The smallest stand: a concrete pad, a load cell rated 2 kN, one camera."},
+  s3:{name:"Stand 3",len:420,dia:64,cell:2000,fee:150,note:"The smallest stand, in the hush house's test cell: a steel thrust bench, a load cell rated 2 kN, one camera."},
   s2:{name:"Stand 2",len:900,dia:110,cell:10000,fee:400,note:"The medium stand: a thrust frame in a blast bay, a 10 kN load cell, two cameras."},
   s1:{name:"Stand 1",len:2000,dia:170,cell:40000,fee:1200,note:"The old state booster stand: a horizontal thrust frame in a bunkered bay, a 40 kN load cell."},
   /* pAmb: the back-pressure the motor fires against, Pa (the open stands use TUNING.pAmb). The old programme's altitude
@@ -98,11 +98,11 @@ const CONTRACTS=[
     spec:[{k:"massFrac",lo:80},{k:"I",lo:6000,hi:10000},{k:"Pmax",hi:7.5}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:174.9,coreD:40.2,pts:8,ptLen:19.6,ptW:1.2,finLen:156.2,offset:13.8},case:{mat:"composite",id:97.4,wall:0.4,liner:"ablative",linerThk:0.9,closure:"bolts",bolts:16},nozzle:{mat:"graphite",throatD:28.1,exitD:28.1,half:15},igniter:"xl"}},
   {id:"burkit-hot",client:"Bürkit Aerospace",title:"Desert qualification",tier:3,stand:"s1",slot:"hut",tGrain:45,pay:13000,days:12,repeat:{pay:0.6,every:6},
-    brief:"Bürkit is selling boosters to a launch site in the southern desert. Qualify one with the grain at 45 °C, held overnight in the conditioning hut: about two kilonewtons, and the peak pressure no higher than 6.5 MPa when it's hot.",
+    brief:"Bürkit is selling boosters to a launch site in the southern desert. Qualify one with the grain at 45 °C, conditioned in the hush house's climate plant: about two kilonewtons, and the peak pressure no higher than 6.5 MPa when it's hot.",
     spec:[{k:"Fav",lo:1500,hi:2500},{k:"I",lo:3000,hi:5000},{k:"Pmax",hi:6.5}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr2",shape:"bates",segs:3,segLen:166.1,coreD:82,pts:3,ptLen:5.9,ptW:4.9,finLen:122.2,offset:6.8},case:{mat:"composite",id:100.2,wall:0.4,liner:"rubber",linerThk:0.7,closure:"bolts",bolts:14},nozzle:{mat:"insert",throatD:26.1,exitD:54.7,half:15},igniter:"xl"}},
   {id:"ozen-arctic",client:"Ozen Survey Instruments",title:"Arctic qualification",tier:3,stand:"s1",slot:"hut",tGrain:-20,pay:13000,days:12,repeat:{pay:0.6,every:6},
-    brief:"Ozen is taking its survey rockets north of the tree line. Prove a motor that lights and burns steadily with the grain at −20 °C: held overnight in the conditioning hut, then a long, moderate burn.",
+    brief:"Ozen is taking its survey rockets north of the tree line. Prove a motor that lights and burns steadily with the grain at −20 °C: conditioned in the climate plant, then a long, moderate burn.",
     spec:[{k:"Fav",lo:800,hi:1400},{k:"I",lo:4000,hi:7000},{k:"tb",lo:4}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:148.4,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:32.5,exitD:62.1,half:15},igniter:"xl"}},
   {id:"kumtal-booster",client:"Kumtal Weather Service",title:"Sounding booster",tier:3,stand:"s1",slot:null,pay:18000,days:14,repeat:{pay:0.6,every:6},
@@ -140,7 +140,7 @@ const CONTRACTS=[
     spec:[{k:"prog",hi:0.5},{k:"I",lo:6000,hi:7400},{k:"Pmax",hi:6}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"finocyl",segs:3,segLen:120,coreD:40.9,pts:8,ptLen:11.2,ptW:4.5,finLen:56.9,offset:24},case:{mat:"mild",id:95.3,wall:1.5,liner:"ablative",linerThk:2,closure:"bolts",bolts:14},nozzle:{mat:"steel",throatD:21,exitD:46,half:15},igniter:"l"}},
   {id:"ozen-lot",client:"Ozen Survey Instruments",title:"Northern survey lot",tier:4,stand:"s1",slot:"hut",tGrain:-10,lot:true,pay:40000,days:18,repeat:{pay:0.6,every:10},
-    brief:"Ozen's northern survey season needs a lot of motors that light and burn alike in the cold. Each is held overnight in the hut at −10 °C. Long burns, and the pressure kept low: four of the five must pass.",
+    brief:"Ozen's northern survey season needs a lot of motors that light and burn alike in the cold. Each is conditioned in the climate plant at −10 °C. Long burns, and the pressure kept low: four of the five must pass.",
     spec:[{k:"I",lo:5600,hi:7000},{k:"tb",lo:3.6},{k:"Pmax",hi:3}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:160,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:31,exitD:60,half:15},igniter:"xl"}},
   {id:"agency-lot",client:"Altyn Space Agency",title:"Upper stage qualification",tier:4,stand:"s1",slot:null,lot:true,pay:36000,days:18,repeat:{pay:0.6,every:10},
@@ -148,7 +148,7 @@ const CONTRACTS=[
     spec:[{k:"massFrac",lo:78},{k:"I",lo:9400,hi:11200},{k:"Pmax",hi:4}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:165,coreD:40.2,pts:8,ptLen:19.6,ptW:1.2,finLen:156.2,offset:13.8},case:{mat:"composite",id:97.4,wall:0.4,liner:"ablative",linerThk:0.9,closure:"bolts",bolts:16},nozzle:{mat:"graphite",throatD:27,exitD:40,half:15},igniter:"xl"}},
   {id:"burkit-lot",client:"Bürkit Aerospace",title:"Desert booster lot",tier:4,stand:"s1",slot:"hut",tGrain:40,lot:true,pay:38000,days:16,repeat:{pay:0.6,every:10},
-    brief:"Bürkit's southern launch site has placed its first order: boosters that behave alike in the desert heat. Each motor sits overnight in the hut at 40 °C before it fires, and a hot grain burns faster. Five from one design, four to pass, the hot peak pressure under 6.5 MPa.",
+    brief:"Bürkit's southern launch site has placed its first order: boosters that behave alike in the desert heat. Each motor is conditioned at 40 °C before it fires, and a hot grain burns faster. Five from one design, four to pass, the hot peak pressure under 6.5 MPa.",
     spec:[{k:"Fav",lo:1600,hi:2400},{k:"I",lo:4200,hi:5400},{k:"Pmax",hi:6.5}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr9",shape:"bates",segs:1,segLen:505.2,coreD:62.2},case:{mat:"composite",id:84,wall:3,liner:"ablative",linerThk:1,closure:"bolts",bolts:12},nozzle:{mat:"insert",throatD:17.7,exitD:44.1,half:15},igniter:"l"}},
   /* ---- the altitude chamber (stand s0, leased after the tender register): upper stages, fired at near-vacuum ---- */

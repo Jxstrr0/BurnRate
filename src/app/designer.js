@@ -209,7 +209,9 @@ function drawAll(){
   drawView();markErrors();drawGo();drawRocket();
 }
 function drawView(){
-  const r=DZ.res;if(!r||!r.ok)return;
+  const r=DZ.res;if(!r||!r.ok){dz3dOff();return;}
+  if(DZ.view==="3d"&&gfx3d()){dz3dDraw();return;}
+  dz3dOff();
   const run=r.run,m=r.motor,tEnd=run.t[run.t.length-1],t=DZ.scrub*tEnd,i=BURN_VIS.at(run,t);
   const info=[`t ${run.t[i].toFixed(2)} s`,`${(run.p[i]/1e6).toFixed(2)} MPa`,`${Math.round(run.f[i])} N`,`Kn ${Math.round(run.kn[i])}`,`web ${Math.min(100,Math.round(run.x[i]/run.web*100))}% burned`];
   if(DZ.view==="curves"){
@@ -223,6 +225,26 @@ function drawView(){
   $("dzCv").setAttribute("aria-label",DZ.view==="curves"?`Predicted pressure and thrust. Peak ${(r.sum.Pmax/1e6).toFixed(2)} MPa, average thrust ${Math.round(r.sum.Fav)} N over ${r.sum.tb.toFixed(2)} s.`
     :`Cross-section of the motor at ${run.t[i].toFixed(2)} s.`);
 }
+/* the 3D view (1.6): the motor on the hush house's assembly bench, live as you change it, to orbit and zoom. It borrows
+   the firing screen's 3D canvas (BURN_VIS.s3.mount) and gives it back when you leave the view or go to fire. The tab
+   shows once the 3D stand has loaded (app/gfx.js calls dz3dReady) */
+const VIEW3_H=w=>Math.max(190,Math.min(w*0.62,innerHeight*0.3,320));
+function dz3dReady(){const b=document.querySelector('#dzView [data-view="3d"]');if(b)b.hidden=!gfx3d();
+  if(DZ.view==="3d"&&!$("design").hidden)drawView();}
+function dz3dOff(){if(!DZ.on3d)return;DZ.on3d=false;BURN_VIS.s3.mount(null);$("dz3d").hidden=true;$("dzCv").hidden=false;$("frStand3").hidden=true;}
+function dz3dDraw(){
+  const r=DZ.res,s3=BURN_VIS.s3,m=r.motor,g=m.prop.gamma;
+  $("dzCv").hidden=true;$("dz3d").hidden=false;
+  if(!DZ.on3d){s3.mount($("dz3d"),VIEW3_H);DZ.on3d=true;DZ.key3d=null;}
+  /* rebuild the bench only when the motor's shape changed (the propellant or a grain slider alone doesn't move it) */
+  const key=[m.length,m.diameter,m.caseLen,m.re,m.rt0,m.design.case.mat].map(x=>typeof x==="number"?x.toFixed(4):x).join("|");
+  if(key!==DZ.key3d){const first=DZ.key3d==null;DZ.key3d=key;const keepShot=s3.S.shot,keepOrb=s3.S.orbit;
+    s3.setup({mode:"bench",place:"bench",len:m.length,dia:m.diameter,caseLen:m.caseLen,re:m.re,rt:m.rt0,caseMat:m.design.case.mat,
+      prE:BURN_SIM.presRatio(BURN_SIM.exitMach(m.eps0,g),g),tEnd:1,fAt:()=>0});
+    if(!first){s3.S.shot=keepShot;s3.S.orbit=keepOrb;}}   // a slider move keeps your camera
+  s3.draw({t:-1,f:0,p:0,still:true});
+  $("dzScrubV").textContent=`${s3Len(m)} on the bench`;}
+const s3Len=m=>`${Math.round(m.length*1000)} × ${Math.round(m.diameter*1000)} mm`;
 function setView(v){DZ.view=v;document.querySelectorAll("#dzView [data-view]").forEach(b=>{const on=b.dataset.view===v;b.classList.toggle("on",on);b.setAttribute("aria-selected",on);});drawView();}
 
 /* ---- sheets: a warning, the data sheet ---- */
@@ -336,12 +358,14 @@ function parentScreen(id){return id==="board"?"title":id==="logbook"?"board":id=
   id==="report"?(GAME.last&&GAME.last.replay?"logbook":"design"):id==="fire"?"fire":"title";}
 function showScreen(id){
   coachOff();if(id!=="fire"&&id!=="report")BURN_SOUND.voice.stop();   // Ruslan stops talking when you leave the stand and the report
+  if(id!=="design")dz3dOff();   // the 3D bench view gives the canvas back
   for(const s of SCREENS)$(s).hidden=s!==id;
   document.body.classList.toggle("has-go",id==="design");
   window.scrollTo(0,0);
   if(id!=="title"&&!(history.state&&history.state.brnScreen)){try{history.pushState({brnScreen:1},"");}catch(e){}}
   if(id==="board")renderBoard();
   if(id==="title")renderTitle();
+  if(id==="design"&&DZ.view==="3d"&&DZ.res)drawView();
 }
 window.addEventListener("popstate",e=>{if(sheetOn())return;if(e.state&&e.state.brnScreen)return;
   const cur=curScreen();if(cur==="title")return;

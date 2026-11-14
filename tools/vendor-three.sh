@@ -8,7 +8,8 @@
 #   sh tools/vendor-three.sh            (needs Node and network access to the npm registry)
 #
 # Then commit lib/three.min.js, run node build.js (sw.js precaches lib/), and update the version in CREDITS.md if it changed.
-# Using a new three.js name in src/vis/? Add it to the export list below and rerun.
+# Using a new three.js name in src/vis/? Add it to the export list below and rerun. (1.6 added SpotLight and, for the post
+# effects in src/vis/post3d.js, the render target, half-float, ortho camera and PMREM names.)
 set -e
 VER=0.187.0
 OUT="$(pwd)/lib/three.min.js"
@@ -22,7 +23,8 @@ export { REVISION, WebGLRenderer, Scene, PerspectiveCamera, Color, Fog, Hemisphe
   MeshLambertMaterial, MeshBasicMaterial, ShaderMaterial, Points, LineSegments, LineBasicMaterial, CanvasTexture, Vector2,
   Vector3, Quaternion, Euler, Matrix4, MathUtils, AdditiveBlending, NormalBlending, DoubleSide, FrontSide, BackSide,
   SRGBColorSpace, LinearSRGBColorSpace, ACESFilmicToneMapping, NoToneMapping, PCFSoftShadowMap, RepeatWrapping,
-  InstancedMesh, DynamicDrawUsage } from "three";
+  InstancedMesh, DynamicDrawUsage, SpotLight, WebGLRenderTarget, HalfFloatType, RGBAFormat, LinearFilter, ClampToEdgeWrapping,
+  OrthographicCamera, PMREMGenerator, Vector4 } from "three";
 JS
 ./node_modules/.bin/esbuild entry.js --bundle --minify --format=iife --global-name=THREE --target=es2019 \
   --legal-comments=none --banner:js="/* three.js r$(echo $VER | cut -d. -f2) (MIT, (c) 2010-2026 three.js authors, https://threejs.org). Cut down for Burn Rate by tools/vendor-three.sh */" \

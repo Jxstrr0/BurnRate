@@ -4,9 +4,15 @@
    gfxLoad() fetches them a few seconds after start-up (the service worker keeps them for offline play), then builds the
    scene once. Until it is ready, or on a phone without WebGL, or with Graphics set to 2D, the firing screen uses the 2D
    stand and sky (vis/stand.js, vis/flight.js).
+   1.6: each stand has its own place (vis/places3d.js). The hush house (models/hush.glb), home base and Stand 3, loads with
+   the range; the rest of Site 41 (models/site.glb) right after; Stand 1 and the altitude chamber (models/stand1.glb,
+   chamber.glb) once the career owns them, a firing needs them, or the sandbox opens. gfxPlace(id) loads one.
    SETTINGS.gfx (in brn-settings): "auto" (start Full or Lite from what the phone reports, step down if frames run slow),
    "full", "lite" or "2d". SETTINGS.gfxAuto remembers an automatic step-down to Lite so the next visit starts there. */
-const GFX={state:"idle",p:null};
+const GFX={state:"idle",p:null,places:{}};
+/* the far places, each its own model, loaded when first wanted (the service worker keeps them) */
+const PLACE_GLB={hush:"models/hush.glb",site:"models/site.glb",stand1:"models/stand1.glb",chamber:"models/chamber.glb"};
+const STAND_GLB={s3:"hush",s2:null,s1:"stand1",s0:"chamber"};
 /* Ruslan's voice: [setting, button, the button text's language] */
 const VOICE_OPTS=[["en","English",""],["ru","Русский","ru"],["off","Off",""]];
 const GFX_OPTS=[["auto","Auto","Full on a quick phone; steps down to Lite if the stand stutters."],["full","Full","Shadows, metal and the most smoke."],
@@ -22,14 +28,24 @@ function gfxLoad(){
   if(GFX.p||!gfxWant())return GFX.p;
   GFX.state="loading";
   GFX.p=new Promise((ok,bad)=>{const s=document.createElement("script");s.src="lib/three.min.js";s.onload=ok;s.onerror=()=>bad(new Error("lib/three.min.js"));document.head.appendChild(s);})
-    .then(()=>Promise.all(["models/range.glb","models/kit.glb"].map((u,i)=>fetch(u).then(r=>{if(!r.ok)throw new Error(u+" "+r.status);return r.arrayBuffer();})
-      .catch(e=>{if(i)return null;throw e;}))))   // without the kit the motor and rocket fall back to plain parts
-    .then(([buf,kit])=>{const s3=BURN_VIS.s3;if(!s3.init($("frStand3"),buf,gfxTier(),kit)){GFX.state="failed";return;}
+    .then(()=>Promise.all(["models/range.glb","models/kit.glb",PLACE_GLB.hush].map((u,i)=>fetch(u).then(r=>{if(!r.ok)throw new Error(u+" "+r.status);return r.arrayBuffer();})
+      .catch(e=>{if(i)return null;throw e;}))))   // without the kit the motor and rocket fall back to plain parts; without the hush house, Stand 2
+    .then(([buf,kit,hush])=>{const s3=BURN_VIS.s3;if(!s3.init($("frStand3"),buf,gfxTier(),kit)){GFX.state="failed";return;}
+      if(hush){s3.addPlace("hush",hush);GFX.places.hush=Promise.resolve(true);}
       s3.S.auto=SETTINGS.gfx==="auto";
       s3.S.onStep=n=>{SETTINGS.gfxAuto="lite";saveSettings();toast(n>1?"Graphics turned down again to keep the stand smooth.":"Graphics stepped down to Lite to keep the stand smooth.");};
-      GFX.state="ready";})
+      GFX.state="ready";dz3dReady();
+      /* then the rest of the site, and the stands the career already has */
+      gfxPlace("site").then(()=>{const car=typeof S!=="undefined"&&S.career;if(car)for(const k in car.stands)if(car.stands[k])gfxStand(k);});})
     .catch(e=>{GFX.state="failed";console.warn("3D stand unavailable:",e&&e.message);});
   return GFX.p;}
+/* load a far place once (a promise of true when it's in the scene) */
+function gfxPlace(id){
+  if(!PLACE_GLB[id])return Promise.resolve(false);if(GFX.places[id])return GFX.places[id];
+  if(!GFX.p)gfxLoad();if(!GFX.p)return Promise.resolve(false);
+  return GFX.places[id]=GFX.p.then(()=>GFX.state!=="ready"?false:fetch(PLACE_GLB[id]).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+    .then(b=>BURN_VIS.s3.addPlace(id,b))).catch(e=>{console.warn("3D place unavailable:",id,e&&e.message);delete GFX.places[id];return false;});}
+const gfxStand=st=>STAND_GLB[st]?gfxPlace(STAND_GLB[st]):Promise.resolve(true);
 /* the settings sheet (title screen): theme, graphics, sound and vibration */
 function settingsSheet(){
   const g=SETTINGS.gfx||"auto",st=GFX.state==="failed"?`<p class="hint">This phone couldn't start the 3D stand, so the 2D one is used.</p>`:"";

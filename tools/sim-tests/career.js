@@ -209,7 +209,7 @@ module.exports = ({ SIM, check, near }) => {
     if (pass < 6) throw new Error(`the throat fix passes only ${pass}/6`);
   });
 
-  check("hut: fires at the job's temperature or the player's setting (clamped), costs its fee, and hut jobs need the hut", () => {
+  check("climate plant (the hut): fires at the job's temperature or the player's setting (clamped), costs nothing extra, and its jobs need it", () => {
     const H = SIM.HUT, hutJob = SIM.CONTRACTS.find(c => c.slot === "hut");
     if (!hutJob) throw new Error("no hut job in the contracts");
     if (SIM.slotTemp("dawn", hutJob, 40) !== SIM.SLOTS.dawn.tGrain) throw new Error("a weather slot used the hut's setting");
@@ -217,11 +217,11 @@ module.exports = ({ SIM, check, near }) => {
     if (SIM.slotTemp("hut", null, 35) !== 35 || SIM.slotTemp("hut", null, 99) !== H.max || SIM.slotTemp("hut", null, -99) !== H.min) throw new Error("the hut's setting isn't clamped to its range");
     const d = SIM.REF_DESIGNS["38mm 3-seg BATES, Mule"], m = SIM.motorFromDesign(d);
     const a = SIM.firingCost("s3", m, d, "dusk"), b = SIM.firingCost("s3", m, d, "hut");
-    if (b.total - a.total !== C.hutFee || a.hut !== 0) throw new Error("the hut's fee isn't on the bill");
+    if (b.total !== a.total) throw new Error("the climate plant charged for a firing");
     const hot = SIM.predict(d, { tGrain: SIM.slotTemp("hut", null, H.max) }).sum, cold = SIM.predict(d, { tGrain: SIM.slotTemp("hut", null, H.min) }).sum;
     if (!(hot.Pmax > cold.Pmax && hot.tb < cold.tb)) throw new Error("a hot hut didn't burn faster than a cold one");
     const car = SIM.newCareer("hut", "Hut"); car.tier = hutJob.tier; car.stands[hutJob.stand] = true; car.rep = 99;
-    if (!/hut/.test(SIM.canTake(car, hutJob.id) || "")) throw new Error("a hut job was taken without the hut");
+    if (!/climate plant/.test(SIM.canTake(car, hutJob.id) || "")) throw new Error("a hut job was taken without the hut");
     car.money = 1e6; SIM.buy(car, "hut");
     if (SIM.canTake(car, hutJob.id)) throw new Error("a hut job was refused with the hut: " + SIM.canTake(car, hutJob.id));
     return `hot ${(hot.Pmax / 1e6).toFixed(2)} MPa ${hot.tb.toFixed(2)} s, cold ${(cold.Pmax / 1e6).toFixed(2)} MPa ${cold.tb.toFixed(2)} s`;

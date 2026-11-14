@@ -83,7 +83,7 @@ function renderReport(){
   if(L.out){const b=L.bill,o=L.out,car=S.career;
     bill=`<section class="card rp-bill"><h3>The bill</h3><table class="dtab mono">
       <tr><th>${fly?"Launch rail":esc(BURN_SIM.STANDS[c.stand].name)} fee, day ${o.day}</th><td>−${fmtCr(b.fee)}</td></tr>
-      ${b.hut?`<tr><th>Conditioning hut</th><td>−${fmtCr(b.hut)}</td></tr>`:""}${b.air?`<tr><th>The rocket (${esc(fly?fly.rocket.body.name:"airframe")})</th><td>−${fmtCr(b.air)}</td></tr>`:""}
+      ${b.air?`<tr><th>The rocket (${esc(fly?fly.rocket.body.name:"airframe")})</th><td>−${fmtCr(b.air)}</td></tr>`:""}
       <tr><th><details><summary>Motor materials${b.n>1?`, ${b.n} motors`:""}</summary><ul>${b.build.items.filter(x=>x.cr>0).map(x=>`<li>${esc(x.label)}: ${fmtCr(x.cr)}${b.n>1?" each":""}</li>`).join("")}</ul></details></th><td>−${fmtCr(b.motors||b.build.total)}</td></tr>
       ${o.paid?`<tr><th>${esc(c.client)} pays (grade ${L.lot?L.lot.gl.letter:g.letter} ×${o.gradeMul}${o.lotMul<1?`, one failure ×${o.lotMul}`:""}${o.late?`, ${o.late} day${o.late>1?"s":""} late ×${o.lateMul.toFixed(1)}`:""})</th><td class="good">+${fmtCr(o.paid)}</td></tr>`:""}
       <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>

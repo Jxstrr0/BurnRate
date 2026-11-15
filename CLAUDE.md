@@ -23,7 +23,9 @@ weapons.
 - Plain HTML, CSS and classic (non-module) JavaScript in a few big `<script>` blocks, the same family as Prairie Engine
   Works, Escapement and Scrapline. No package.json, no npm, no bundler. Node 16+ for the scripts (22 used).
 - Everything is self-hosted: fonts in `fonts/` (OFL), the studio logo in `assets/studio/`, and from stage 7 three.js
-  vendored in `lib/`. **No CDN, no analytics, no backend, no accounts, no ads, no API keys.**
+  vendored in `lib/`. **No CDN, no backend, no accounts, no ads, no API keys.** The one outside request is Cloudflare
+  Web Analytics (`static.cloudflareinsights.com/beacon.min.js` in `src/html/tail.html`, cookieless visit counts, the same
+  beacon as every Longlight game; Kelbo, 1.6.1.1). No other analytics.
 - PWA: `manifest.webmanifest`, `icons/`, and the generated `sw.js`. Installed copies work offline.
 - Assets: CC0 and CC-BY only (never NC or ND), each with a line in `CREDITS.md`. Generated art (Higgsfield) is credited
   as AI-generated; **never spend Higgsfield or ElevenLabs credits without Kelbo's yes** (quote the cost first).

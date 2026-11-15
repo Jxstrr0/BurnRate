@@ -19,6 +19,14 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: the high-quality Blender pass (range, motor, rocket) | 1.5.0.0 | Done |
 | After 1.0: the hush house and the larger visual pass | 1.6.0.0 | Done |
 | After 1.0: the Job button on the bench | 1.6.1.0 | Done |
+| After 1.0: visit counts | 1.6.1.1 | Done |
+
+## 1.6.1.1 — Visit counts
+
+Kelbo asked (security cycle, 15 November) for Burn Rate to carry the same cookieless Cloudflare Web Analytics beacon
+as every other Longlight game, so the studio's weekly checkup can show its visits and load speed. One `<script defer>`
+at the end of the page (`src/html/tail.html`); the service worker ignores other addresses, so offline play is unchanged.
+Nothing else in the game changed. CLAUDE.md's "no analytics" line and CREDITS.md say what it counts.
 
 ## 1.6.1.0 — The Job button on the bench
 

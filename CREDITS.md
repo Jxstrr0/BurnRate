@@ -73,6 +73,12 @@ renderer (Escapement), and the seeded random numbers (The Whip).
   and O. Biblarz, *Rocket Propulsion Elements*); nozzle flow separation uses
   the Summerfield criterion.
 
+## Visit counts
+
+Cloudflare Web Analytics (`static.cloudflareinsights.com/beacon.min.js`, loaded at the end of the page) counts
+page views, visits and load speed for Longlight Interactive. It sets no cookies and keeps no personal data. It is the
+only thing the game loads from another address.
+
 ## Store art
 
 The cover on the studio site is a frame captured from the game's own 3D stand

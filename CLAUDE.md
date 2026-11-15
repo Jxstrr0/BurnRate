@@ -21,7 +21,7 @@ weapons.
 ## Stack
 
 - Plain HTML, CSS and classic (non-module) JavaScript in a few big `<script>` blocks, the same family as Prairie Engine
-  Works, Escapement, Scrapline and Ink. No package.json, no npm, no bundler. Node 16+ for the scripts (22 used).
+  Works, Escapement and Scrapline. No package.json, no npm, no bundler. Node 16+ for the scripts (22 used).
 - Everything is self-hosted: fonts in `fonts/` (OFL), the studio logo in `assets/studio/`, and from stage 7 three.js
   vendored in `lib/`. **No CDN, no analytics, no backend, no accounts, no ads, no API keys.**
 - PWA: `manifest.webmanifest`, `icons/`, and the generated `sw.js`. Installed copies work offline.

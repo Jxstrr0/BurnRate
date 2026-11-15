@@ -128,7 +128,7 @@ startup renting the smallest stand and grows into a booster contractor.
 
 **Names:** check the catalogue's section 8 before naming anything. Avoid
 Kestrel, Kessel, Harbourline, Hollis, anything starting with V for a country,
-"Prairie", and Lombard and Ink's Mostograd names. The country and its money
+"Prairie", and Lombard's Mostograd names. The country and its money
 are decided: the **Altyn Steppe Republic**, money in plain **credits** (`cr`). The player names their startup at
 career start.
 
@@ -498,7 +498,7 @@ credits without Kelbo's direct approval.**
 ### 11.1 Stack
 
 Classic JS with a zero-dependency slice build, the same family as PEW,
-Escapement, Scrapline and Ink, so the most systems can be copied straight
+Escapement and Scrapline, so the most systems can be copied straight
 across. Copy and adapt (with the `// Adapted from …` header):
 
 | Need | From |

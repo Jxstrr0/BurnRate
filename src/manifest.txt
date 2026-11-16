@@ -27,6 +27,7 @@ sim/scatter.js
 sim/flight.js
 sim/career.js
 sim/daily.js
+sim/hint.js
 sim/close.js
 html/ld-sim.html
 # --- the vis block (BURN_VIS): charts and the cross-section; reads sim results ---
@@ -57,6 +58,8 @@ app/game.js
 app/career.js
 app/daily.js
 app/sandbox.js
+app/library.js
+app/hint.js
 app/firing.js
 app/report.js
 app/coach.js

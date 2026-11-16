@@ -63,6 +63,7 @@ function settingsSheet(){
       `<button type="button" role="radio" aria-checked="${k===vc}" data-voice-set="${k}"${l?` lang="${l}"`:""} class="btn sm${k===vc?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint">The Range Safety Officer calls the countdown over the tannoy and reads his sign-off on each report. Needs Sound on. The voice is AI-generated.</p></fieldset>`+
     onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`)+
+    onOff("hints","Hint notes",`<p class="hint">After ${BURN_SIM.CAREER.hintFreeAfter} misses on a job, your partner offers a free hint on the report. The Job sheet's Hint button works either way.</p>`)+
     onOff("coach","Coach cards",`<p class="hint">Short tips on your first job, each shown once. <button type="button" class="btn sm" id="coachAgain">Show them again</button></p>`));
   $("sheetBody").addEventListener("click",e=>{
     if(e.target.closest("#coachAgain")){SETTINGS.seen={};SETTINGS.coach=true;saveSettings();closeSheet();toast("Coach cards will show again on your first job.");return;}

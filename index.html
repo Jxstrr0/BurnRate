@@ -414,6 +414,16 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
 .coach-on{outline:3px solid var(--hazard);outline-offset:3px;border-radius:8px}
 @media (prefers-reduced-motion:no-preference){.coach-on{animation:coachPulse 1.6s ease-in-out infinite}}
 @keyframes coachPulse{50%{outline-offset:6px}}
+/* 1.7: your motors (app/library.js), personal bests and the hint (app/hint.js) */
+.lb-save{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+.lb-save input{flex:1;min-width:0;font:inherit;font-size:1rem;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);min-height:44px}
+.lb-list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.lb-list li{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.lb-n{display:grid;gap:2px;min-width:0}.lb-n b{overflow-wrap:anywhere}.lb-n .tag{font-size:.64rem;padding:2px 5px}
+.lb-b{display:flex;gap:6px;flex-shrink:0}
+.best{color:var(--good);font-weight:600}
+.rp-best{margin:8px 0 0}.rp-best.new b{color:var(--good)}
+.rp-hint{border-left:4px solid var(--hazard)}.rp-hint h3{margin-top:0}.rp-hint p{margin:0 0 8px}
 </style>
 
 <div id="app">
@@ -569,7 +579,27 @@ const TUNING={
   // mass estimates that aren't a part's own stat: the nozzle is a solid of revolution this full, this long x case bore
   nozzleFill:0.45,nozzleLen:0.35
 };
-Object.assign(SIM,{TUNING});
+/* the bench's yardstick and hints (sim/hint.js, 1.7). designScore weighs how far a motor is from a clean delivery, by the
+   predictor alone; the hint tries the moves below one at a time and names the one that helps most. tools/balance-bot.js
+   tunes with the same yardstick, so a hint is the bot's next move.
+     warnW, critW   weight of each yellow and red flag, growing as the motor goes past the flag's line
+     margin         keep this far under every rating, flagged or not (the real motor scatters round the prediction)
+     bandIn         a two-sided spec counts as fine inside this share of its half-width from the middle
+     refuseW        weight of each reason the stand or the rail would refuse the motor
+     steps          the predictor's solver steps while hinting (fewer than a firing's: fast enough for a phone)
+     sound          a score under this is a motor that delivers on paper: no move to suggest
+     gain           a move must cut the score by at least this share to be worth naming
+     moves          [field or move, first step, kind]: x multiplies, + adds, i whole numbers (xi: multiply, then round),
+                    m a move made together (size: the whole motor; segsKeep: more, shorter segments at the same length;
+                    coreThroat: the core and the throat together)
+     picks          the parts a hint may swap to (only ones the player has); parts: what it may tell you to look at */
+const HINT={warnW:0.5,critW:10,margin:0.85,bandIn:0.4,refuseW:20,steps:110,sound:0.05,gain:0.1,
+  moves:[["nozzle.throatD",1.08,"x"],["grain.segLen",1.12,"x"],["grain.coreD",1.06,"x"],["nozzle.exitD",1.08,"x"],
+    ["case.id",1.06,"xi"],["case.wall",0.3,"+"],["grain.segs",1,"i"],["case.linerThk",0.5,"+"],["case.bolts",2,"i"],
+    ["size",1.06,"m"],["segsKeep",1,"m"],["coreThroat",1.06,"m"]],
+  picks:["igniter","airframe.nose","airframe.fins","airframe.body"],
+  parts:["grain.prop","grain.shape","case.mat","nozzle.mat","case.liner","case.closure"]};
+Object.assign(SIM,{TUNING,HINT});
 /* ===================== data/propellants.js: the propellant grades =====================
    HARD RULE (plan section 3): a grade is a STAT BLOCK, never a recipe. Fictional names and performance numbers only;
    no ingredients, ratios or making steps, here or anywhere. The state grades (TR-) are old programme surplus named after
@@ -801,7 +831,7 @@ const CONTRACTS=[
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:81,coreD:24},case:{mat:"cromo",id:51,wall:2.7,liner:"paper",linerThk:1,closure:"bolts",bolts:12},nozzle:{mat:"steel",throatD:13.9,exitD:36,half:15},igniter:"m"}},
   {id:"ozen-cold",client:"Ozen Survey Instruments",title:"Cold-soak burn",tier:2,stand:"s2",slot:"dawn",pay:4800,days:10,
     brief:"A survey firm flies from the northern steppe in winter. They need a long, moderate burn that still behaves after a night in the frost. Fired at dawn, three and a half seconds or more.",
-    spec:[{k:"Fav",lo:200,hi:300},{k:"I",lo:900,hi:1300},{k:"tb",lo:3.5},{k:"Pmax",hi:5}],start:"54mm 4-seg BATES, Dray, steel throat",
+    spec:[{k:"Fav",lo:180,hi:300},{k:"I",lo:900,hi:1300},{k:"tb",lo:3.5},{k:"Pmax",hi:5}],start:"54mm 4-seg BATES, Dray, steel throat",
     solution:{grain:{prop:"clearsky",shape:"bates",segs:2,segLen:76,coreD:20},case:{mat:"cromo",id:57,wall:2.1,liner:"rubber",linerThk:1.2,closure:"bolts",bolts:13},nozzle:{mat:"steel",throatD:14,exitD:26,half:15},igniter:"m"}},
   {id:"range-frac",client:"Aqsor Range Authority",title:"Lean and strong",tier:2,stand:"s2",slot:null,pay:5500,days:12,
     brief:"The Range Authority is pitching Site 41 to launch firms and wants a showpiece: a K motor where propellant is most of the weight. 62% of the motor or more, and safe on the case.",
@@ -839,10 +869,10 @@ const CONTRACTS=[
     brief:"For the night show, Qyran wants a big rocket that rises slowly on a long, steady flame the crowd can follow: 250 to 500 newtons for eight seconds or more.",
     spec:[{k:"tb",lo:8},{k:"Fav",lo:250,hi:500},{k:"I",lo:3000}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr2",shape:"bates",segs:2,segLen:137.1,coreD:21.3,pts:2,ptLen:29.3,ptW:21.3,finLen:113.6,offset:15.1},case:{mat:"composite",id:95.1,wall:1.5,liner:"paper",linerThk:4.8,closure:"ring",bolts:15},nozzle:{mat:"graphite",throatD:20.7,exitD:84.3,half:15},igniter:"l"}},
-  {id:"burkit-sounder",client:"Bürkit Aerospace",title:"Six kilometres up",tier:3,stand:"s1",slot:null,flight:{payload:4},pay:17000,days:14,repeat:{pay:0.6,every:6},
-    brief:"Bürkit wants flight data from a real ascent before it sells its boosters: a four-kilogram telemetry pack to between 6000 and 8000 metres. Past the speed of sound the drag climbs steeply, so the nose, the fins and how long the motor pushes all matter.",
-    spec:[{k:"apogee",lo:6000,hi:8000}],start:"98mm 5-seg BATES, Ox, composite",
-    solution:{grain:{prop:"tr9",shape:"tube",segs:8,segLen:169.5,coreD:45.5},case:{mat:"composite",id:82.3,wall:2.2,liner:"paper",linerThk:4,closure:"bolts",bolts:36},nozzle:{mat:"steel",throatD:27,exitD:56,half:15},igniter:"xl",airframe:{body:"glass118",nose:"karman",fins:"swept"}}},
+  {id:"burkit-sounder",client:"Bürkit Aerospace",title:"Eight kilometres up",tier:3,stand:"s1",slot:null,flight:{payload:4},pay:17000,days:14,repeat:{pay:0.6,every:6},
+    brief:"Bürkit wants flight data from a real ascent before it sells its boosters: a four-kilogram telemetry pack to between 7500 and 10000 metres. Past the speed of sound the drag climbs steeply, so the nose, the fins and how long the motor pushes all matter.",
+    spec:[{k:"apogee",lo:7500,hi:10000}],start:"98mm 5-seg BATES, Ox, composite",
+    solution:{grain:{prop:"tr9",shape:"tube",segs:3,segLen:320,coreD:38.2},case:{mat:"composite",id:94,wall:4.5,liner:"paper",linerThk:2.5,closure:"bolts",bolts:12},nozzle:{mat:"steel",throatD:24,exitD:55.4,half:15},igniter:"xl",airframe:{body:"glass118",nose:"karman",fins:"swept"}}},
   {id:"dala-m",client:"Dala Hobby Supply",title:"Catalogue M1400",tier:3,stand:"s1",slot:null,pay:12000,days:12,repeat:{pay:0.6,every:6},
     brief:"Dala's catalogue is growing up: an M motor for the big-rocket crowd, sold off the shelf. About fourteen hundred newtons, 6000 to 8000 N·s, and the peak pressure under 6.5 MPa so the cases they sell will hold it with room to spare.",
     spec:[{k:"Fav",lo:1200,hi:1600},{k:"I",lo:6000,hi:8000},{k:"Pmax",hi:6.5}],start:"98mm 5-seg BATES, Ox, composite",
@@ -867,7 +897,7 @@ const CONTRACTS=[
     solution:{grain:{prop:"tr5",shape:"finocyl",segs:3,segLen:120,coreD:40.9,pts:8,ptLen:11.2,ptW:4.5,finLen:56.9,offset:24},case:{mat:"mild",id:95.3,wall:1.5,liner:"ablative",linerThk:2,closure:"bolts",bolts:14},nozzle:{mat:"steel",throatD:21,exitD:46,half:15},igniter:"l"}},
   {id:"ozen-lot",client:"Ozen Survey Instruments",title:"Northern survey lot",tier:4,stand:"s1",slot:"hut",tGrain:-10,lot:true,pay:40000,days:18,repeat:{pay:0.6,every:10},
     brief:"Ozen's northern survey season needs a lot of motors that light and burn alike in the cold. Each is conditioned in the climate plant at −10 °C. Long burns, and the pressure kept low: four of the five must pass.",
-    spec:[{k:"I",lo:5600,hi:7000},{k:"tb",lo:3.6},{k:"Pmax",hi:3}],start:"98mm 5-seg BATES, Ox, composite",
+    spec:[{k:"I",lo:5600,hi:7000},{k:"tb",lo:3.6},{k:"Pmax",hi:3.3}],start:"98mm 5-seg BATES, Ox, composite",
     solution:{grain:{prop:"tr5",shape:"bates",segs:3,segLen:160,coreD:50.6,pts:7,ptLen:15.3,ptW:1.4,finLen:123.5,offset:8.7},case:{mat:"mild",id:92.3,wall:2.6,liner:"rubber",linerThk:2.9,closure:"bolts",bolts:7},nozzle:{mat:"insert",throatD:31,exitD:60,half:15},igniter:"xl"}},
   {id:"agency-lot",client:"Altyn Space Agency",title:"Upper stage qualification",tier:4,stand:"s1",slot:null,lot:true,pay:36000,days:18,repeat:{pay:0.6,every:10},
     brief:"The republic's space agency is choosing a supplier for a sounding rocket's upper stage. Light above all: at least 78% propellant by weight. Five from one design, at least four inside the spec.",
@@ -917,7 +947,10 @@ const CAREER={
   /* tier 4 range tenders (Kelbo, 13 November 2026): a lot of five motors from one design fires on one range day for one
      stand fee; four must pass. One failure still delivers but cuts the pay; two or more lose the
      tender, which the range puts out again some days later. The lot's grade is its worst passing motor's. */
-  lot:{n:5,need:4,failPay:0.7,retender:6}
+  lot:{n:5,need:4,failPay:0.7,retender:6},
+  /* the paid hint on the bench (1.7, app/hint.js): a retired engineer from the old programme looks over the drawing for
+     this share of the job's pay, rounded to 10 cr, never less than hintMin. Free after hintFreeAfter misses on the job. */
+  hintShare:0.05,hintMin:50,hintFreeAfter:2
 };
 /* facilities. need: reputation needed before the range will lease it. after: a facility that must be owned first.
    give: what buying it changes. */
@@ -1851,7 +1884,7 @@ Object.assign(SIM,{airframeOf,defaultAirframe,rocketOf,airframeCost,machMul,fly,
             log:[entry], no (report counter), broke (tier restarts), hut (the hush house's climate plant owned: 1; it was the conditioning hut),
             retender:{id:day} (lost tenders, back on the board from that day),
             won (the day the capstone was first won), wonSeen (1 once its card has been read)}
-     job = {taken, due, pay, n (motors fired)}
+     job = {taken, due, pay, n (motors fired), f (firings: a lot of five is one; from 1.7, for the personal bests)}
    A tier 4 tender (contract.lot) is delivered by a lot: fireLot fires CAREER.lot.n motors of one design, gradeLot judges
    them (four of five to pass; one failure cuts the pay; the lot's grade is its worst passing motor's), and settle with
    {lot:true} pays or loses the tender. A single firing on a tender is a development motor: settle with {dev:true}.
@@ -1922,7 +1955,7 @@ function canTake(car,id){
   if(!board(car).includes(c))return"That work order isn't on the board.";
   return"";}
 function takeJob(car,id){const e=canTake(car,id);if(e)return e;const c=contractById(id);
-  car.jobs[id]={taken:car.day,due:car.day+c.days,pay:basePay(car,c),n:0};return"";}
+  car.jobs[id]={taken:car.day,due:car.day+c.days,pay:basePay(car,c),n:0,f:0};return"";}
 function dropJob(car,id){delete car.jobs[id];}
 /* the share of the pay left on a given day: 1 on time, less each day late */
 function lateShare(job,day){const late=Math.max(0,day-job.due);return{late,mul:Math.max(CAREER.lateFloor,1-CAREER.lateCut*late)};}
@@ -1938,7 +1971,7 @@ function settle(car,c,g,cost,o){
   const day=car.day,out={day,cost,paid:0,late:0,lateMul:1,gradeMul:0,rep:0,done:false,lost:false};
   o=o||{};car.money-=cost;
   if(c){const job=car.jobs[c.id];
-    if(job){job.n+=o.lot?CAREER.lot.n:1;
+    if(job){job.n+=o.lot?CAREER.lot.n:1;job.f=(job.f|0)+1;out.firings=job.f;   // f: firings on this job (a lot is one), for the personal bests
       /* a tender: a single motor is development only; a lot that fails loses the tender for now */
       if(c.lot&&!o.lot)out.dev=true;
       else if(c.lot&&g&&!g.pass){delete car.jobs[c.id];car.retender=car.retender||{};car.retender[c.id]=day+CAREER.lot.retender;out.lost=true;}
@@ -2049,6 +2082,104 @@ function kitCheck(kit,d){const out=[];
 /* is part id in the kit for this design field? (the bench greys out the rest) */
 const inKit=(kit,field,id)=>{const p=KIT_PARTS.find(x=>x[0]===field);return!p||kit[p[1]].includes(id);};
 Object.assign(SIM,{dailyNo,dailySpec,dailyKit,kitCheck,inKit});
+/* ===================== sim/hint.js: the bench's yardstick and the stuck hint (1.7) =====================
+   designScore(c, d, tGrain, steps) says how far a design is from a clean delivery of contract c, by the predictor alone:
+     0 is a motor in the middle of every spec band, with no flag and a margin under every rating. It returns {s, parts, p,
+     refused}: parts lists what makes up the score, each {kind, key, s} (kind: flag, margin, refused, launch or spec; a spec
+     part also has dir: "low", "high" or "edge"), biggest first. A design the predictor can't run scores 1e9.
+   hintMove(d, f, kind, step, dir) makes one of a player's moves (HINT.moves, data/tuning.js) on a copy of d, or null.
+   hint(c, d, o) is the hint: o = {tGrain, tier}. It tries every move one step each way, every part in HINT.picks the
+     player has (the igniter one size either way), and the job's own solution's parts (HINT.parts) one at a time, and names the one that cuts the score most:
+       {kind:"move", f, dir, issue, from, to}   a slider or stepper one way (dir +1 or -1), or a move made together
+       {kind:"pick", f, v, issue, from, to}     a part to swap to (the igniter or a rocket part: they're named)
+       {kind:"part", f, v, issue, from, to}     a part to look at again; the app doesn't say which (v is for the tests)
+       {kind:"sound", base}                     the motor delivers on paper: a miss was the real motor's scatter
+       {kind:"stuck", issue}                    nothing one step away helps
+       {kind:"broken"}                          the predictor can't run this design (its red errors come first)
+     issue is the biggest part of the score before the move. Only the direction is given, never a number: the player
+     still finds how far.
+   tools/balance-bot.js tunes every contract with designScore and hintMove, so a hint is the bot's next move. Pure: no DOM,
+   no clock, no randomness. */
+const HINT_OVER={liner:(q,m)=>q.tb/m.linerRating,burst:(q,m)=>q.Pmax/m.pUlt,yield:q=>1/q.sf,closure:q=>1/q.closureSf,
+  pt:q=>TUNING.ptWarn/q.pt0,chuff:(q,m)=>m.prop.pMin*1e6/q.pLow};
+function designScore(c,d,tGrain,steps){
+  const H=HINT,parts=[],add=(o,s)=>{o.s=s;parts.push(o);return s;};
+  let p;try{p=predict(d,standCond(c,{tGrain}),steps?{steps}:undefined);}catch(e){return{s:1e9,parts};}
+  if(!p.ok)return{s:1e9,parts};
+  const q=p.sum,m=p.motor,over={};
+  for(const k in HINT_OVER)over[k]=HINT_OVER[k](q,m);
+  over.sep=0.9+(d.nozzle.exitD/d.nozzle.throatD)**2/20;
+  let s=0;
+  /* each flag, weighted by how far over its line the motor is, so a step towards the line counts as progress */
+  for(const w of q.warnings)s+=add({kind:"flag",key:w.key,sev:w.sev,text:w.text},(w.sev==="crit"?H.critW:H.warnW)*(1+Math.max(0,(over[w.key]||1)-0.9)*10));
+  /* a careful player keeps a margin under every rating, flagged or not: real motors scatter round the prediction */
+  for(const key of["liner","burst","yield","closure","chuff"]){const o=over[key];if(o>H.margin&&isFinite(o))s+=add({kind:"margin",key},20*(o-H.margin)**2);}
+  const k=Object.assign({},c,{stand:STANDS[c.stand]}),refused=preFire(k,d,p.motor,{tier:c.tier,sum:q});
+  for(const r of refused)s+=add({kind:"refused",key:r.field,text:r.text},H.refuseW);
+  let sum=q;
+  if(c.flight){
+    const fp=predictFlight(d,p.motor,p.run,c.flight.payload);if(!fp)return{s:1e9,parts};
+    sum=Object.assign({},q,{apogee:fp.apogee});
+    for(const r of preLaunch(d,p.motor,p.run,c.flight.payload,c.tier))s+=add({kind:"launch",key:r.field,text:r.text},H.refuseW);}
+  for(const ck of specCheck(c.spec,sum,p.motor)){
+    const{lo,hi,v}=ck,o={kind:"spec",key:ck.k,v,lo,hi};
+    if(lo!=null&&hi!=null){const e=Math.abs(v-(lo+hi)/2)/((hi-lo)/2);o.dir=v<lo?"low":v>hi?"high":"edge";s+=add(o,Math.max(0,e-H.bandIn)**2*4);}
+    else if(hi!=null){const e=(v-hi*0.97)/hi;o.dir=v>hi?"high":"edge";s+=add(o,e>0?(e*10)**2:0);}
+    else{const e=(lo*1.03-v)/lo;o.dir=v<lo?"low":"edge";s+=add(o,e>0?(e*10)**2:0);}}
+  return{s,parts:parts.filter(x=>x.s>0).sort((a,b)=>b.s-a.s),p,refused};}
+/* one of a player's moves on a copy of the design; null when it can't be made */
+const hr1=v=>Math.round(v*10)/10;
+const hGet=(d,f)=>f.split(".").reduce((o,k)=>o&&o[k],d);
+function hSet(d,f,v){const p=f.split("."),l=p.pop();p.reduce((o,k)=>o[k],d)[l]=v;}
+function hintMove(d,f,kind,step,dir){
+  const t=JSON.parse(JSON.stringify(d));
+  if(kind==="m"){
+    const k=dir>0?step:1/step;
+    if(f==="size"){t.case.id=Math.round(t.case.id*k);t.nozzle.throatD=hr1(t.nozzle.throatD*k);t.nozzle.exitD=hr1(t.nozzle.exitD*k);if(t.grain.coreD)t.grain.coreD=hr1(t.grain.coreD*k);t.grain.segLen=hr1(t.grain.segLen*k);}
+    else if(f==="segsKeep"){const ns=t.grain.segs+dir;if(ns<1||t.grain.shape==="end")return null;t.grain.segLen=hr1(t.grain.segLen*t.grain.segs/ns);t.grain.segs=ns;}
+    else{if(!t.grain.coreD)return null;t.grain.coreD=hr1(t.grain.coreD*k);t.nozzle.throatD=hr1(t.nozzle.throatD*k);t.nozzle.exitD=hr1(t.nozzle.exitD*k);}
+    return t;}
+  const v=hGet(d,f);if(typeof v!=="number")return null;
+  let nv=kind[0]==="x"?v*(dir>0?step:1/step):v+dir*step;
+  nv=kind==="xi"||kind==="i"?Math.round(nv):hr1(nv);
+  if(nv===v||nv<=0)return null;
+  hSet(t,f,nv);
+  /* moves a player makes together: the exit follows the throat (same expansion), the core follows the grain's outside */
+  if(f==="nozzle.throatD")t.nozzle.exitD=hr1(d.nozzle.exitD*nv/v);
+  if((f==="case.id"||f==="case.linerThk")&&t.grain.coreD){const o0=d.case.id-2*d.case.linerThk,o1=t.case.id-2*t.case.linerThk;t.grain.coreD=hr1(d.grain.coreD*o1/o0);}
+  return t;}
+/* the part tables a hint may pick from, by field */
+const HINT_TABLES={"grain.prop":()=>PROPELLANTS,"grain.shape":()=>GRAIN_SHAPES,"case.mat":()=>CASES,"nozzle.mat":()=>THROATS,"case.liner":()=>LINERS,
+  igniter:()=>IGNITERS,"airframe.nose":()=>NOSES,"airframe.fins":()=>FINS,"airframe.body":()=>BODIES};
+/* swap one part, as a player would: a new grain shape brings that shape's own features (from the solution) */
+function hintSwap(c,d,f,v){
+  const t=JSON.parse(JSON.stringify(d));
+  if(f==="grain.shape"){const g=c.solution&&c.solution.grain&&c.solution.grain.shape===v?c.solution.grain:{shape:v};
+    t.grain=Object.assign({},JSON.parse(JSON.stringify(g)),{segs:d.grain.segs,segLen:d.grain.segLen,prop:d.grain.prop,coreD:d.grain.coreD||g.coreD||d.case.id/3});}
+  else if(f==="case.closure"){t.case.closure=v;if(v==="bolts"&&!t.case.bolts)t.case.bolts=6;}
+  else{if(f.startsWith("airframe.")&&!t.airframe)return null;hSet(t,f,v);}
+  return normDesign(t);}
+function hint(c,d,o){
+  o=o||{};const H=HINT,tG=o.tGrain==null?TUNING.tRef:o.tGrain,tier=o.tier||c.tier||1;
+  const base=designScore(c,d,tG,H.steps);
+  if(base.s>=1e9)return{kind:"broken"};
+  if(base.s<H.sound)return{kind:"sound",base};
+  const issue=base.parts[0];
+  let best=null;const keep=(t,res)=>{if(!t)return;const r=designScore(c,t,tG,H.steps);if(r.s<base.s*(1-H.gain)&&(!best||r.s<best.to))best=Object.assign(res,{to:r.s});};
+  for(const[f,step,kind]of H.moves)for(const dir of[1,-1])keep(hintMove(d,f,kind,step,dir),{kind:"move",f,dir});
+  for(const f of H.picks){
+    if(f.startsWith("airframe.")&&!c.flight)continue;
+    const tab=HINT_TABLES[f](),cur=hGet(d,f),ids=Object.keys(tab),at=ids.indexOf(cur);
+    /* igniters are in size order: one size either way (a tiny igniter in a big motor takes ages to simulate, and nobody tries it) */
+    for(const v of f==="igniter"?[ids[at-1],ids[at+1]]:ids)if(v&&v!==cur&&(tab[v].tier||1)<=tier)keep(hintSwap(c,d,f,v),{kind:"pick",f,v});}
+  /* the job's own solution's parts: a part to look at again, when a different one gets further than any slider */
+  for(const f of H.parts){
+    const v=c.solution&&hGet(c.solution,f),cur=hGet(d,f),tab=HINT_TABLES[f]&&HINT_TABLES[f]();
+    if(v==null||v===cur||(tab&&tab[v]&&(tab[v].tier||1)>tier))continue;
+    keep(hintSwap(c,d,f,v),{kind:"part",f,v});}
+  if(!best)return{kind:"stuck",issue,from:base.s};
+  return Object.assign(best,{issue,from:base.s});}
+Object.assign(SIM,{designScore,hintMove,hint});
 return SIM;
 })();
 if(typeof module!=="undefined")module.exports=BURN_SIM;
@@ -3628,8 +3759,9 @@ return{unlock,setOn,stop,beep,voice:{lang:voiceLang,preload:voicePreload,ready:v
 /* ===================== app/state.js: version, settings, small helpers, the sheet =====================
    The app glue reads BURN_SIM and draws the page; it is the only place that touches localStorage.
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
-   app/save.js) and brn-slot1..3 (save slots). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="1.6.1.1";
+   app/save.js), brn-slot1..3 (save slots) and brn-library
+   (saved motors and personal bests, every career on this phone; app/save.js, 1.7). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
+const VERSION="1.7.0.0";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */
@@ -3637,7 +3769,7 @@ const degC=t=>(t<0?"−":"")+Math.abs(t)+" °C";
 const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---- settings (this phone only): brn-settings ---- */
-const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,voice:"en",gfx:"auto",coach:true,seen:{},scatter:true};
+const SET_KEY="brn-settings",SET_DEF={theme:"light",sound:true,haptics:true,voice:"en",gfx:"auto",coach:true,seen:{},scatter:true,hints:true};
 let SETTINGS=Object.assign({},SET_DEF);
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem(SET_KEY)||"null");if(o&&typeof o==="object"&&!Array.isArray(o))SETTINGS=Object.assign({},SET_DEF,o);}catch(e){}}
 function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS));}catch(e){}}
@@ -3843,6 +3975,7 @@ function settingsSheet(){
       `<button type="button" role="radio" aria-checked="${k===vc}" data-voice-set="${k}"${l?` lang="${l}"`:""} class="btn sm${k===vc?" on":""}">${n}</button>`).join("")}</div>
     <p class="hint">The Range Safety Officer calls the countdown over the tannoy and reads his sign-off on each report. Needs Sound on. The voice is AI-generated.</p></fieldset>`+
     onOff("haptics","Vibration",BURN_SOUND.canBuzz()?`<p class="hint">A buzz when the motor lights and when something goes wrong.</p>`:`<p class="hint">This phone's browser doesn't let web pages vibrate (iPhones never do).</p>`)+
+    onOff("hints","Hint notes",`<p class="hint">After ${BURN_SIM.CAREER.hintFreeAfter} misses on a job, your partner offers a free hint on the report. The Job sheet's Hint button works either way.</p>`)+
     onOff("coach","Coach cards",`<p class="hint">Short tips on your first job, each shown once. <button type="button" class="btn sm" id="coachAgain">Show them again</button></p>`));
   $("sheetBody").addEventListener("click",e=>{
     if(e.target.closest("#coachAgain")){SETTINGS.seen={};SETTINGS.coach=true;saveSettings();closeSheet();toast("Coach cards will show again on your first job.");return;}
@@ -3870,7 +4003,8 @@ function settingsSheet(){
           free (the free bench's design) | null, freeN (free firings so far, so each one rolls new dice), lastBackup (ms),
           hutT (the conditioning hut's setting, °C), daily and dailyHist (the Daily Spec, app/daily.js), sandbox (app/sandbox.js)}
    save() writes it to "brn-save" (debounced, and at once when the page hides). The three slots "brn-slot1".."brn-slot3"
-   hold copies the player saves by hand, each with savedAt. Settings stay apart in "brn-settings" (this phone only).
+   hold copies the player saves by hand, each with savedAt. Settings stay apart in "brn-settings" (this phone only), and the
+   motor library and personal bests in "brn-library" (below; shared by every save, so the slots don't copy it).
    hydrate(o) checks a save's shape and runs the migrations before it becomes S; it returns false for anything it can't
    load, and leaves S alone then. Every storage call is in try/catch; nothing outside "brn-" is ever touched. */
 const SAVE_V=1,SAVE_KEY="brn-save",SLOTS=3,slotKey=i=>"brn-slot"+i;
@@ -3918,6 +4052,37 @@ function save(now){clearTimeout(saveT);if(!now){saveT=setTimeout(()=>save(true),
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&saveT)save(true);});
 addEventListener("pagehide",()=>{if(saveT)save(true);});
 
+/* ---- the motor library and personal bests (1.7, Kelbo 16 November 2026): "brn-library", this phone's, shared by every
+   career, the free bench, the Sandbox and the Daily Spec.
+     LIB = {v:1, motors:[{name, d (a design), des (its designation), at (ms)}],
+            bests:{job id:{l (the best grade, "A" "B" or "C"), n (the fewest firings it took to deliver), at (ms)}}}
+   Up to LIB_MAX motors. Backup codes carry it (app/savecode.js), and a restore merges it into this phone's rather than
+   replacing it: a motor saved here is never lost to an older code. Every storage call is in try/catch. ---- */
+const LIB_KEY="brn-library",LIB_MAX=12,LIB_NAME=40;
+const freshLib=()=>({v:1,motors:[],bests:{}});
+let LIB=freshLib();
+function libOk(o){if(!isObj(o)||o.v!==1||!Array.isArray(o.motors)||o.motors.length>LIB_MAX*2||!isObj(o.bests))return false;
+  for(const m of o.motors)if(!isObj(m)||typeof m.name!=="string"||!isObj(m.d)||!designOk(m.d)||!isNum(m.at))return false;
+  for(const k in o.bests){const b=o.bests[k];if(!isObj(b)||!/^[ABC]$/.test(b.l)||!isNum(b.n)||b.n<1)return false;}
+  return true;}
+function loadLib(){const o=readKey(LIB_KEY);LIB=o&&libOk(o)?o:freshLib();}
+function saveLib(){try{localStorage.setItem(LIB_KEY,JSON.stringify(LIB));return true;}
+  catch(e){toast("This browser wouldn't save your motors (storage full or blocked).");return false;}}
+const gradeBetter=(a,b)=>"ABC".indexOf(a)<"ABC".indexOf(b);
+/* two libraries made one: a's motors first, then b's that a doesn't have, up to LIB_MAX; each job's best grade and
+   fewest firings from either */
+function libMerge(a,b){const o=freshLib(),seen=new Set();
+  for(const m of a.motors.concat(b.motors)){const k=m.name+"|"+JSON.stringify(m.d);if(seen.has(k)||o.motors.length>=LIB_MAX)continue;seen.add(k);o.motors.push(JSON.parse(JSON.stringify(m)));}
+  for(const L of[a,b])for(const id in L.bests){const x=L.bests[id],y=o.bests[id];
+    o.bests[id]=y?{l:gradeBetter(x.l,y.l)?x.l:y.l,n:Math.min(x.n,y.n),at:Math.max(x.at||0,y.at||0)}:Object.assign({},x);}
+  return o;}
+/* a delivery on a career job: keep the best grade and the fewest firings. Returns what's new, and the old record so an
+   aborted firing can put it back (app/game.js undoFiring) */
+function recordBest(id,l,n){const b=LIB.bests[id],out={first:!b,grade:!!b&&gradeBetter(l,b.l),fewer:!!b&&n<b.n,prev:b?Object.assign({},b):null,l,n};
+  LIB.bests[id]={l:b&&!gradeBetter(l,b.l)?b.l:l,n:b?Math.min(b.n,n):n,at:Date.now()};saveLib();
+  out.best=LIB.bests[id];return out;}
+function unrecordBest(id,prev){if(prev)LIB.bests[id]=prev;else delete LIB.bests[id];saveLib();}
+
 /* ---- the slots ---- */
 function slotInfo(i){const o=readKey(slotKey(i));if(!o)return null;const c=o.career;
   return{savedAt:isNum(o.savedAt)?o.savedAt:0,text:c&&isObj(c)?`${c.name} · day ${c.day} · ${fmtCr(c.money)}`:"No career, free bench only"};}
@@ -3932,11 +4097,13 @@ function applyLoaded(msg){GAME.contract=null;GAME.last=null;renderTitle();showSc
    somewhere safe. All of it lives in localStorage on this device; nothing is ever sent anywhere.
      save    the current game ("brn-save"), taken live with snapshot() (app/save.js)
      slots   the 3 save slots ("brn-slot1" .. "brn-slot3"), null for an empty one
+     lib     the motor library and personal bests ("brn-library", app/save.js), null if there's none; a restore merges it
+             into this phone's (libMerge) instead of replacing it. Codes from before 1.7 have no lib and leave it alone.
    "brn-settings" is this phone's settings and stays out of backups on purpose.
    Code = "BRN1:" + body + a 6-character checksum. body = that object as JSON -> UTF-8 bytes -> LZW (9..16-bit codes) ->
    base64url (A-Z a-z 0-9 - _ only), so it survives notes apps, email and chat. Same shape as Scrapline's SCR1: codes.
    Restore checks everything before it writes anything: checksum, unpack, JSON, the shape of every save and a trial
-   hydrate() of each one. Then buWrite() writes all four keys and puts the old values back if any write fails, so a bad
+   hydrate() of each one. Then buWrite() writes all the keys and puts the old values back if any write fails, so a bad
    paste can never leave a half-restored game. The next version of this format is BRN2:.
    A new localStorage key must be added to buMake and buWrite (and to KEYS in check-savecode.js), or backups won't carry it.
    UI: the Saves sheet (app/career.js). Buttons carry data-bu="backup" | "restore" | "file" | "load" and are picked up by
@@ -4001,7 +4168,8 @@ function buSum(body){let h=2166136261;for(let i=0;i<body.length;i++){h^=body.cha
 /* ---- making a code ---- */
 function buStored(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return o&&typeof o==="object"&&!Array.isArray(o)?o:null;}catch(e){return null;}}
 function buMake(){const slots=[];for(let i=1;i<=SLOTS;i++)slots.push(buStored(slotKey(i)));
-  return{v:BU_V,at:Date.now(),ver:VERSION,save:snapshot(),slots};}
+  const lib=buStored(LIB_KEY);
+  return{v:BU_V,at:Date.now(),ver:VERSION,save:snapshot(),slots,lib:lib&&libOk(lib)?lib:null};}
 function buCode(d){const body=buZip(new TextEncoder().encode(JSON.stringify(d||buMake())));return BU_PREFIX+body+buSum(body);}
 
 /* ---- checking a save before anything is written ---- */
@@ -4013,7 +4181,7 @@ function buSaveOk(o){if(!buObj(o)||!buNum(o.v))return false;const keep=S;let ok=
   finally{S=keep;}
   return ok;}
 function buFullOk(d){return buObj(d)&&d.v===BU_V&&buSaveOk(d.save)&&Array.isArray(d.slots)&&d.slots.length<=SLOTS
-  &&d.slots.every(o=>o===null||buSaveOk(o));}
+  &&d.slots.every(o=>o===null||buSaveOk(o))&&(d.lib==null||libOk(d.lib));}
 
 /* ---- reading a code: {kind:"full",data}. Spaces, line breaks and text around the code are fine.
    Throws buFail(...) with a message for the player. ---- */
@@ -4034,13 +4202,14 @@ function buRead(text){
   if(!buFullOk(d))throw buFail("bad");
   return{kind:"full",data:d};}
 
-/* ---- writing a checked backup: all four keys, or none of them ---- */
+/* ---- writing a checked backup: all the keys, or none of them. The library is merged into this phone's ---- */
 function buWrite(d){
   const keys=[[BU_KEY,d.save]];for(let i=1;i<=SLOTS;i++)keys.push([slotKey(i),d.slots[i-1]||null]);
+  if(d.lib){const here=buStored(LIB_KEY);keys.push([LIB_KEY,libMerge(here&&libOk(here)?here:freshLib(),d.lib)]);}
   const old=[];
   try{for(const [k] of keys)old.push([k,localStorage.getItem(k)]);}catch(e){return false;}
   try{for(const [k,v] of keys){if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v));}return true;}
-  catch(e){   // put the old values back: clear all four first, so a full storage has room for what fitted before
+  catch(e){   // put the old values back: clear them all first, so a full storage has room for what fitted before
     try{for(const [k] of old)localStorage.removeItem(k);for(const [k,v] of old)if(v!=null)localStorage.setItem(k,v);}catch(_){}
     return false;}}
 
@@ -4053,7 +4222,7 @@ async function buCopy(ta){
   toast(ok?"Copied. Paste it somewhere safe.":"Code selected. Long-press it and tap Copy.");}
 function buBackupOpen(){let code="";try{code=buCode();}catch(e){}
   if(!code){toast("Couldn't make a backup code on this device");return;}
-  openSheet("Back up",`<p class="hint" style="margin-top:0">This code is your whole game: the current career, all 3 save slots and the free bench. Keep it in your notes, then paste it into <b>Restore</b> on any phone or browser.</p>
+  openSheet("Back up",`<p class="hint" style="margin-top:0">This code is your whole game: the current career, all 3 save slots, the free bench, your saved motors and your personal bests. Keep it in your notes, then paste it into <b>Restore</b> on any phone or browser.</p>
 <textarea class="code" id="codeOut" readonly spellcheck="false" aria-label="Your backup code"></textarea>
 <p class="hint">${code.length.toLocaleString("en-GB")} characters, starting with ${BU_PREFIX}</p>
 <div class="row"><button type="button" class="btn pri" id="copyCode">Copy code</button></div>`);
@@ -4070,8 +4239,8 @@ function buRestoreOpen(){
   if(window.matchMedia&&matchMedia("(hover:hover) and (pointer:fine)").matches)ta.focus({preventScroll:true});}   // no surprise keyboard on phones
 function buWhat(o){const c=o.career;return c?`${c.name}, day ${c.day}, ${fmtCr(c.money)}`:"No career started yet";}
 function buAsk(d){const when=buNum(d.at)?new Date(d.at).toLocaleString("en-GB",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}):"";
-  const n=d.slots.filter(Boolean).length;
-  return `Restore this backup?\n\n${when?"Made "+when+"\n":""}${buWhat(d.save)}\n${n} of ${SLOTS} save slots used\n\nIt replaces your current game and all ${SLOTS} save slots on this device.`;}
+  const n=d.slots.filter(Boolean).length,m=d.lib?d.lib.motors.length:0;
+  return `Restore this backup?\n\n${when?"Made "+when+"\n":""}${buWhat(d.save)}\n${n} of ${SLOTS} save slots used${d.lib?`\n${m} saved motor${m===1?"":"s"}`:""}\n\nIt replaces your current game and all ${SLOTS} save slots on this device.${d.lib?" Its saved motors and personal bests are added to this phone's.":""}`;}
 function buRestore(text,err){
   const say=k=>{err.textContent=BU_MSG[k]||BU_MSG.damaged;err.scrollIntoView&&err.scrollIntoView({block:"nearest"});};
   err.textContent="";
@@ -4081,6 +4250,7 @@ function buRestore(text,err){
   if(!confirm(buAsk(r.data)))return;
   if(!buWrite(r.data)){say("store");return;}
   if(!hydrate(r.data.save)){say("bad");return;}
+  loadLib();
   closeSheet();applyLoaded("Backup restored");buPersist();}
 
 /* ===================== SAVE SAFETY: backup files, keep-my-storage, the backup reminder (after PEW 1.76.66) =====================
@@ -4434,7 +4604,7 @@ function dataSheet(){
   const refs=Object.keys(BURN_SIM.REF_DESIGNS).map((k,i)=>`<button type="button" class="btn sm" data-ref="${i}">${esc(k)}</button>`).join("");
   openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at ${degC(DZ.tGrain)} grain, on the range. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
     :`<p>${esc(r.errors.map(e=>e.text).join(" "))}</p>`)+`<h3>Start again</h3><div class="refs"><button type="button" class="btn sm" data-reset="1">${GAME.contract?"The job's starting motor":"The default motor"}</button>${refs}</div>
-    <p class="hint">Undo (the arrow at the top of the bench) brings your motor back.</p>`);}
+    <p class="hint">Undo (the arrow at the top of the bench) brings your motor back.</p>${libSection()}`);}
 
 /* jump to the control a warning or error points at: switch tab, scroll to it, ring it */
 function goToField(f){
@@ -4657,6 +4827,9 @@ function drawGo(){
     <button type="button" class="btn pri" id="dzFire">${c?c.flight?"To the rail":"To the stand":"Test fire"} ›</button>`;
   $("dzJob").hidden=!c;
   $("dzSite").textContent=c?(c.daily?`Daily Spec No. ${c.no} · `:isSandbox()?"Sandbox · ":"")+c.title:"Stand 3 · Design bench";}
+/* this phone's personal best on a job, across every career (app/save.js): "Best A · 2 firings", or "" */
+function bestText(id){const b=LIB&&LIB.bests[id];return b?`Best ${b.l} · ${b.n} firing${b.n===1?"":"s"}`:"";}
+const bestLine=id=>inCareer()&&bestText(id)?`<p class="hint jb-best">Your best on this job, on this phone: <b>${esc(bestText(id).replace(/^Best /,""))}</b></p>`:"";
 /* the job's work order on the bench (Kelbo, 14 November 2026): the brief, each spec band against the prediction, where
    and when it fires, and in a career the pay and the due day. The header's Job button and the bottom bar's checks open it. */
 function jobSheet(){
@@ -4675,7 +4848,7 @@ function jobSheet(){
   openSheet(c.client?c.client:"The job",`<h3 class="sign">${esc(c.title)}</h3>${c.brief?`<p>${esc(c.brief)}</p>`:""}
     <table class="dtab jb-spec"><thead><tr><th scope="col">Spec</th><th scope="col">Asks</th><th scope="col">Predicted</th></tr></thead><tbody>${rows}</tbody></table>
     ${got?`<p class="hint">Predicted at ${esc(DZ.predSlot==="ref"?degC(20):slotLabel(DZ.predSlot))}. The real motor won't match exactly.</p>`:`<p class="hint">This design can't be built yet, so there's nothing to check.</p>`}
-    ${more.length?`<ul class="wo-spec">${more.map(m=>`<li>${m}</li>`).join("")}</ul>`:""}`);}
+    ${more.length?`<ul class="wo-spec">${more.map(m=>`<li>${m}</li>`).join("")}</ul>`:""}${bestLine(c.id)}${hintButton()}`);}
 function cycleTemp(){
   const list=["ref"].concat(slotChoices()),i=list.indexOf(DZ.predSlot),nx=list[(i+1)%list.length];
   DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
@@ -4755,8 +4928,10 @@ function startFiring(slot,lot){
     const g=lot?BURN_SIM.gradeLot(c,fires):BURN_SIM.grade(c,f),out=BURN_SIM.settle(car,c,g,bill.total,{lot});
     const entry=BURN_SIM.logFiring(car,{day:out.day,key:c.id,n,slot,tGrain:tG,seed,rate,design:d,letter:g.pass?g.letter:null,why:g.pass?null:g.why,
       fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late,lot:lot?BURN_SIM.CAREER.lot.n:undefined,fails:lot?g.fails:undefined,dev:out.dev?1:undefined});
+    /* a delivery goes on this phone's personal bests (app/save.js, brn-library): the grade, and the fewest firings */
+    const best=out.done?recordBest(c.id,g.letter,out.firings):null;
     save(true);
-    GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker,lot:lot?lotView(fires,g):null};
+    GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,best,money:car.money,bunker:car.bunker,lot:lot?lotView(fires,g):null};
   }else if(isSandbox()){
     /* the Sandbox: no money, no deadline, graded (app/sandbox.js) */
     const n=(S.sandbox.n|0)+1,f=shoot(c,d,{tGrain:tG},"sandbox/"+n);if(!f.ok){toast("This motor can't be built.");return;}
@@ -4774,7 +4949,7 @@ function startFiring(slot,lot){
     GAME.last={f,g:null,c:null,slot,tGrain:tG,n,key:"free",no:n,design:d,bunker:1};}
   openFiring();}
 function undoFiring(){const L=GAME.last;if(!L)return;
-  if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;}
+  if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;if(L.best)unrecordBest(L.c.id,L.best.prev);}
   else if(L.sandbox)S.sandbox.n=Math.max(0,(S.sandbox.n|0)-1);
   else if(L.daily){const b=L.daily.before,design=S.daily.design;S.daily=b.daily;S.daily.design=design;
     if(b.hist)S.dailyHist[b.daily.date]=b.hist;else delete S.dailyHist[b.daily.date];}
@@ -4861,6 +5036,8 @@ function wonCard(car){const C=BURN_SIM.CONTRACTS,done=C.filter(c=>car.done[c.id]
     <div><dt>Tenders</dt><dd class="mono">${lots}/${all}</dd></div><div><dt>Reputation</dt><dd class="mono">${car.rep}</dd></div></dl>
     <p class="hint">The range stays open: the clients keep sending repeat orders, and the stands are yours to use.</p>
     <div class="row"><button type="button" class="btn pri" id="bdWon">Back to work</button></div></section>`;}
+/* this phone's personal best on a job, across every career (app/save.js, game.js bestText) */
+const bestBadge=id=>{const t=bestText(id);return t?` · <span class="best">${esc(t)}</span>`:"";};
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
   if(gfx3d())for(const k in car.stands)if(car.stands[k])gfxStand(k);   // the 3D places of the stands you lease (app/gfx.js)
@@ -4878,14 +5055,14 @@ function renderBoard(){
   h+=jobs.length?jobs.map(id=>{const c=S_.contractById(id),j=car.jobs[id],late=car.day>j.due;
     return`<article class="wo card job"><header><span class="site">${esc(c.client)}</span><span class="tag ${late?"crit":""}">${esc(dueText(car,j))}</span></header>
       <h3>${esc(c.title)}</h3>${specList(c)}
-      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · <button type="button" class="gl" data-g="deadline">due day ${j.due}</button> · ${j.n} motor${j.n===1?"":"s"} fired</p>
+      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · <button type="button" class="gl" data-g="deadline">due day ${j.due}</button> · ${j.n} motor${j.n===1?"":"s"} fired${bestBadge(id)}</p>
       <div class="row"><button type="button" class="btn pri" data-take="${id}">To the bench</button><button type="button" class="btn sm" data-drop="${id}">Drop</button></div></article>`;}).join("")
     :`<p class="hint">No jobs in hand. Take one from the board below.</p>`;
   h+=`<h3 class="bd-h">On the board</h3>`;
   h+=offers.length?offers.map(c=>{const why=S_.canTake(car,c.id),rep=car.done[c.id];
     return`<article class="wo card"><header><span class="site">${esc(c.client)}</span>${rep?`<span class="tag">Repeat order</span>`:c.tier>1?`<span class="tag">Tier ${c.tier}</span>`:""}</header>
       <h3>${esc(c.title)}</h3><p>${esc(c.brief)}</p>${specList(c)}
-      <p class="hint mono">Pays ${fmtCr(S_.basePay(car,c))} · ${c.days} range days to deliver</p>
+      <p class="hint mono">Pays ${fmtCr(S_.basePay(car,c))} · ${c.days} range days to deliver${bestBadge(c.id)}</p>
       <div class="row"><button type="button" class="btn pri" data-take="${c.id}"${why?" disabled":""}>Take the job</button>${why?`<span class="hint">${esc(why)}</span>`:""}</div></article>`;}).join("")
     :`<p class="hint">Nothing new on the board today. ${emptyHint(car)}</p>${waitCard(car,jobs.length)}`;
   $("bdList").innerHTML=h;}
@@ -5038,6 +5215,133 @@ function sandboxTitleBtn(){
   const open=sandboxOpen();
   return`<button type="button" class="btn big" id="tSbx"${open?"":` aria-disabled="true"`}><span>Sandbox</span><small>${open?`Practise any job up to tier ${S.career.tier}, no money`:"Opens when your career reaches tier 2"}</small></button>`;}
 document.addEventListener("click",e=>{const b=e.target.closest("#sheet button[data-sbx]");if(b)openSandboxJob(b.dataset.sbx);});
+/* ===================== app/library.js: your motors (1.7, Kelbo 16 November 2026) =====================
+   The Data sheet's "Your motors": save the motor on the bench under a name, load one back, delete one. Up to LIB_MAX,
+   kept in brn-library (app/save.js) so every career, the free bench, the Sandbox and the Daily Spec share them. A saved
+   motor keeps every part it had: one that uses parts this career hasn't opened yet shows its tier, and the bench marks
+   those parts as locked when it's loaded (the stand refuses them as usual). Loading is one step for Undo. */
+const PART_TABS=[["grain.prop","PROPELLANTS"],["grain.shape","GRAIN_SHAPES"],["case.mat","CASES"],["case.liner","LINERS"],["nozzle.mat","THROATS"],
+  ["airframe.body","BODIES"],["airframe.nose","NOSES"],["airframe.fins","FINS"]];
+/* the highest part tier a motor uses */
+function motorTier(d){let t=1;for(const[f,tab]of PART_TABS){const id=f.split(".").reduce((o,k)=>o&&o[k],d),p=id&&BURN_SIM[tab][id];if(p&&(p.tier||1)>t)t=p.tier;}return t;}
+const libDefault=()=>{const r=DZ.res,des=r&&r.ok?r.sum.designation:"Motor",c=GAME.contract;
+  return(des+" · "+(c?c.title:"Free bench")).slice(0,LIB_NAME);};
+function libSection(){
+  const r=DZ.res,pt=partTier(),full=LIB.motors.length>=LIB_MAX;
+  const list=LIB.motors.map((m,i)=>{const t=motorTier(m.d),lock=pt&&t>pt;
+    return`<li><div class="lb-n"><b>${esc(m.name)}</b><span class="hint mono">${esc(m.des||"")}${t>1?` · <span class="tag${lock?" lock":""}">Tier ${t}${lock?" · locked parts":""}</span>`:""}</span></div>
+      <div class="lb-b"><button type="button" class="btn sm" data-libload="${i}">Load</button><button type="button" class="btn sm" data-libdel="${i}" aria-label="Delete ${esc(m.name)}">Delete</button></div></li>`;}).join("");
+  const form=!r||!r.ok?`<p class="hint">A motor that can't be built can't be saved: fix its red flags first.</p>`
+    :full?`<p class="hint">The library is full (${LIB_MAX} motors). Delete one to save this one.</p>`
+    :`<form class="lb-save" id="libForm"><label for="libName" class="vh">Name for this motor</label><input id="libName" maxlength="${LIB_NAME}" value="${esc(libDefault())}" autocomplete="off" spellcheck="false">
+      <button type="submit" class="btn sm pri">Save this motor</button></form>`;
+  return`<h3>Your motors <span class="hint">${LIB.motors.length} of ${LIB_MAX}</span></h3>${form}
+    ${list?`<ul class="lb-list">${list}</ul>`:`<p class="hint">No motors saved yet. A saved motor can be loaded on any bench, in any career on this phone.</p>`}`;}
+function libSave(name){
+  const r=DZ.res;if(!r||!r.ok||LIB.motors.length>=LIB_MAX)return;
+  name=String(name||"").trim().slice(0,LIB_NAME)||libDefault();
+  LIB.motors.unshift({name,d:clone(DZ.d),des:r.sum.designation,at:Date.now()});
+  if(saveLib())toast(`Saved: ${name}`);else LIB.motors.shift();
+  dataSheet();}
+function libLoad(i){const m=LIB.motors[i];if(!m)return;
+  const before=snapNow();closeSheet();benchSwap(clone(m.d));remember(before);toast(`Loaded ${m.name}. Undo brings yours back`,3600);}
+function libDelete(i){const m=LIB.motors[i];if(!m||!confirm(`Delete "${m.name}" from your motors?`))return;
+  LIB.motors.splice(i,1);saveLib();dataSheet();}
+document.addEventListener("submit",e=>{if(e.target.id!=="libForm")return;e.preventDefault();libSave($("libName").value);});
+document.addEventListener("click",e=>{const b=e.target.closest("#sheet [data-libload],#sheet [data-libdel]");if(!b)return;
+  if(b.dataset.libload!=null)libLoad(+b.dataset.libload);else libDelete(+b.dataset.libdel);});
+/* ===================== app/hint.js: the stuck hint (1.7, Kelbo 16 November 2026) =====================
+   When a job won't come right, the bench names the one change that helps most (sim/hint.js): the biggest problem with the
+   motor as drawn, and which way to move one control. Only the direction, never the number. Two ways in:
+     free   after CAREER.hintFreeAfter missed firings on a career job, your partner leaves a note: the report offers it (if
+            Settings > Hint notes is on) and the Job sheet's Hint button costs nothing. Always free in the Sandbox.
+     paid   before that, the Job sheet's Hint button calls in a retired engineer from the old programme, for a share of the
+            job's pay (CAREER.hintShare, at least hintMin). Asking again about the same motor costs nothing.
+   The Daily Spec has no hints: it's the same puzzle for everyone. The free bench has no client, so no hint either.
+   A miss is a logged firing on the job, since it was taken, that didn't pass (a tender's lot or development motor too). */
+const HINT_WHO={free:"Your partner's note",paid:"The consultant's note",sandbox:"A note from the bench"};
+/* which way to move each control, in words; [more, less] */
+const HINT_MOVE={"nozzle.throatD":["Open the throat up: a wider throat","Close the throat down: a narrower throat"],
+  "grain.segLen":["Make the segments longer","Make the segments shorter"],"grain.coreD":["Open the core up: a wider core","Close the core down: a narrower core"],
+  "nozzle.exitD":["A wider nozzle exit","A narrower nozzle exit"],"case.id":["A wider case: a bigger bore","A narrower case: a smaller bore"],
+  "case.wall":["A thicker case wall","A thinner case wall"],"grain.segs":["Add a segment","Take a segment off"],
+  "case.linerThk":["A thicker liner","A thinner liner"],"case.bolts":["More closure bolts","Fewer closure bolts"],
+  size:["Scale the whole motor up: the bore, the grain and the nozzle together","Scale the whole motor down: the bore, the grain and the nozzle together"],
+  segsKeep:["Cut the grain into more, shorter segments, the same length overall","Fewer, longer segments, the same length overall"],
+  coreThroat:["Open the core and the throat up together","Close the core and the throat down together"]};
+/* the control a move made together is set from */
+const HINT_FIELD={size:"case.id",segsKeep:"grain.segs",coreThroat:"grain.coreD"};
+const HINT_PART={"grain.prop":"propellant grade","grain.shape":"grain shape","case.mat":"case material","nozzle.mat":"throat material","case.liner":"liner","case.closure":"closures"};
+const HINT_MARGIN={liner:"The burn is long for the liner: a motor that burns a little longer than predicted could get through to the case.",
+  burst:"The peak pressure is close to the case's burst rating.",yield:"The peak pressure is close to where the case starts to yield.",
+  closure:"The closures have little margin at the peak pressure.",chuff:"The pressure at the end of the burn is close to the chuffing limit."};
+const HINT_TABLE={igniter:"IGNITERS","airframe.nose":"NOSES","airframe.fins":"FINS","airframe.body":"BODIES"};
+
+/* can this bench ask for a hint at all, and on what terms */
+const hintOpen=()=>!!GAME.contract&&!isDaily()&&(inCareer()||isSandbox());
+function hintMisses(c){const car=S.career,j=car&&car.jobs[c.id];if(!j)return 0;
+  return car.log.filter(e=>e.key===c.id&&e.day>=j.taken&&!e.letter).length;}
+function hintFee(c){const C=BURN_SIM.CAREER,j=S.career&&S.career.jobs[c.id];if(!j)return 0;
+  return Math.max(C.hintMin,Math.round(j.pay*C.hintShare/10)*10);}
+const hintFree=c=>isSandbox()||hintMisses(c)>=BURN_SIM.CAREER.hintFreeAfter;
+/* the Job sheet's button */
+function hintButton(){const c=GAME.contract;if(!hintOpen())return"";
+  const free=hintFree(c),n=hintMisses(c),C=BURN_SIM.CAREER;
+  return`<h3>Stuck?</h3><div class="row"><button type="button" class="btn" data-hint="${free?"free":"paid"}">${free?"Hint":`Hint · ${fmtCr(hintFee(c))}`}</button></div>
+    <p class="hint">${isSandbox()?"Names the biggest problem with this motor and which way to move one control. Free in the Sandbox.":free?"Your partner has seen the misses: the hint is free on this job."
+    :`A retired engineer from the old programme names the biggest problem and which way to move one control. Free after ${C.hintFreeAfter} misses on a job (${n} so far).`}</p>`;}
+
+/* the problem, in words */
+function hintIssue(x){if(!x)return"";const I=BURN_SIM.SPEC_INFO;
+  if(x.kind==="spec"){const i=I[x.key],v=fmtSpec(x.key,x.v)+(i.unit==="%"||i.unit==="×"?i.unit:" "+i.unit),band=bandText({k:x.key,lo:x.lo,hi:x.hi});
+    return x.dir==="low"?`${i.name} is short: ${v} predicted, and the job asks for ${band}.`:x.dir==="high"?`${i.name} is over: ${v} predicted, and the job asks for ${band}.`
+      :`${i.name} is inside the spec but close to its edge (${v} for ${band}), so the real motor's scatter can push it out.`;}
+  if(x.kind==="flag")return`${FLAG_SHORT[x.key]||"A warning"}: ${x.text}`;
+  if(x.kind==="margin")return HINT_MARGIN[x.key]||"A rating has little margin left.";
+  return x.text||"";}
+/* the move, in words, and the control it goes to */
+function hintAdvice(h){
+  if(h.kind==="move")return{text:HINT_MOVE[h.f][h.dir>0?0:1]+".",field:HINT_FIELD[h.f]||h.f};
+  if(h.kind==="pick"){const it=BURN_SIM[HINT_TABLE[h.f]][h.v],c=ctlSpec(h.f);return{text:`${c?c.label:"Swap it"}: try the ${it.name.toLowerCase()}.`,field:h.f};}
+  if(h.kind==="part")return{text:`Look at the ${HINT_PART[h.f]} again: a different one gets closer than any slider here.`,field:h.f};
+  return null;}
+/* work out a hint for the motor on the bench and show it. paid: charge the fee first (career only) */
+function askHint(how){
+  const c=GAME.contract;if(!c||!DZ.d||!hintOpen())return;
+  const key=gameKey()+"|"+DZ.tGrain+"|"+snapNow(),seen=GAME.hintSeen&&GAME.hintSeen.key===key;
+  if(how==="paid"&&!seen&&!hintFree(c)){const fee=hintFee(c);if(!BURN_SIM.canAfford(S.career,fee)){toast("The bank won't cover the consultant.");return;}}
+  openSheet("Hint",`<p class="hint">Looking over the drawing…</p>`);
+  setTimeout(()=>{
+    const h=seen?GAME.hintSeen.h:BURN_SIM.hint(c,DZ.d,{tGrain:DZ.tGrain,tier:partTier()||c.tier});
+    let paid=0;
+    /* the consultant charges for a real look: not for a motor that can't be built, and not twice for the same one */
+    if(how==="paid"&&!seen&&!hintFree(c)&&h.kind!=="broken"){paid=hintFee(c);S.career.money-=paid;save(true);}
+    GAME.hintSeen={key,h};
+    showHint(h,how==="paid"&&!hintFree(c)?"paid":isSandbox()?"sandbox":"free",paid);},reduced()?0:60);}
+function showHint(h,who,paid){
+  const a=hintAdvice(h);let body;
+  if(h.kind==="broken")body=`<p>This motor can't be built yet. The red flags on the bench say what's wrong: fix those first.</p>`;
+  else if(h.kind==="sound")body=`<p>On paper this motor delivers: in the middle of every band, with a margin under every rating.</p>
+    <p>The misses were the real motor's scatter. Fire it again${scatterAvail()?", or tap Scatter on the bench to see how widely it spreads":""}.</p>`;
+  else if(h.kind==="stuck")body=`<p><b>The biggest problem:</b> ${esc(hintIssue(h.issue))}</p><p>No single step from here fixes it. Try a bigger change, or start again from the job's starting motor (Data sheet).</p>`;
+  else body=`<p><b>The biggest problem:</b> ${esc(hintIssue(h.issue))}</p><p><b>Try:</b> ${esc(a.text)}</p>
+    <p class="hint">Only the direction: how far is up to you. The prediction redraws as you go.</p>
+    ${ctlSpec(a.field)?`<div class="row"><button type="button" class="btn pri" data-hintgo="${a.field}">Go to ${esc(ctlSpec(a.field).label.toLowerCase())}</button></div>`:""}`;
+  openSheet("Hint",`<p class="hint">${HINT_WHO[who]}${paid?` · ${fmtCr(paid)}`:""} · predicted at ${esc(degC(DZ.tGrain))}</p>${body}`);
+  if(paid)toast(`The consultant's fee: ${fmtCr(paid)}`);}
+/* the report's card: after enough misses on a job still in hand */
+function hintCard(L){
+  if(!L||L.replay||!L.out||!L.c||L.daily||L.sandbox||SETTINGS.hints===false)return"";
+  const c=L.c,pass=L.lot?L.lot.gl.pass:L.g&&L.g.pass;
+  if(pass||!S.career||!S.career.jobs[c.id]||GAME.contract!==c)return"";
+  const n=hintMisses(c);if(n<BURN_SIM.CAREER.hintFreeAfter)return"";
+  return`<section class="card rp-hint"><h3>Your partner's note</h3><p>${n} misses on this job. A second pair of eyes on the drawing?</p>
+    <div class="row"><button type="button" class="btn" id="rpHint">Read the hint</button></div></section>`;}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("#sheet [data-hint],#sheet [data-hintgo],#rpHint");if(!b)return;
+  if(b.id==="rpHint"){askHint("free");return;}
+  if(b.dataset.hint){askHint(b.dataset.hint);return;}
+  const f=b.dataset.hintgo;closeSheet();if($("design").hidden){showScreen("design");drawAll();}goToField(f);});
 /* ===================== app/firing.js: the static firing screen (plan sections 4 and 9.2) =====================
    A countdown, then the stand and the live strip chart: the measured trace (red) draws over the prediction (blue) as
    the motor burns, with pressure, thrust and time gauges. Burns shorter than 2 s play slowed down and burns longer than
@@ -5245,6 +5549,11 @@ const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
 /* the report's number: S-n in the sandbox, D<daily no>-n on the Daily Spec, 41-nnn otherwise */
 const reportNo=L=>L.sandbox?`S-${L.n}`:L.daily?`D${L.c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`;
 /* a fresh report gets Ruslan's sign-off read out (after "Range is safe", if he's still saying it); a logbook one doesn't */
+/* a delivery against this phone's personal best on the job (app/save.js recordBest) */
+function bestNote(b){if(!b)return"";const fs=n=>`${n} firing${n===1?"":"s"}`;
+  if(b.first)return`<p class="rp-best">First delivery of this job on this phone: <b>${esc(b.l)} in ${fs(b.n)}</b>. That's the best to beat.</p>`;
+  if(b.grade||b.fewer)return`<p class="rp-best new"><b>A new best</b>: ${b.grade?`grade ${esc(b.l)}, better than ${esc(b.prev.l)}`:`grade ${esc(b.l)}`}${b.fewer?`, in ${fs(b.n)} (was ${b.prev.n})`:`, in ${fs(b.n)}`}.</p>`;
+  return`<p class="rp-best">Your best on this job: <b>${esc(b.best.l)} in ${fs(b.best.n)}</b>.</p>`;}
 function openReport(){renderReport();showScreen("report");coachReport();if(GAME.last&&!GAME.last.replay&&rsoSaid)BURN_SOUND.voice.say(rsoSaid);}
 function renderReport(){
   const L=GAME.last;if(!L)return;
@@ -5289,7 +5598,7 @@ function renderReport(){
       <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>
       ${o.dev?`<p class="hint">A development motor: it shows how this design fires, but the client only takes a lot of ${BURN_SIM.CAREER.lot.n}.</p>`:""}
       ${o.lost?`<p class="sev crit">Tender lost: ${L.lot.gl.fails} of the ${L.lot.fires.length} motors failed. The range puts it out again on day ${(car.retender||{})[c.id]}.</p>`:""}
-      ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
+      ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>${bestNote(L.best)}`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
   else if(L.replay&&L.entry){const e=L.entry;bill=`<p class="rp-note mono">Day ${e.day} · cost ${fmtCr(e.cost)}${e.paid?` · paid ${fmtCr(e.paid)}`:""}${e.late?` · ${e.late} day${e.late>1?"s":""} late`:""}</p>`;}
   const broke=L.out&&S.career&&BURN_SIM.isBroke(S.career)?`<section class="card broke"><h3 class="sign">Out of money</h3><p>The bank won't pay for another motor. The work orders offer a restart of the tier.</p></section>`:"";
   /* the Daily Spec: how today stands, and sharing it */
@@ -5314,7 +5623,7 @@ function renderReport(){
     ${whyCard(L,f,c,tG)}
     ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
     <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
-    ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
+    ${hintCard(L)}${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
       <p class="hint"><button type="button" class="gl" data-g="blockhouse">The blockhouse</button>. ${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
     <div class="rp-act">${act}${canShareSheet(L)?`<button type="button" class="btn" id="rpSheet">Data sheet</button>`:""}</div>`;
@@ -5612,7 +5921,7 @@ function start(){
   loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);BURN_SOUND.voice.lang(SETTINGS.voice);
   applyTheme();
   $("verLbl").textContent="v"+VERSION;
-  loadSave();renderTitle();initTitle();initBoard();
+  loadSave();loadLib();renderTitle();initTitle();initBoard();
   initFiring();initReport();
   if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();

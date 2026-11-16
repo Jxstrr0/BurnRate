@@ -57,6 +57,9 @@ function drawGo(){
     <button type="button" class="btn pri" id="dzFire">${c?c.flight?"To the rail":"To the stand":"Test fire"} ›</button>`;
   $("dzJob").hidden=!c;
   $("dzSite").textContent=c?(c.daily?`Daily Spec No. ${c.no} · `:isSandbox()?"Sandbox · ":"")+c.title:"Stand 3 · Design bench";}
+/* this phone's personal best on a job, across every career (app/save.js): "Best A · 2 firings", or "" */
+function bestText(id){const b=LIB&&LIB.bests[id];return b?`Best ${b.l} · ${b.n} firing${b.n===1?"":"s"}`:"";}
+const bestLine=id=>inCareer()&&bestText(id)?`<p class="hint jb-best">Your best on this job, on this phone: <b>${esc(bestText(id).replace(/^Best /,""))}</b></p>`:"";
 /* the job's work order on the bench (Kelbo, 14 November 2026): the brief, each spec band against the prediction, where
    and when it fires, and in a career the pay and the due day. The header's Job button and the bottom bar's checks open it. */
 function jobSheet(){
@@ -75,7 +78,7 @@ function jobSheet(){
   openSheet(c.client?c.client:"The job",`<h3 class="sign">${esc(c.title)}</h3>${c.brief?`<p>${esc(c.brief)}</p>`:""}
     <table class="dtab jb-spec"><thead><tr><th scope="col">Spec</th><th scope="col">Asks</th><th scope="col">Predicted</th></tr></thead><tbody>${rows}</tbody></table>
     ${got?`<p class="hint">Predicted at ${esc(DZ.predSlot==="ref"?degC(20):slotLabel(DZ.predSlot))}. The real motor won't match exactly.</p>`:`<p class="hint">This design can't be built yet, so there's nothing to check.</p>`}
-    ${more.length?`<ul class="wo-spec">${more.map(m=>`<li>${m}</li>`).join("")}</ul>`:""}`);}
+    ${more.length?`<ul class="wo-spec">${more.map(m=>`<li>${m}</li>`).join("")}</ul>`:""}${bestLine(c.id)}${hintButton()}`);}
 function cycleTemp(){
   const list=["ref"].concat(slotChoices()),i=list.indexOf(DZ.predSlot),nx=list[(i+1)%list.length];
   DZ.predSlot=nx;DZ.tGrain=nx==="ref"?20:slotT(nx);schedule(false);
@@ -155,8 +158,10 @@ function startFiring(slot,lot){
     const g=lot?BURN_SIM.gradeLot(c,fires):BURN_SIM.grade(c,f),out=BURN_SIM.settle(car,c,g,bill.total,{lot});
     const entry=BURN_SIM.logFiring(car,{day:out.day,key:c.id,n,slot,tGrain:tG,seed,rate,design:d,letter:g.pass?g.letter:null,why:g.pass?null:g.why,
       fee:bill.fee,cost:bill.total,paid:out.paid,late:out.late,lot:lot?BURN_SIM.CAREER.lot.n:undefined,fails:lot?g.fails:undefined,dev:out.dev?1:undefined});
+    /* a delivery goes on this phone's personal bests (app/save.js, brn-library): the grade, and the fewest firings */
+    const best=out.done?recordBest(c.id,g.letter,out.firings):null;
     save(true);
-    GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,money:car.money,bunker:car.bunker,lot:lot?lotView(fires,g):null};
+    GAME.last={f,g,c,slot,tGrain:tG,n,key:c.id,no:entry.no,design:d,bill,out,before,best,money:car.money,bunker:car.bunker,lot:lot?lotView(fires,g):null};
   }else if(isSandbox()){
     /* the Sandbox: no money, no deadline, graded (app/sandbox.js) */
     const n=(S.sandbox.n|0)+1,f=shoot(c,d,{tGrain:tG},"sandbox/"+n);if(!f.ok){toast("This motor can't be built.");return;}
@@ -174,7 +179,7 @@ function startFiring(slot,lot){
     GAME.last={f,g:null,c:null,slot,tGrain:tG,n,key:"free",no:n,design:d,bunker:1};}
   openFiring();}
 function undoFiring(){const L=GAME.last;if(!L)return;
-  if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;}
+  if(L.before){const designs=S.career.designs;S.career=L.before;S.career.designs=designs;if(L.best)unrecordBest(L.c.id,L.best.prev);}
   else if(L.sandbox)S.sandbox.n=Math.max(0,(S.sandbox.n|0)-1);
   else if(L.daily){const b=L.daily.before,design=S.daily.design;S.daily=b.daily;S.daily.design=design;
     if(b.hist)S.dailyHist[b.daily.date]=b.hist;else delete S.dailyHist[b.daily.date];}

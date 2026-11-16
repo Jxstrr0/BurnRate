@@ -22,6 +22,10 @@ sections below are updated to match.
 
 | Date | Question | Answer |
 | --- | --- | --- |
+| 16 Nov 2026 | The stuck hint | **Both**: after 2 missed firings on a career job your partner leaves a note on the report with a free hint, and the Job sheet's Hint button works any time, for a share of the job's pay (5%, at least 50 cr) until the free note is earned. Always free in the Sandbox; never on the Daily Spec or the free bench. A hint names the biggest problem and one control and which way to move it, never the number. Settings > Hint notes turns the report's note off. The hint is the balance bot's own next move (`sim/hint.js`), so the bot and the bench agree |
+| 16 Nov 2026 | Motor library | **A new key, `brn-library`**: up to 12 saved motors on the Data sheet, usable in every career, the free bench, the Sandbox and the Daily Spec. A motor with parts the career hasn't opened shows its tier and those parts load locked. It is in the backup code, and a restore merges it into the phone's library rather than replacing it |
+| 16 Nov 2026 | Personal bests | **Per job, across all careers on this phone**: the best grade and the fewest firings to deliver each job, kept in `brn-library`. Shown on the job board, in the Job sheet, and on the report with "new best" when beaten. The Daily Spec keeps its own best and streak |
+| 16 Nov 2026 | Balance pass | Three jobs retuned after a check of every job's starting drawing: **burkit-sounder** was delivered by its own starting drawing, untouched, so its target moved up to 7,500 to 10,000 m ("Eight kilometres up") with a new solution that passes at every slot; **ozen-cold** (average thrust from 180 N, was 200) and **ozen-lot** (peak pressure up to 3.3 MPa, was 3) got a little more room so a careful design isn't at the mercy of scatter. The firing slots stay as they were: the bot tuning at noon first was the bot's search order, not a game imbalance |
 | 14 Nov 2026 | The hush house | **Home base from day one**: the startup leases Site 41's old jet-engine hush house instead of the blue container. Its build bay shows the motor on the assembly bench; **every Stand 3 firing happens in its indoor test cell**, the exhaust going out through the augmenter tube and stack. The outdoor stand at the origin becomes Stand 2; Stand 1 and the altitude chamber get their own places on the range |
 | 14 Nov 2026 | Temperature in the hush house | **The Conditioning hut becomes the hush house's climate plant** (same price, 3,500 cr, and reputation 14; old saves that own the hut keep it): the test cell itself is heated or chilled to the setting, no overnight hold, and **no fee per firing**. Motors for Stand 1 and 2 temperature jobs are conditioned in the bay and trucked out |
 | 14 Nov 2026 | Build bay view | **Opening shot plus a 3D button**: each hush house firing opens in the build bay and the camera flies through the blast door to the stand; the design screen gets a 3D button that shows the motor being designed on the bay bench, live, to orbit and zoom |
@@ -531,7 +535,8 @@ docs/          this plan, LONGLIGHT-STUDIO.md, PROGRESS.md
 
 ### 11.3 Shared-origin storage (catalogue section 5)
 
-- localStorage: `brn-save`, `brn-slot1..3`, settings `brn-settings`
+- localStorage: `brn-save`, `brn-slot1..3`, settings `brn-settings`, and from 1.7 `brn-library` (saved motors and
+  personal bests, shared by every career on the phone; in the backup code, merged on a restore)
 - Caches: `brn-` prefix only; the service worker deletes only `brn-` caches
 - Save code: `BRN1:` + compressed JSON + checksum
 - Never `localStorage.clear()`, never touch another prefix

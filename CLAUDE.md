@@ -74,7 +74,8 @@ local copy: `python3 -m http.server` in the repo root. The service worker only r
 
 ## Storage (plan section 11.3)
 
-- localStorage keys all start `brn-`: `brn-settings` (this phone), and from stage 4 `brn-save`, `brn-slot1..3`.
+- localStorage keys all start `brn-`: `brn-settings` (this phone), and from stage 4 `brn-save`, `brn-slot1..3`, and from
+  1.7 `brn-library` (saved motors and personal bests, every career on this phone; backed up, merged on a restore).
   **Stop and ask before adding a key.** All access in try/catch.
 - Caches all start `brn-`; the service worker only ever deletes `brn-` caches. Never `localStorage.clear()`, never touch
   another prefix.

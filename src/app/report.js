@@ -45,6 +45,11 @@ const pctS=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+"%";
 /* the report's number: S-n in the sandbox, D<daily no>-n on the Daily Spec, 41-nnn otherwise */
 const reportNo=L=>L.sandbox?`S-${L.n}`:L.daily?`D${L.c.no}-${L.n}`:`41-${String(L.no).padStart(3,"0")}`;
 /* a fresh report gets Ruslan's sign-off read out (after "Range is safe", if he's still saying it); a logbook one doesn't */
+/* a delivery against this phone's personal best on the job (app/save.js recordBest) */
+function bestNote(b){if(!b)return"";const fs=n=>`${n} firing${n===1?"":"s"}`;
+  if(b.first)return`<p class="rp-best">First delivery of this job on this phone: <b>${esc(b.l)} in ${fs(b.n)}</b>. That's the best to beat.</p>`;
+  if(b.grade||b.fewer)return`<p class="rp-best new"><b>A new best</b>: ${b.grade?`grade ${esc(b.l)}, better than ${esc(b.prev.l)}`:`grade ${esc(b.l)}`}${b.fewer?`, in ${fs(b.n)} (was ${b.prev.n})`:`, in ${fs(b.n)}`}.</p>`;
+  return`<p class="rp-best">Your best on this job: <b>${esc(b.best.l)} in ${fs(b.best.n)}</b>.</p>`;}
 function openReport(){renderReport();showScreen("report");coachReport();if(GAME.last&&!GAME.last.replay&&rsoSaid)BURN_SOUND.voice.say(rsoSaid);}
 function renderReport(){
   const L=GAME.last;if(!L)return;
@@ -89,7 +94,7 @@ function renderReport(){
       <tr class="sep"><th>Money now</th><td class="${L.money<0?"crit":""}">${fmtCr(L.money)}</td></tr></table>
       ${o.dev?`<p class="hint">A development motor: it shows how this design fires, but the client only takes a lot of ${BURN_SIM.CAREER.lot.n}.</p>`:""}
       ${o.lost?`<p class="sev crit">Tender lost: ${L.lot.gl.fails} of the ${L.lot.fires.length} motors failed. The range puts it out again on day ${(car.retender||{})[c.id]}.</p>`:""}
-      ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
+      ${o.done?`<p class="hint">Job delivered.${o.rep?` Reputation +${o.rep}.`:""}</p>${bestNote(L.best)}`:car&&car.jobs[c.id]?`<p class="hint">The job stays in hand: due day ${car.jobs[c.id].due}.</p>`:""}</section>`;}
   else if(L.replay&&L.entry){const e=L.entry;bill=`<p class="rp-note mono">Day ${e.day} · cost ${fmtCr(e.cost)}${e.paid?` · paid ${fmtCr(e.paid)}`:""}${e.late?` · ${e.late} day${e.late>1?"s":""} late`:""}</p>`;}
   const broke=L.out&&S.career&&BURN_SIM.isBroke(S.career)?`<section class="card broke"><h3 class="sign">Out of money</h3><p>The bank won't pay for another motor. The work orders offer a restart of the tier.</p></section>`:"";
   /* the Daily Spec: how today stands, and sharing it */
@@ -114,7 +119,7 @@ function renderReport(){
     ${whyCard(L,f,c,tG)}
     ${f.notes.filter(n=>!(c&&!g.pass&&g.why==="yield"&&n.key==="yield")).map(n=>`<p class="rp-note">${esc(n.text)}</p>`).join("")}
     <section class="card"><table class="dtab rp-tab"><thead><tr><th></th><th>Predicted</th><th>Measured</th><th></th></tr></thead><tbody>${rows}${rows?`<tr class="sep"><td colspan="4"></td></tr>`:""}${basic}</tbody></table></section>
-    ${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
+    ${hintCard(L)}${bill}<details class="card rp-bh"><summary>Blockhouse data: this motor against its ratings</summary><ul class="mono">${blockhouse.map(x=>`<li>${x.startsWith("<button")?x:esc(x)}</li>`).join("")}</ul>
       <p class="hint"><button type="button" class="gl" data-g="blockhouse">The blockhouse</button>. ${full?"Every real motor is a little different. These are the dice this one rolled; the next motor rolls again.":"The basic data logger only catches the batch and the case. Blockhouse instruments (Facilities) read the rest: closures, liner, igniter, throat wear, voids and cracks."}</p></details>
     <footer class="rp-sign"><p>“${esc(rsoLine(key,L.n))}”</p><p class="sig">R. Abenov, RSO</p></footer>
     <div class="rp-act">${act}${canShareSheet(L)?`<button type="button" class="btn" id="rpSheet">Data sheet</button>`:""}</div>`;

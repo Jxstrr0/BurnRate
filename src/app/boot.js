@@ -4,7 +4,7 @@ function start(){
   loadSettings();BURN_SOUND.setOn(SETTINGS.sound,SETTINGS.haptics);BURN_SOUND.voice.lang(SETTINGS.voice);
   applyTheme();
   $("verLbl").textContent="v"+VERSION;
-  loadSave();renderTitle();initTitle();initBoard();
+  loadSave();loadLib();renderTitle();initTitle();initBoard();
   initFiring();initReport();
   if(/[?&]debug=1\b/.test(location.search))debugPage();
   if(typeof __ldDone==="function")__ldDone();

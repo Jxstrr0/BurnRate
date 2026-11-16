@@ -5,7 +5,7 @@
             log:[entry], no (report counter), broke (tier restarts), hut (the hush house's climate plant owned: 1; it was the conditioning hut),
             retender:{id:day} (lost tenders, back on the board from that day),
             won (the day the capstone was first won), wonSeen (1 once its card has been read)}
-     job = {taken, due, pay, n (motors fired)}
+     job = {taken, due, pay, n (motors fired), f (firings: a lot of five is one; from 1.7, for the personal bests)}
    A tier 4 tender (contract.lot) is delivered by a lot: fireLot fires CAREER.lot.n motors of one design, gradeLot judges
    them (four of five to pass; one failure cuts the pay; the lot's grade is its worst passing motor's), and settle with
    {lot:true} pays or loses the tender. A single firing on a tender is a development motor: settle with {dev:true}.
@@ -76,7 +76,7 @@ function canTake(car,id){
   if(!board(car).includes(c))return"That work order isn't on the board.";
   return"";}
 function takeJob(car,id){const e=canTake(car,id);if(e)return e;const c=contractById(id);
-  car.jobs[id]={taken:car.day,due:car.day+c.days,pay:basePay(car,c),n:0};return"";}
+  car.jobs[id]={taken:car.day,due:car.day+c.days,pay:basePay(car,c),n:0,f:0};return"";}
 function dropJob(car,id){delete car.jobs[id];}
 /* the share of the pay left on a given day: 1 on time, less each day late */
 function lateShare(job,day){const late=Math.max(0,day-job.due);return{late,mul:Math.max(CAREER.lateFloor,1-CAREER.lateCut*late)};}
@@ -92,7 +92,7 @@ function settle(car,c,g,cost,o){
   const day=car.day,out={day,cost,paid:0,late:0,lateMul:1,gradeMul:0,rep:0,done:false,lost:false};
   o=o||{};car.money-=cost;
   if(c){const job=car.jobs[c.id];
-    if(job){job.n+=o.lot?CAREER.lot.n:1;
+    if(job){job.n+=o.lot?CAREER.lot.n:1;job.f=(job.f|0)+1;out.firings=job.f;   // f: firings on this job (a lot is one), for the personal bests
       /* a tender: a single motor is development only; a lot that fails loses the tender for now */
       if(c.lot&&!o.lot)out.dev=true;
       else if(c.lot&&g&&!g.pass){delete car.jobs[c.id];car.retender=car.retender||{};car.retender[c.id]=day+CAREER.lot.retender;out.lost=true;}

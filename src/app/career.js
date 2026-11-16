@@ -69,6 +69,8 @@ function wonCard(car){const C=BURN_SIM.CONTRACTS,done=C.filter(c=>car.done[c.id]
     <div><dt>Tenders</dt><dd class="mono">${lots}/${all}</dd></div><div><dt>Reputation</dt><dd class="mono">${car.rep}</dd></div></dl>
     <p class="hint">The range stays open: the clients keep sending repeat orders, and the stands are yours to use.</p>
     <div class="row"><button type="button" class="btn pri" id="bdWon">Back to work</button></div></section>`;}
+/* this phone's personal best on a job, across every career (app/save.js, game.js bestText) */
+const bestBadge=id=>{const t=bestText(id);return t?` · <span class="best">${esc(t)}</span>`:"";};
 function renderBoard(){
   const car=S.career;if(!car){$("bdList").innerHTML="";return;}
   if(gfx3d())for(const k in car.stands)if(car.stands[k])gfxStand(k);   // the 3D places of the stands you lease (app/gfx.js)
@@ -86,14 +88,14 @@ function renderBoard(){
   h+=jobs.length?jobs.map(id=>{const c=S_.contractById(id),j=car.jobs[id],late=car.day>j.due;
     return`<article class="wo card job"><header><span class="site">${esc(c.client)}</span><span class="tag ${late?"crit":""}">${esc(dueText(car,j))}</span></header>
       <h3>${esc(c.title)}</h3>${specList(c)}
-      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · <button type="button" class="gl" data-g="deadline">due day ${j.due}</button> · ${j.n} motor${j.n===1?"":"s"} fired</p>
+      <p class="hint mono">Pays ${fmtCr(j.pay)} (×1.2 for an A) · <button type="button" class="gl" data-g="deadline">due day ${j.due}</button> · ${j.n} motor${j.n===1?"":"s"} fired${bestBadge(id)}</p>
       <div class="row"><button type="button" class="btn pri" data-take="${id}">To the bench</button><button type="button" class="btn sm" data-drop="${id}">Drop</button></div></article>`;}).join("")
     :`<p class="hint">No jobs in hand. Take one from the board below.</p>`;
   h+=`<h3 class="bd-h">On the board</h3>`;
   h+=offers.length?offers.map(c=>{const why=S_.canTake(car,c.id),rep=car.done[c.id];
     return`<article class="wo card"><header><span class="site">${esc(c.client)}</span>${rep?`<span class="tag">Repeat order</span>`:c.tier>1?`<span class="tag">Tier ${c.tier}</span>`:""}</header>
       <h3>${esc(c.title)}</h3><p>${esc(c.brief)}</p>${specList(c)}
-      <p class="hint mono">Pays ${fmtCr(S_.basePay(car,c))} · ${c.days} range days to deliver</p>
+      <p class="hint mono">Pays ${fmtCr(S_.basePay(car,c))} · ${c.days} range days to deliver${bestBadge(c.id)}</p>
       <div class="row"><button type="button" class="btn pri" data-take="${c.id}"${why?" disabled":""}>Take the job</button>${why?`<span class="hint">${esc(why)}</span>`:""}</div></article>`;}).join("")
     :`<p class="hint">Nothing new on the board today. ${emptyHint(car)}</p>${waitCard(car,jobs.length)}`;
   $("bdList").innerHTML=h;}

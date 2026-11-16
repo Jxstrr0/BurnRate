@@ -33,36 +33,11 @@ const clone = o => JSON.parse(JSON.stringify(o)), r1 = v => Math.round(v * 10) /
 const get = (d, f) => f.split(".").reduce((o, k) => o && o[k], d);
 const set = (d, f, v) => { const p = f.split("."), l = p.pop(); p.reduce((o, k) => o[k], d)[l] = v; };
 const PARTS = ["grain.prop", "grain.shape", "case.mat", "case.liner", "case.closure", "nozzle.mat", "igniter", "airframe"];
-const BOT = { rounds: 36, restartAt: 18, steps: 110, firings: 3, need: 2, warnW: 0.5, critW: 10, margin: 0.85 };
+const BOT = { rounds: 36, restartAt: 18, steps: 110, firings: 3, need: 2 };
 
-/* how far a design is from a clean delivery, by the predictor alone: 0 is in the middle of the spec with no flags */
-function score(c, d, tGrain, steps) {
-  let p; try { p = S.predict(d, S.standCond(c, { tGrain }), steps ? { steps } : undefined); } catch (e) { return { s: 1e9 }; }
-  if (!p.ok) return { s: 1e9 };
-  const q = p.sum, m = p.motor, T = S.TUNING;
-  /* how far over its line each flag is, so a step towards the line counts as progress */
-  const over = { liner: q.tb / m.linerRating, burst: q.Pmax / m.pUlt, yield: 1 / q.sf, closure: 1 / q.closureSf, pt: T.ptWarn / q.pt0,
-    chuff: m.prop.pMin * 1e6 / q.pLow, sep: 0.9 + (d.nozzle.exitD / d.nozzle.throatD) ** 2 / 20 };
-  let s = 0;
-  for (const w of q.warnings) s += (w.sev === "crit" ? BOT.critW : BOT.warnW) * (1 + Math.max(0, (over[w.key] || 1) - 0.9) * 10);
-  /* a careful player keeps a margin under every rating, flagged or not: real motors scatter round the prediction */
-  for (const key of ["liner", "burst", "yield", "closure", "chuff"]) { const o = over[key]; if (o > BOT.margin && isFinite(o)) s += 20 * (o - BOT.margin) ** 2; }
-  const k = Object.assign({}, c, { stand: S.STANDS[c.stand] }), refused = S.preFire(k, d, p.motor, { tier: c.tier, sum: q });
-  s += refused.length * 20;
-  let sum = q;
-  if (c.flight) {
-    const fp = S.predictFlight(d, p.motor, p.run, c.flight.payload); if (!fp) return { s: 1e9 };
-    sum = Object.assign({}, q, { apogee: fp.apogee });
-    s += S.preLaunch(d, p.motor, p.run, c.flight.payload, c.tier).length * 20;
-  }
-  for (const ck of S.specCheck(c.spec, sum, p.motor)) {
-    const { lo, hi, v } = ck;
-    if (lo != null && hi != null) { const e = Math.abs(v - (lo + hi) / 2) / ((hi - lo) / 2); s += Math.max(0, e - 0.4) ** 2 * 4; }
-    else if (hi != null) { const e = (v - hi * 0.97) / hi; if (e > 0) s += (e * 10) ** 2; }
-    else { const e = (lo * 1.03 - v) / lo; if (e > 0) s += (e * 10) ** 2; }
-  }
-  return { s, p, refused };
-}
+/* how far a design is from a clean delivery, by the predictor alone: 0 is in the middle of the spec with no flags.
+   The game's own yardstick (sim/hint.js designScore, weights in HINT in data/tuning.js): the bench's hint uses it too. */
+const score = (c, d, tGrain, steps) => S.designScore(c, d, tGrain, steps);
 /* the start design with the solution's parts swapped in (and, for a new grain shape, that shape's own features) */
 function startWithParts(c) {
   const st = typeof c.start === "string" ? S.REF_DESIGNS[c.start] : c.start, d = clone(st);
@@ -74,29 +49,8 @@ function startWithParts(c) {
   }
   return S.normDesign(d);
 }
-/* a player's moves: [field or move name, first step, kind]. x: multiply; +: add; i: whole numbers; m: a move made together */
-const MOVES = [["nozzle.throatD", 1.08, "x"], ["grain.segLen", 1.12, "x"], ["grain.coreD", 1.06, "x"], ["nozzle.exitD", 1.08, "x"],
-  ["case.id", 1.06, "xi"], ["case.wall", 0.3, "+"], ["grain.segs", 1, "i"], ["case.linerThk", 0.5, "+"], ["case.bolts", 2, "i"],
-  ["size", 1.06, "m"], ["segsKeep", 1, "m"], ["coreThroat", 1.06, "m"]];
-function move(d, f, kind, step, dir) {
-  const t = clone(d);
-  if (kind === "m") {
-    const k = dir > 0 ? step : 1 / step;
-    if (f === "size") { t.case.id = Math.round(t.case.id * k); t.nozzle.throatD = r1(t.nozzle.throatD * k); t.nozzle.exitD = r1(t.nozzle.exitD * k); if (t.grain.coreD) t.grain.coreD = r1(t.grain.coreD * k); t.grain.segLen = r1(t.grain.segLen * k); }
-    else if (f === "segsKeep") { const ns = t.grain.segs + dir; if (ns < 1 || t.grain.shape === "end") return null; t.grain.segLen = r1(t.grain.segLen * t.grain.segs / ns); t.grain.segs = ns; }
-    else { if (!t.grain.coreD) return null; t.grain.coreD = r1(t.grain.coreD * k); t.nozzle.throatD = r1(t.nozzle.throatD * k); t.nozzle.exitD = r1(t.nozzle.exitD * k); }
-    return t;
-  }
-  const v = get(d, f);
-  let nv = kind[0] === "x" ? v * (dir > 0 ? step : 1 / step) : v + dir * step;
-  nv = kind === "xi" || kind === "i" ? Math.round(nv) : r1(nv);
-  if (nv === v || nv <= 0) return null;
-  set(t, f, nv);
-  /* moves a player makes together: the exit follows the throat (same expansion), the core follows the grain's outside */
-  if (f === "nozzle.throatD") t.nozzle.exitD = r1(d.nozzle.exitD * nv / v);
-  if ((f === "case.id" || f === "case.linerThk") && t.grain.coreD) { const o0 = d.case.id - 2 * d.case.linerThk, o1 = t.case.id - 2 * t.case.linerThk; t.grain.coreD = r1(d.grain.coreD * o1 / o0); }
-  return t;
-}
+/* a player's moves: [field or move name, first step, kind] (HINT.moves), made by sim/hint.js hintMove */
+const MOVES = S.HINT.moves, move = S.hintMove;
 /* tune at one slot's grain temperature, then fire the result at that slot */
 function solveAt(c, slot) {
   const tGrain = S.slotTemp(slot, c, null);

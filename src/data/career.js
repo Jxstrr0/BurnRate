@@ -21,7 +21,10 @@ const CAREER={
   /* tier 4 range tenders (Kelbo, 13 November 2026): a lot of five motors from one design fires on one range day for one
      stand fee; four must pass. One failure still delivers but cuts the pay; two or more lose the
      tender, which the range puts out again some days later. The lot's grade is its worst passing motor's. */
-  lot:{n:5,need:4,failPay:0.7,retender:6}
+  lot:{n:5,need:4,failPay:0.7,retender:6},
+  /* the paid hint on the bench (1.7, app/hint.js): a retired engineer from the old programme looks over the drawing for
+     this share of the job's pay, rounded to 10 cr, never less than hintMin. Free after hintFreeAfter misses on the job. */
+  hintShare:0.05,hintMin:50,hintFreeAfter:2
 };
 /* facilities. need: reputation needed before the range will lease it. after: a facility that must be owned first.
    give: what buying it changes. */

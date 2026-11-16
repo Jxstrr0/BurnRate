@@ -36,4 +36,24 @@ const TUNING={
   // mass estimates that aren't a part's own stat: the nozzle is a solid of revolution this full, this long x case bore
   nozzleFill:0.45,nozzleLen:0.35
 };
-Object.assign(SIM,{TUNING});
+/* the bench's yardstick and hints (sim/hint.js, 1.7). designScore weighs how far a motor is from a clean delivery, by the
+   predictor alone; the hint tries the moves below one at a time and names the one that helps most. tools/balance-bot.js
+   tunes with the same yardstick, so a hint is the bot's next move.
+     warnW, critW   weight of each yellow and red flag, growing as the motor goes past the flag's line
+     margin         keep this far under every rating, flagged or not (the real motor scatters round the prediction)
+     bandIn         a two-sided spec counts as fine inside this share of its half-width from the middle
+     refuseW        weight of each reason the stand or the rail would refuse the motor
+     steps          the predictor's solver steps while hinting (fewer than a firing's: fast enough for a phone)
+     sound          a score under this is a motor that delivers on paper: no move to suggest
+     gain           a move must cut the score by at least this share to be worth naming
+     moves          [field or move, first step, kind]: x multiplies, + adds, i whole numbers (xi: multiply, then round),
+                    m a move made together (size: the whole motor; segsKeep: more, shorter segments at the same length;
+                    coreThroat: the core and the throat together)
+     picks          the parts a hint may swap to (only ones the player has); parts: what it may tell you to look at */
+const HINT={warnW:0.5,critW:10,margin:0.85,bandIn:0.4,refuseW:20,steps:110,sound:0.05,gain:0.1,
+  moves:[["nozzle.throatD",1.08,"x"],["grain.segLen",1.12,"x"],["grain.coreD",1.06,"x"],["nozzle.exitD",1.08,"x"],
+    ["case.id",1.06,"xi"],["case.wall",0.3,"+"],["grain.segs",1,"i"],["case.linerThk",0.5,"+"],["case.bolts",2,"i"],
+    ["size",1.06,"m"],["segsKeep",1,"m"],["coreThroat",1.06,"m"]],
+  picks:["igniter","airframe.nose","airframe.fins","airframe.body"],
+  parts:["grain.prop","grain.shape","case.mat","nozzle.mat","case.liner","case.closure"]};
+Object.assign(SIM,{TUNING,HINT});

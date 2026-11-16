@@ -374,3 +374,13 @@ textarea.code{width:100%;min-height:120px;font:.78rem/1.4 var(--mono);padding:10
 .coach-on{outline:3px solid var(--hazard);outline-offset:3px;border-radius:8px}
 @media (prefers-reduced-motion:no-preference){.coach-on{animation:coachPulse 1.6s ease-in-out infinite}}
 @keyframes coachPulse{50%{outline-offset:6px}}
+/* 1.7: your motors (app/library.js), personal bests and the hint (app/hint.js) */
+.lb-save{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+.lb-save input{flex:1;min-width:0;font:inherit;font-size:1rem;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);min-height:44px}
+.lb-list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.lb-list li{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.lb-n{display:grid;gap:2px;min-width:0}.lb-n b{overflow-wrap:anywhere}.lb-n .tag{font-size:.64rem;padding:2px 5px}
+.lb-b{display:flex;gap:6px;flex-shrink:0}
+.best{color:var(--good);font-weight:600}
+.rp-best{margin:8px 0 0}.rp-best.new b{color:var(--good)}
+.rp-hint{border-left:4px solid var(--hazard)}.rp-hint h3{margin-top:0}.rp-hint p{margin:0 0 8px}

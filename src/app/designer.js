@@ -273,7 +273,7 @@ function dataSheet(){
   const refs=Object.keys(BURN_SIM.REF_DESIGNS).map((k,i)=>`<button type="button" class="btn sm" data-ref="${i}">${esc(k)}</button>`).join("");
   openSheet("Data sheet",(r.ok?`<p class="hint">Predicted at ${degC(DZ.tGrain)} grain, on the range. The real motor won't match exactly.</p><table class="dtab mono">${dataRows(r)}</table>`
     :`<p>${esc(r.errors.map(e=>e.text).join(" "))}</p>`)+`<h3>Start again</h3><div class="refs"><button type="button" class="btn sm" data-reset="1">${GAME.contract?"The job's starting motor":"The default motor"}</button>${refs}</div>
-    <p class="hint">Undo (the arrow at the top of the bench) brings your motor back.</p>`);}
+    <p class="hint">Undo (the arrow at the top of the bench) brings your motor back.</p>${libSection()}`);}
 
 /* jump to the control a warning or error points at: switch tab, scroll to it, ring it */
 function goToField(f){

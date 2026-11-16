@@ -20,6 +20,24 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: the hush house and the larger visual pass | 1.6.0.0 | Done |
 | After 1.0: the Job button on the bench | 1.6.1.0 | Done |
 | After 1.0: visit counts | 1.6.1.1 | Done |
+| After 1.0: hints, motor library, personal bests, balance pass | 1.7.0.0 | Done |
+
+## 1.7.0.0 — Hints, your motors, personal bests
+
+Kelbo asked (16 November) for four of the improvement ideas: balance fixes, a hint when stuck, a motor library and
+personal bests. Decisions in plan section 0.
+
+- **Balance.** Every job's starting drawing was checked raw. Only burkit-sounder was free to deliver unchanged; its
+  target was moved to 7,500 to 10,000 m with a sturdier solution. ozen-cold and ozen-lot got wider bands. The balance
+  bot now plays with the game's own yardstick (`sim/hint.js`), and still delivers every job (34/34).
+- **Hint.** `sim/hint.js` names the biggest problem with the motor on the bench and the one move that helps most (a
+  slider's direction, a named igniter or rocket part, or "look at the X again" for a propellant, shape or material),
+  never a number. Job sheet: Hint button (free after 2 misses, else 5% of the pay, at least 50 cr; asking about the
+  same motor again is free). Report: "Your partner's note" after 2 misses. Free in the Sandbox. Test:
+  `tools/sim-tests/hint.js`.
+- **Your motors.** Data sheet: save up to 12 motors by name, load or delete them, in any mode and career.
+- **Personal bests.** Best grade and fewest firings per job on this phone: report, board and Job sheet.
+- New key `brn-library`; the backup code carries it and a restore merges it. `check-savecode.js` covers it.
 
 ## 1.6.1.1 — Visit counts
 

@@ -4,11 +4,13 @@
    somewhere safe. All of it lives in localStorage on this device; nothing is ever sent anywhere.
      save    the current game ("brn-save"), taken live with snapshot() (app/save.js)
      slots   the 3 save slots ("brn-slot1" .. "brn-slot3"), null for an empty one
+     lib     the motor library and personal bests ("brn-library", app/save.js), null if there's none; a restore merges it
+             into this phone's (libMerge) instead of replacing it. Codes from before 1.7 have no lib and leave it alone.
    "brn-settings" is this phone's settings and stays out of backups on purpose.
    Code = "BRN1:" + body + a 6-character checksum. body = that object as JSON -> UTF-8 bytes -> LZW (9..16-bit codes) ->
    base64url (A-Z a-z 0-9 - _ only), so it survives notes apps, email and chat. Same shape as Scrapline's SCR1: codes.
    Restore checks everything before it writes anything: checksum, unpack, JSON, the shape of every save and a trial
-   hydrate() of each one. Then buWrite() writes all four keys and puts the old values back if any write fails, so a bad
+   hydrate() of each one. Then buWrite() writes all the keys and puts the old values back if any write fails, so a bad
    paste can never leave a half-restored game. The next version of this format is BRN2:.
    A new localStorage key must be added to buMake and buWrite (and to KEYS in check-savecode.js), or backups won't carry it.
    UI: the Saves sheet (app/career.js). Buttons carry data-bu="backup" | "restore" | "file" | "load" and are picked up by
@@ -73,7 +75,8 @@ function buSum(body){let h=2166136261;for(let i=0;i<body.length;i++){h^=body.cha
 /* ---- making a code ---- */
 function buStored(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return o&&typeof o==="object"&&!Array.isArray(o)?o:null;}catch(e){return null;}}
 function buMake(){const slots=[];for(let i=1;i<=SLOTS;i++)slots.push(buStored(slotKey(i)));
-  return{v:BU_V,at:Date.now(),ver:VERSION,save:snapshot(),slots};}
+  const lib=buStored(LIB_KEY);
+  return{v:BU_V,at:Date.now(),ver:VERSION,save:snapshot(),slots,lib:lib&&libOk(lib)?lib:null};}
 function buCode(d){const body=buZip(new TextEncoder().encode(JSON.stringify(d||buMake())));return BU_PREFIX+body+buSum(body);}
 
 /* ---- checking a save before anything is written ---- */
@@ -85,7 +88,7 @@ function buSaveOk(o){if(!buObj(o)||!buNum(o.v))return false;const keep=S;let ok=
   finally{S=keep;}
   return ok;}
 function buFullOk(d){return buObj(d)&&d.v===BU_V&&buSaveOk(d.save)&&Array.isArray(d.slots)&&d.slots.length<=SLOTS
-  &&d.slots.every(o=>o===null||buSaveOk(o));}
+  &&d.slots.every(o=>o===null||buSaveOk(o))&&(d.lib==null||libOk(d.lib));}
 
 /* ---- reading a code: {kind:"full",data}. Spaces, line breaks and text around the code are fine.
    Throws buFail(...) with a message for the player. ---- */
@@ -106,13 +109,14 @@ function buRead(text){
   if(!buFullOk(d))throw buFail("bad");
   return{kind:"full",data:d};}
 
-/* ---- writing a checked backup: all four keys, or none of them ---- */
+/* ---- writing a checked backup: all the keys, or none of them. The library is merged into this phone's ---- */
 function buWrite(d){
   const keys=[[BU_KEY,d.save]];for(let i=1;i<=SLOTS;i++)keys.push([slotKey(i),d.slots[i-1]||null]);
+  if(d.lib){const here=buStored(LIB_KEY);keys.push([LIB_KEY,libMerge(here&&libOk(here)?here:freshLib(),d.lib)]);}
   const old=[];
   try{for(const [k] of keys)old.push([k,localStorage.getItem(k)]);}catch(e){return false;}
   try{for(const [k,v] of keys){if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v));}return true;}
-  catch(e){   // put the old values back: clear all four first, so a full storage has room for what fitted before
+  catch(e){   // put the old values back: clear them all first, so a full storage has room for what fitted before
     try{for(const [k] of old)localStorage.removeItem(k);for(const [k,v] of old)if(v!=null)localStorage.setItem(k,v);}catch(_){}
     return false;}}
 
@@ -125,7 +129,7 @@ async function buCopy(ta){
   toast(ok?"Copied. Paste it somewhere safe.":"Code selected. Long-press it and tap Copy.");}
 function buBackupOpen(){let code="";try{code=buCode();}catch(e){}
   if(!code){toast("Couldn't make a backup code on this device");return;}
-  openSheet("Back up",`<p class="hint" style="margin-top:0">This code is your whole game: the current career, all 3 save slots and the free bench. Keep it in your notes, then paste it into <b>Restore</b> on any phone or browser.</p>
+  openSheet("Back up",`<p class="hint" style="margin-top:0">This code is your whole game: the current career, all 3 save slots, the free bench, your saved motors and your personal bests. Keep it in your notes, then paste it into <b>Restore</b> on any phone or browser.</p>
 <textarea class="code" id="codeOut" readonly spellcheck="false" aria-label="Your backup code"></textarea>
 <p class="hint">${code.length.toLocaleString("en-GB")} characters, starting with ${BU_PREFIX}</p>
 <div class="row"><button type="button" class="btn pri" id="copyCode">Copy code</button></div>`);
@@ -142,8 +146,8 @@ function buRestoreOpen(){
   if(window.matchMedia&&matchMedia("(hover:hover) and (pointer:fine)").matches)ta.focus({preventScroll:true});}   // no surprise keyboard on phones
 function buWhat(o){const c=o.career;return c?`${c.name}, day ${c.day}, ${fmtCr(c.money)}`:"No career started yet";}
 function buAsk(d){const when=buNum(d.at)?new Date(d.at).toLocaleString("en-GB",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}):"";
-  const n=d.slots.filter(Boolean).length;
-  return `Restore this backup?\n\n${when?"Made "+when+"\n":""}${buWhat(d.save)}\n${n} of ${SLOTS} save slots used\n\nIt replaces your current game and all ${SLOTS} save slots on this device.`;}
+  const n=d.slots.filter(Boolean).length,m=d.lib?d.lib.motors.length:0;
+  return `Restore this backup?\n\n${when?"Made "+when+"\n":""}${buWhat(d.save)}\n${n} of ${SLOTS} save slots used${d.lib?`\n${m} saved motor${m===1?"":"s"}`:""}\n\nIt replaces your current game and all ${SLOTS} save slots on this device.${d.lib?" Its saved motors and personal bests are added to this phone's.":""}`;}
 function buRestore(text,err){
   const say=k=>{err.textContent=BU_MSG[k]||BU_MSG.damaged;err.scrollIntoView&&err.scrollIntoView({block:"nearest"});};
   err.textContent="";
@@ -153,6 +157,7 @@ function buRestore(text,err){
   if(!confirm(buAsk(r.data)))return;
   if(!buWrite(r.data)){say("store");return;}
   if(!hydrate(r.data.save)){say("bad");return;}
+  loadLib();
   closeSheet();applyLoaded("Backup restored");buPersist();}
 
 /* ===================== SAVE SAFETY: backup files, keep-my-storage, the backup reminder (after PEW 1.76.66) =====================

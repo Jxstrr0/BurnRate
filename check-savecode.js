@@ -7,14 +7,14 @@
  * It loads src/app/save.js and src/app/savecode.js together with a pretend localStorage and small stand-ins for the page
  * (toast, document), so it runs in plain node with no browser and tests the real hydrate(). The careers in it are made
  * by the real sim (the BURN_SIM block cut out of index.html), played for a few firings. It also makes sure index.html was
- * rebuilt with the current files. Keys: brn-save, brn-slot1 .. brn-slot3 (backed up) and brn-settings (this phone only,
- * never in a backup). A new localStorage key goes into KEYS here as well as buMake / buWrite.
+ * rebuilt with the current files. Keys: brn-save, brn-slot1 .. brn-slot3 (backed up), brn-library (backed up, and merged
+ * into the phone's on a restore, 1.7) and brn-settings (this phone only, never in a backup). A new localStorage key goes into KEYS here as well as buMake / buWrite.
  * Zero dependencies (node >= 16).
  */
 "use strict";
 const fs = require("fs"), path = require("path"), vm = require("vm"), assert = require("assert");
 const ROOT = __dirname, FILES = ["save.js", "savecode.js"].map(f => path.join(ROOT, "src", "app", f));
-const KEYS = ["brn-save", "brn-slot1", "brn-slot2", "brn-slot3"], PHONE_ONLY = ["brn-settings"];
+const KEYS = ["brn-save", "brn-slot1", "brn-slot2", "brn-slot3", "brn-library"], PHONE_ONLY = ["brn-settings"];
 
 /* ---- the real sim, to make realistic careers ---- */
 function loadSim() {
@@ -41,7 +41,7 @@ function fakeStorage() {
 }
 function load() {
   const code = FILES.map(f => fs.readFileSync(f, "utf8")).join("\n") +
-    "\n;globalThis.freshSave=freshSave;globalThis.__get=()=>S;globalThis.__set=v=>{S=v;};";
+    "\n;globalThis.freshSave=freshSave;globalThis.__get=()=>S;globalThis.__set=v=>{S=v;};globalThis.__lib=()=>LIB;";
   const ctx = {
     localStorage: fakeStorage(), TextEncoder, TextDecoder, Uint8Array, JSON, Math, Date,
     VERSION: "test", toasts: [], toast(m) { ctx.toasts.push(m); },
@@ -70,11 +70,16 @@ function career(seed, firings) {
   return JSON.parse(JSON.stringify(car));
 }
 const game = over => Object.assign({ v: 1, career: career("chk", 4), free: JSON.parse(JSON.stringify(SIM.DEFAULT_DESIGN)), freeN: 3, lastBackup: 0 }, over || {});
+/* a motor library: n saved motors named name 1 .. name n, and a best on one job */
+const lib = (name, n, best) => ({ v: 1, motors: Array.from({ length: n }, (_, i) => ({ name: name + " " + (i + 1),
+  d: Object.assign(JSON.parse(JSON.stringify(SIM.DEFAULT_DESIGN)), { igniter: i % 2 ? "m" : "s" }), des: "G55", at: 1760000000000 + i })),
+  bests: { "kumtal-first": best || { l: "B", n: 3, at: 1760000000000 } } });
 const seed = st => {
   st.clear();
   st.setItem("brn-save", JSON.stringify(game()));
   st.setItem("brn-slot1", JSON.stringify(Object.assign(game({ career: null }), { savedAt: 1760000000000 })));
   st.setItem("brn-slot3", JSON.stringify(Object.assign(game({ career: career("other", 2) }), { savedAt: 1760100000000 })));
+  st.setItem("brn-library", JSON.stringify(lib("Here", 2)));
   st.setItem("brn-settings", JSON.stringify({ theme: "dark" }));
 };
 const plain = o => JSON.parse(JSON.stringify(o));   // objects made inside the vm have their own Object/Array, so copy them out before comparing
@@ -140,7 +145,7 @@ check("a brand-new player (no career yet) round trips, and restoring it clears t
   assert.deepStrictEqual(plain(r.slots), [null, null, null]);
   const b = load(); seed(b.localStorage);
   assert(b.buWrite(r));
-  assert.deepStrictEqual(Object.keys(b.localStorage.dump()).sort(), ["brn-save", "brn-settings"]);
+  assert.deepStrictEqual(Object.keys(b.localStorage.dump()).sort(), ["brn-library", "brn-save", "brn-settings"], "a code with no library leaves this phone's alone");
 });
 check("code is much shorter than the save it holds", () => {
   const a = load(); seed(a.localStorage); live(a, game({ career: career("long", 30) }));
@@ -253,6 +258,35 @@ check("a backup file (the code plus a line break) reads back, and its name carri
   const file = a.buCode() + "\r\n";
   assert.deepStrictEqual(plain(a.buRead(file).data.save), plain(a.snapshot()));
   assert.strictEqual(a.buFileName(new Date(2026, 0, 5, 23, 30)), "burnrate-backup-2026-01-05.txt");
+});
+
+check("the motor library: a restore merges it into this phone's (motors kept, the better best), and a broken one is refused", () => {
+  const a = load(); seed(a.localStorage); a.loadLib(); live(a, game());
+  const code = a.buCode();
+  assert.deepStrictEqual(plain(a.buRead(code).data.lib), lib("Here", 2));
+  const b = load(); b.localStorage.setItem("brn-library", JSON.stringify(lib("Phone", 11, { l: "A", n: 5, at: 1 })));
+  assert(b.buWrite(b.buRead(code).data)); b.loadLib();
+  const L = plain(b.__lib());
+  assert.strictEqual(L.motors.length, 12, "capped at 12");
+  assert.deepStrictEqual(L.motors.map(m => m.name).slice(0, 11), lib("Phone", 11).motors.map(m => m.name), "this phone's motors come first");
+  assert.strictEqual(L.motors[11].name, "Here 1");
+  assert.deepStrictEqual([L.bests["kumtal-first"].l, L.bests["kumtal-first"].n], ["A", 3], "the better grade and the fewer firings, from either");
+  const again = load(); again.localStorage.setItem("brn-library", JSON.stringify(lib("Here", 2)));
+  assert(again.buWrite(again.buRead(code).data));
+  assert.strictEqual(JSON.parse(again.localStorage.getItem("brn-library")).motors.length, 2, "restoring the same motors twice doesn't double them");
+  for (const l of [{ v: 2, motors: [], bests: {} }, { v: 1, motors: {}, bests: {} }, { v: 1, motors: [{ name: "x", d: null, at: 1 }], bests: {} },
+    { v: 1, motors: [], bests: { x: { l: "D", n: 1 } } }, { v: 1, motors: [], bests: { x: { l: "A", n: 0 } } }])
+    assert.strictEqual(msg(a, pack(a, { v: 1, save: game(), slots: [], lib: l })), "bad", JSON.stringify(l));
+});
+check("personal bests: the best grade and the fewest firings are kept, and an aborted firing puts the old record back", () => {
+  const a = load(); a.loadLib();
+  let r = a.recordBest("j", "B", 3); assert(r.first && !r.grade && !r.fewer);
+  r = a.recordBest("j", "C", 2); assert(!r.first && !r.grade && r.fewer);
+  assert.deepStrictEqual([a.__lib().bests.j.l, a.__lib().bests.j.n], ["B", 2]);
+  r = a.recordBest("j", "A", 4); assert(r.grade && !r.fewer);
+  a.unrecordBest("j", r.prev); assert.deepStrictEqual([a.__lib().bests.j.l, a.__lib().bests.j.n], ["B", 2]);
+  r = a.recordBest("k", "A", 1); a.unrecordBest("k", r.prev); assert(!("k" in a.__lib().bests));
+  assert.deepStrictEqual(Object.keys(JSON.parse(a.localStorage.getItem("brn-library")).bests), ["j"]);
 });
 
 let bad = 0;

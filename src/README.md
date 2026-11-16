@@ -9,7 +9,7 @@
 | `html/body.html` | closes `<style>`; the page markup (title, work orders, design bench, the stand, the report, sheet, toast) |
 | `sim/open.js` | opens the sim `<script>` and `const BURN_SIM=(()=>{` |
 | `sim/rng.js` | seeded RNG: `makeRng`, `rngStreams`, `hashStr` |
-| `data/tuning.js` | `TUNING`: every physics and warning constant |
+| `data/tuning.js` | `TUNING`: every physics and warning constant; `HINT`: the hint's and the balance bot's yardstick and moves |
 | `data/propellants.js` | `PROPELLANTS`: the fictional grades, as stat blocks only |
 | `data/materials.js` | `CASES`, `LINERS`, `THROATS`, `CLOSURES`, `IGNITERS` |
 | `data/designs.js` | `GRAIN_SHAPES` (with tiers), `GRAIN_DEFAULTS` and `normDesign`, `DEFAULT_DESIGN` and the `REF_DESIGNS` yardstick motors |
@@ -31,6 +31,7 @@
 | `sim/flight.js` | flight tests: `rocketOf`, `defaultAirframe`, `airframeCost`, `fly` (point mass, drag, Mach, wind), `predictFlight`, `preLaunch`, `windOf`, `launch` |
 | `sim/career.js` | the career's rules, pure: `newCareer`, `slotTemp`, `buildCost`, `firingCost`, `board`, `takeJob`, `settle`, `buy`, `logFiring`, `fireSeed`, tier 4 lots: `fireLot`, `gradeLot` |
 | `sim/daily.js` | the Daily Spec, pure: `dailyNo`, `dailySpec` (kit, order, hidden reference motor, spec, all from the date), `kitCheck`, `inKit` |
+| `sim/hint.js` | `designScore` (how far a design is from a clean delivery, by the predictor), `hintMove`, `hint` (the bench's stuck hint: the one move that helps most). The balance bot plays with the same two (1.7) |
 | `sim/close.js` | `return SIM;})();` and `module.exports` for node |
 | `html/ld-sim.html` | loading bar step |
 | `vis/open.js` | opens the drawing `<script>` and `const BURN_VIS=(()=>{` |
@@ -48,7 +49,7 @@
 | `sound/synth.js` | the `BURN_SOUND` block (opens and closes its own `<script>`): procedural WebAudio (the motor's roar, crackle and hiss, countdown beeps, the relay click, the logger chirp, a bang) and vibration patterns; `setOn`, `unlock`, `motor.start/set/stop`; Ruslan's voice clips (`voice.lang/preload/ready/say/stop`, `sounds/voice/en/` and `ru/`, tannoy filter for range calls) |
 | `app/state.js` | opens the app `<script>`; `VERSION`, settings (`brn-settings`), `toast`, `openSheet` / `closeSheet` |
 | `app/pwa.js` | service worker registration and the "New version ready" bar |
-| `app/save.js` | `S` (the saved game), `hydrate` (shape checks), `save` (debounced, to `brn-save`), save slots `brn-slot1..3` |
+| `app/save.js` | `S` (the saved game), `hydrate` (shape checks), `save` (debounced, to `brn-save`), save slots `brn-slot1..3`; the motor library and personal bests (`brn-library`, `recordBest`, `libMerge`) |
 | `app/savecode.js` | Back up / Restore: the `BRN1:` save code (LZW + checksum), the backup file, the reminder bar |
 | `app/gloss.js` | `GLOSS`, the tap-to-explain glossary; any `data-g="key"` opens its entry |
 | `app/gfx.js` | graphics settings (`brn-settings` `gfx`), `gfxLoad` (fetches `lib/three.min.js`, `models/range.glb`, `models/kit.glb` and `models/hush.glb`, builds the 3D range), `gfxPlace` / `gfxStand` (the far places, `models/site.glb`, `stand1.glb`, `chamber.glb`, when first wanted), the Settings sheet |
@@ -58,6 +59,8 @@
 | `app/career.js` | the title's buttons, new career, the work orders board, facilities, the logbook, the saves sheet |
 | `app/daily.js` | the Daily Spec's app side: today's order sheet, best grade and marks, the streak, sharing, the title button |
 | `app/sandbox.js` | the Sandbox: practise any job up to the career's tier with no money or deadlines, its own bench per job |
+| `app/library.js` | your motors: save, load and delete motors on the Data sheet (`brn-library`, 1.7) |
+| `app/hint.js` | the stuck hint: the Job sheet's Hint button (free after 2 misses, paid before, free in the Sandbox), the report's partner's note (1.7) |
 | `app/firing.js` | the stand screen: countdown (Ruslan's armed call and voiced count when his voice is on, `VOICE_CALLS`), live strip chart and gauges, the Abort button, the 3D or 2D stand, the slow-motion replay |
 | `app/report.js` | the range report / incident report: cause, factors, where-to-fix, the bill, Ruslan Abenov's sign-off (read aloud on a fresh report: `rsoClip`) |
 | `app/coach.js` | the coach-card tour on the first job: one-off cards that ring what they talk about; switch and "seen" in `brn-settings` |

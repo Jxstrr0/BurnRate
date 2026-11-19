@@ -2,9 +2,11 @@
    App shell (the page, fonts, icons, the studio logo, vendored libraries): cache-first from a cache named for this version
    + content hash; old shell caches are deleted on activate. A new version installs in the background and waits: the page
    shows "New version ready" and sends SKIP_WAITING when tapped. Same-origin models/, sounds/ and textures/ are cached as
-   they are fetched. Every cache name starts "brn-": the activate step only ever deletes "brn-" caches, never another game's. */
+   they are fetched. Every cache name starts "brn-": the activate step only ever deletes "brn-" caches, never another game's.
+   1.7.0.2: a media file is saved once, under its plain address (anything after a "?" is ignored, and opening a file as a
+   page saves nothing), so the cache can't be filled with copies of one file. */
 "use strict";
-const CACHE = "brn-shell-v1.7.0.1-6cd9989332", MEDIA = "brn-media-2bab1a38";
+const CACHE = "brn-shell-v1.7.0.2-eee7e209c0", MEDIA = "brn-media-2bab1a38";
 const PRECACHE = ["index.html","manifest.webmanifest","icons/apple-touch-icon.png","icons/icon-192.png","icons/icon-512-maskable.png","icons/icon-512.png","icons/icon.svg","fonts/martian-mono-cyrillic-400-normal.woff2","fonts/martian-mono-latin-400-normal.woff2","fonts/martian-mono-latin-600-normal.woff2","fonts/saira-semi-condensed-latin-400-normal.woff2","fonts/saira-semi-condensed-latin-600-normal.woff2","fonts/saira-semi-condensed-latin-700-normal.woff2","fonts/saira-stencil-one-latin-400-normal.woff2","assets/studio/longlight-logo-dark.png","assets/studio/longlight-logo-dark.svg","assets/studio/longlight-logo-light.png","assets/studio/longlight-logo-light.svg","lib/three.min.js"];
 const BASE = new URL("./", self.location).pathname;
 self.addEventListener("install", e => {
@@ -34,11 +36,12 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     const hit = await (await caches.open(CACHE)).match(shell ? "index.html" : q, { ignoreSearch: true });
     if (hit) return hit;
-    const m = await (await caches.open(MEDIA)).match(q);
+    const m = await (await caches.open(MEDIA)).match(q, { ignoreSearch: true });
     if (m) return m;
     try {
       const r = await fetch(q);
-      if (r.status === 200 && !q.headers.has("range") && /\/(models|sounds|textures)\//.test(u.pathname)) e.waitUntil(put(MEDIA, q, r.clone()));
+      /* saved once, under the plain address: never for a page navigation, and whatever follows a "?" is dropped */
+      if (r.status === 200 && !q.headers.has("range") && q.mode !== "navigate" && /\/(models|sounds|textures)\//.test(u.pathname)) e.waitUntil(put(MEDIA, u.origin + u.pathname, r.clone()));
       return r;
     } catch (err) {
       if (q.mode === "navigate") { const h = await (await caches.open(CACHE)).match("index.html"); if (h) return h; }

@@ -22,6 +22,21 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: visit counts | 1.6.1.1 | Done |
 | After 1.0: hints, motor library, personal bests, balance pass | 1.7.0.0 | Done |
 
+## 1.7.0.2 — Backup codes and the offline cache have size limits
+
+From the studio's third security test (19 November 2026). Two things a stranger could do to a player's phone, both
+now closed. Nothing changes for normal play.
+
+- A backup code could be built to unpack to more than a gigabyte and hang the page for a few seconds when pasted
+  into Restore. Unpacking now stops at 16 MB (`BU_UNZIP_MAX` in `src/app/savecode.js`), far above any real backup,
+  and the code reads as damaged.
+- Another site could fill the game's offline storage by opening one model file over and over with a different "?"
+  ending: each one was saved as a new copy. The service worker now saves a media file once, under its plain address,
+  and never when a file is opened as a page (`SW_TEMPLATE` in `build.js`).
+- One new check in `check-savecode.js` (23 in all).
+
+**Kelbo to test on a phone:** open the game, Back up, then Restore the same code: it should load as before.
+
 ## 1.7.0.1 — A backup code can no longer carry script
 
 From the studio security test (19 November 2026). A crafted backup code could save a design's numbers as text, and

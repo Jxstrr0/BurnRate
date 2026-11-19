@@ -18,6 +18,9 @@
    Tests: `node check-savecode.js` in the repo root. Players' codes are their own: decoded here only, never sent. */
 const BU_V=1,BU_PREFIX="BRN"+BU_V+":";
 const BU_B64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",BU_MAXCODES=65536;
+/* The most a code may unpack to, in bytes. A browser keeps about 5 million characters per site, so no real backup comes
+   near this; a code built to unpack to gigabytes (a few thousand characters can) is stopped here and reads as damaged. */
+const BU_UNZIP_MAX=16e6;
 const BU_KEY="brn-save";
 const BU_MSG={
   empty:"Paste a backup code into the box first.",
@@ -66,7 +69,8 @@ function buUnzip(str){
     else if(code===size)fb=first[prev];   // the code being defined right now (the classic LZW "KwKwK" case)
     else throw buFail("damaged");
     if(size<BU_MAXCODES){prefix.push(prev);suffix.push(fb);first.push(first[prev]);size++;}
-    emit(code);prev=code;}
+    emit(code);prev=code;
+    if(out.length>BU_UNZIP_MAX)throw buFail("damaged");}   // see BU_UNZIP_MAX: not a real backup
   return out;}
 /* FNV-1a of the body, as 6 base64url characters: a missing, extra or changed character almost surely won't match */
 function buSum(body){let h=2166136261;for(let i=0;i<body.length;i++){h^=body.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}

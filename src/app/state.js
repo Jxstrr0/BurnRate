@@ -4,7 +4,7 @@
    Storage (plan section 11.3): every key starts "brn-": brn-settings (this phone only), brn-save (the game,
    app/save.js), brn-slot1..3 (save slots) and brn-library
    (saved motors and personal bests, every career on this phone; app/save.js, 1.7). Never localStorage.clear(), never touch another prefix. All access is wrapped in try/catch. */
-const VERSION="1.7.0.1";
+const VERSION="1.7.0.2";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 /* a temperature with a real minus sign: "−6 °C" */

@@ -22,6 +22,25 @@ The plan is `docs/BURN-RATE-PLAN.md` (stages in section 12). Newest first.
 | After 1.0: visit counts | 1.6.1.1 | Done |
 | After 1.0: hints, motor library, personal bests, balance pass | 1.7.0.0 | Done |
 
+## 1.7.0.1 — A backup code can no longer carry script
+
+From the studio security test (19 November 2026). A crafted backup code could save a design's numbers as text, and
+the designer wrote them straight into the page, so script hidden in a code a stranger handed a player could run
+once it was restored. Three changes close it:
+
+- A design now holds numbers and table ids only (`designOk` in `src/app/save.js`); a code with anything else in a
+  design is refused as damaged, and nothing is written.
+- Every piece of text in a save, a slot, the motor library or a backup code is cleaned on the way in (`cleanText`):
+  the five characters that can open a tag or close an attribute (`< > " ' \``) become look-alikes. A save the game
+  wrote itself is unchanged, unless a name was typed with one of those characters; then it shows the look-alike.
+- The designer escapes the step and slider values it writes.
+
+`check-savecode.js` has a new check (22 in all): hostile designs are refused, hostile text comes out harmless, and
+the game's own saves pass through untouched.
+
+**To test on the phone:** Saves → Back up, then Restore the same code: the game comes back as it was. The designer's
+sliders and steppers work as before.
+
 ## 1.7.0.0 — Hints, your motors, personal bests
 
 Kelbo asked (16 November) for four of the improvement ideas: balance fixes, a hint when stuck, a motor library and

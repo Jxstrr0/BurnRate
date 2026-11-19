@@ -93,13 +93,13 @@ function ctlHtml(c,d){
     `<button type="button" class="opt${id===v?" on":""}" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}"><b>${esc(it.name)}</b>${isDaily()?BURN_SIM.inKit(GAME.contract.kit,c.f,id)?"":`<span class="tag lock">Not in today's kit</span>`:it.tier>1?`<span class="tag${partTier()&&it.tier>partTier()?" lock":""}">Tier ${it.tier}${partTier()&&it.tier>partTier()?" · locked":""}</span>`:""}<small>${esc(c.sub(it))}</small></button>`).join("")}</fieldset>`;
   if(c.type==="seg")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}</div><div class="segbar" role="group">${c.opts.map(([id,n])=>
     `<button type="button" data-set="${c.f}" data-v="${id}" aria-pressed="${id===v}" class="${id===v?"on":""}">${esc(n)}</button>`).join("")}</div></div>`;
-  if(c.type==="step")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}<span class="val mono">${v}</span></div><div class="stepper">
+  if(c.type==="step")return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}<span class="val mono">${esc(v)}</span></div><div class="stepper">
     <button type="button" class="btn" data-step="${c.f}" data-by="-1" aria-label="Fewer ${esc(c.label.toLowerCase())}"${v<=c.min?" disabled":""}>−</button>
     <button type="button" class="btn" data-step="${c.f}" data-by="1" aria-label="More ${esc(c.label.toLowerCase())}"${v>=c.max?" disabled":""}>+</button></div></div>`;
   const ex=c.extra?`<span class="ex" data-ex="${c.f}">${esc(c.extra(d))}</span>`:"";
   return`<div class="ctl" data-field="${c.f}"><div class="ctl-h">${lab}<span class="val mono"><output data-out="${c.f}">${fmtV(c,v)}</output> ${c.unit}</span></div>
     <div class="slide"><button type="button" class="nudge" data-nudge="${c.f}" data-by="-1" aria-label="Less">−</button>
-    <input type="range" data-slide="${c.f}" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" aria-label="${esc(c.label)}">
+    <input type="range" data-slide="${c.f}" min="${c.min}" max="${c.max}" step="${c.step}" value="${esc(v)}" aria-label="${esc(c.label)}">
     <button type="button" class="nudge" data-nudge="${c.f}" data-by="1" aria-label="More">+</button></div>${ex}</div>`;
 }
 function renderTabs(){

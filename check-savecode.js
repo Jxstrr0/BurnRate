@@ -218,6 +218,36 @@ check("a well-formed code with a broken save inside is refused and nothing is wr
   assert.strictEqual(msg(a, pack(a, { v: 1, save: game(), slots: [game(), null, null] })), "ok", "and the same thing done right passes");
   assert.deepStrictEqual(a.localStorage.dump(), before);
 });
+check("a code that hides markup is refused or made harmless (a design holds numbers and ids only; no text keeps < > \" ' `)", () => {
+  const a = load(); seed(a.localStorage); const before = a.localStorage.dump();
+  const H = "\"><img src=x onerror=alert(1)>";
+  const withDesign = f => { const g = game(); f(g.free); return { v: 1, save: g, slots: [] }; };
+  const bad = [
+    withDesign(d => { d.grain.segs = "2" + H; }),                                     // a number saved as text
+    withDesign(d => { d.case.wall = "1.5 "; }),                                       // text with a space is no id
+    withDesign(d => { d.nozzle.throatD = [6.5]; }),
+    withDesign(d => { d.grain.prop = "tr2" + H; }),                                   // a table id is letters, digits, . _ - only
+    withDesign(d => { d.igniter = H; }),
+    withDesign(d => { d.airframe = { body: H, nose: "ogive", fins: "three" }; })
+  ];
+  for (const d of bad) assert.strictEqual(msg(a, pack(a, d)), "bad", JSON.stringify(d.save.free).slice(0, 120));
+  assert.deepStrictEqual(a.localStorage.dump(), before, "a refused code writes nothing");
+  /* free text (a name, a logbook line, a key) is kept, with the five characters swapped for look-alikes */
+  const g = game(); g.career.name = "Bob's <Rockets>" + H; g.career.log[0].why = H; g.career.done["x" + H] = 1;
+  const code = pack(a, { v: 1, save: g, slots: [plain(g), null, null], lib: lib("Mine" + H, 1) });
+  assert.strictEqual(msg(a, code), "ok");
+  assert.strictEqual(a.buWrite(a.buRead(code).data), true);
+  const risky = /[<>"'`]/, walk = (v, where) => {
+    if (typeof v === "string") assert(!risky.test(v), where + " still holds markup characters: " + v.slice(0, 60));
+    else if (v && typeof v === "object") for (const k of Object.keys(v)) { assert(!risky.test(k), where + " has a risky key"); walk(v[k], where + "." + k); }
+  };
+  for (const k of KEYS) { const j = a.localStorage.getItem(k); if (j) walk(JSON.parse(j), k); }
+  assert.strictEqual(a.hydrate(JSON.parse(a.localStorage.getItem("brn-save"))), true);
+  assert.strictEqual(a.__get().career.name, "Bob’s ‹Rockets›”›‹img src=x onerror=alert(1)›");
+  walk(plain(a.__get()), "the running game"); a.loadLib(); walk(plain(a.__lib()), "the library");
+  /* and a save the game wrote itself comes through untouched */
+  const own = game(); assert.deepStrictEqual(plain(a.cleanText(plain(own))), plain(own));
+});
 check("a write that fails half way (storage full) puts every key back the way it was", () => {
   const a = load(); seed(a.localStorage); a.localStorage.setItem("brn-slot2", JSON.stringify(game({ career: null })));
   const before = a.localStorage.dump();

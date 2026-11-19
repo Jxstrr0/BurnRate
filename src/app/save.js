@@ -34,17 +34,36 @@ function dailyHistOk(h){if(h==null)return true;if(!isObj(h))return false;
   for(const k in h){const e=h[k];if(!/^\d{4}-\d{2}-\d{2}$/.test(k)||!isObj(e)||!isNum(e.n)||!(e.l==null||/^[ABC]$/.test(e.l)))return false;}return true;}
 function sandboxOk(o){if(o==null)return true;if(!isObj(o)||!isObj(o.designs)||!isNum(o.n))return false;
   for(const k in o.designs)if(!isObj(o.designs[k])||!designOk(o.designs[k]))return false;return true;}
-function designOk(d){return d==null||isObj(d)&&isObj(d.grain)&&isObj(d.case)&&isObj(d.nozzle)&&typeof d.igniter==="string";}
+/* a design holds numbers and table ids, nothing else (1.7.0.1): a number saved as text ("2" plus anything) is refused,
+   because the designer writes these values into the page and into slider attributes */
+const isTok=v=>typeof v==="string"&&/^[\w.-]{1,32}$/.test(v);
+function partOk(p){if(!isObj(p))return false;for(const k in p){const v=p[k];if(!(isNum(v)||isTok(v)))return false;}return true;}
+function designOk(d){return d==null||isObj(d)&&partOk(d.grain)&&partOk(d.case)&&partOk(d.nozzle)&&isTok(d.igniter)&&(d.airframe==null||partOk(d.airframe));}
+/* ---- nothing from a save may reach the page as markup (1.7.0.1) ----
+   A save, a slot or a backup code can come from anyone. cleanText(o) walks it and swaps the five characters that can
+   open a tag or close an attribute (< > " ' `) for look-alikes, in every piece of text and every key, so a spot that
+   forgets esc() still only ever shows words. Numbers, true/false and null pass through. It changes o and returns it;
+   a save the game wrote itself comes through unchanged unless the player typed one of those characters in a name. */
+const UNSAFE_CH=/[<>"'`]/g,SAFE_CH={"<":"\u2039",">":"\u203A",'"':"\u201D","'":"\u2019","`":"\u2019"};
+const safeStr=s=>s.replace(UNSAFE_CH,c=>SAFE_CH[c]);
+function cleanText(o){
+  if(Array.isArray(o)){for(let i=0;i<o.length;i++){const v=o[i];if(typeof v==="string")o[i]=safeStr(v);else if(v&&typeof v==="object")cleanText(v);}return o;}
+  if(!o||typeof o!=="object")return o;
+  for(const k of Object.keys(o)){let v=o[k];
+    if(typeof v==="string")v=o[k]=safeStr(v);else if(v&&typeof v==="object")cleanText(v);
+    const k2=safeStr(k);if(k2!==k){delete o[k];if(k2!=="__proto__")o[k2]=v;}}
+  return o;}
 function hydrate(o){
   if(!isObj(o)||!isNum(o.v)||o.v>SAVE_V||o.v<1)return false;
   o=JSON.parse(JSON.stringify(o));
   for(let v=o.v;v<SAVE_V;v++){if(!MIGRATE[v])return false;o=MIGRATE[v](o);o.v=v+1;}
+  cleanText(o);
   if(o.career!=null&&!careerOk(o.career))return false;
   if(!designOk(o.free)||!dailyOk(o.daily)||!dailyHistOk(o.dailyHist)||!sandboxOk(o.sandbox))return false;
   if(o.career){o.career.designs=o.career.designs||{};if(!isNum(o.career.hut))o.career.hut=0;if(!isNum(o.career.compute))o.career.compute=0;for(const k in o.career.designs)if(!designOk(o.career.designs[k]))return false;}
   S=Object.assign(freshSave(),{career:o.career||null,free:o.free||null,freeN:isNum(o.freeN)?o.freeN:0,lastBackup:isNum(o.lastBackup)?o.lastBackup:0,hutT:isNum(o.hutT)?o.hutT:20,daily:o.daily||null,dailyHist:o.dailyHist||{},sandbox:o.sandbox||{designs:{},n:0}});
   return true;}
-function readKey(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return isObj(o)?o:null;}catch(e){return null;}}
+function readKey(k){try{const j=localStorage.getItem(k);if(!j)return null;const o=JSON.parse(j);return isObj(o)?cleanText(o):null;}catch(e){return null;}}
 function loadSave(){const o=readKey(SAVE_KEY);if(o&&!hydrate(o))toast("The save on this phone couldn't be read. Restore a backup from Saves.",5000);}
 let saveT=0;
 function save(now){clearTimeout(saveT);if(!now){saveT=setTimeout(()=>save(true),400);return true;}
@@ -66,7 +85,7 @@ function libOk(o){if(!isObj(o)||o.v!==1||!Array.isArray(o.motors)||o.motors.leng
   for(const m of o.motors)if(!isObj(m)||typeof m.name!=="string"||!isObj(m.d)||!designOk(m.d)||!isNum(m.at))return false;
   for(const k in o.bests){const b=o.bests[k];if(!isObj(b)||!/^[ABC]$/.test(b.l)||!isNum(b.n)||b.n<1)return false;}
   return true;}
-function loadLib(){const o=readKey(LIB_KEY);LIB=o&&libOk(o)?o:freshLib();}
+function loadLib(){const o=readKey(LIB_KEY);LIB=o&&libOk(o)?cleanText(o):freshLib();}
 function saveLib(){try{localStorage.setItem(LIB_KEY,JSON.stringify(LIB));return true;}
   catch(e){toast("This browser wouldn't save your motors (storage full or blocked).");return false;}}
 const gradeBetter=(a,b)=>"ABC".indexOf(a)<"ABC".indexOf(b);
@@ -76,7 +95,7 @@ function libMerge(a,b){const o=freshLib(),seen=new Set();
   for(const m of a.motors.concat(b.motors)){const k=m.name+"|"+JSON.stringify(m.d);if(seen.has(k)||o.motors.length>=LIB_MAX)continue;seen.add(k);o.motors.push(JSON.parse(JSON.stringify(m)));}
   for(const L of[a,b])for(const id in L.bests){const x=L.bests[id],y=o.bests[id];
     o.bests[id]=y?{l:gradeBetter(x.l,y.l)?x.l:y.l,n:Math.min(x.n,y.n),at:Math.max(x.at||0,y.at||0)}:Object.assign({},x);}
-  return o;}
+  return cleanText(o);}
 /* a delivery on a career job: keep the best grade and the fewest firings. Returns what's new, and the old record so an
    aborted firing can put it back (app/game.js undoFiring) */
 function recordBest(id,l,n){const b=LIB.bests[id],out={first:!b,grade:!!b&&gradeBetter(l,b.l),fewer:!!b&&n<b.n,prev:b?Object.assign({},b):null,l,n};

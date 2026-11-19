@@ -111,6 +111,7 @@ function buRead(text){
 
 /* ---- writing a checked backup: all the keys, or none of them. The library is merged into this phone's ---- */
 function buWrite(d){
+  cleanText(d);   // a code can come from anyone: what goes into storage only ever holds plain words (app/save.js)
   const keys=[[BU_KEY,d.save]];for(let i=1;i<=SLOTS;i++)keys.push([slotKey(i),d.slots[i-1]||null]);
   if(d.lib){const here=buStored(LIB_KEY);keys.push([LIB_KEY,libMerge(here&&libOk(here)?here:freshLib(),d.lib)]);}
   const old=[];

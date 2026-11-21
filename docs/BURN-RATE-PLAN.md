@@ -63,7 +63,7 @@ sections below are updated to match.
 | 12 Nov 2026 | Setting | A decommissioned Cold War state test range on a steppe salt flat, in an invented post-Soviet country, now leased out to small private rocket startups. The player starts as a two-person startup renting a stand |
 | 12 Nov 2026 | Range Safety Officer | **Ruslan Abenov**, steppe-born, a holdover from the old state programme; signs reports "R. Abenov, RSO" |
 | 12 Nov 2026 | Look | **"Faded state-range"**: light-first; worn concrete greys, faded state paint and Cyrillic-style stencils from the old programme, with clean new startup gear on top |
-| 12 Nov 2026 | Studio site | Listed on Kelbo.Website as **hidden** for now (like Quench) |
+| 12 Nov 2026 | Studio site | Listed on Kelbo.Website as **hidden** for now |
 
 ---
 
